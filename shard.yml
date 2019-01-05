@@ -1,0 +1,15 @@
+name: trellis-cli
+version: 0.1.0
+crystal: 0.27.0
+license: MIT
+
+authors:
+  - Scott Walkinshaw <scott.walkinshaw@gmail.com>
+
+targets:
+  trellis:
+    main: src/trellis-cli.cr
+
+dependencies:
+  cli:
+    github: mosop/cli
