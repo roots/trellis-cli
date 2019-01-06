@@ -2,4 +2,20 @@ language: crystal
 
 os:
   - linux
-  - osx
+
+script:
+  - crystal spec
+  - crystal build --release --no-debug --static
+  - mkdir release
+  - bin/trellis completions bash > release/trellis-completions.bash
+  - bin/trellis completions zsh > release/trellis-completions.zsh
+  - cp bin/trellis release/trellis-amd64
+
+deploy:
+  provider: releases
+  api_key: $GH_TOKEN
+  file_glob: true
+  file: directory/*
+  skip_cleanup: true
+  on:
+    tags: true
