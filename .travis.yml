@@ -5,7 +5,7 @@ os:
 
 script:
   - crystal spec
-  - crystal build --release --no-debug --static
+  - shards build --release --no-debug --static
   - mkdir release
   - bin/trellis completions bash > release/trellis-completions.bash
   - bin/trellis completions zsh > release/trellis-completions.zsh
