@@ -31,6 +31,7 @@ changelog:
     - '^docs:'
     - '^test:'
 brew:
+  name: trellis-cli
   github:
     owner: roots
     name: homebrew-tap
