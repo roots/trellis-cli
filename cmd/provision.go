@@ -135,7 +135,6 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 
 func (c *ProvisionCommand) PredictEnvironment() complete.PredictFunc {
 	return func(args complete.Args) []string {
-		fmt.Println(args.Completed)
 		switch len(args.Completed) {
 		case 1:
 			return c.Trellis.EnvironmentNames()
