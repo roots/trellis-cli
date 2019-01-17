@@ -43,7 +43,7 @@ func (t *Trellis) Detect() []string {
 
 		if len(parent) == 1 {
 			if parent == "." || os.IsPathSeparator(parent[0]) {
-				log.Fatalln("Could not detect a Trellis project")
+				return []string{}
 			}
 		}
 
@@ -104,7 +104,7 @@ func (t *Trellis) Valid() bool {
 
 func (t *Trellis) EnforceValid(ui cli.Ui) {
 	if !t.Valid() {
-		ui.Error("No Trellis project detected. This command must be run in the root of a Trellis project.")
+		ui.Error("No Trellis project detected in the current directory or any of its parent directories.")
 		os.Exit(1)
 	}
 }
