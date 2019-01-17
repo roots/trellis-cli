@@ -30,3 +30,15 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+brew:
+  github:
+    owner: roots
+    name: homebrew-tap
+  folder: Formula
+  homepage:  https://roots.io/trellis
+  description: A CLI to manage Trellis projects
+  install: |
+    bin.install "trellis"
+  test: |
+    system "#{bin}/trellis --autocomplete-install"
+    system "#{bin}/trellis -v"
