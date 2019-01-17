@@ -6,6 +6,10 @@ Manage your Trellis projects via the `trellis` command.
 
 Warning: this project is very early in development so bug reports are welcome
 
+## OSX Quick Install (via Homebrew)
+
+`brew install roots/tap/trellis-cli`
+
 ## Installation
 
 1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) for your OS
