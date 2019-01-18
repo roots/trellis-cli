@@ -16,9 +16,9 @@ type InfoCommand struct {
 func (c *InfoCommand) Run(args []string) int {
 	c.Trellis.EnforceValid(c.UI)
 
-	var siteNames []string
-
 	for name, sites := range c.Trellis.Environments {
+		var siteNames []string
+
 		for _, site := range sites {
 			siteNames = append(siteNames, site.Name)
 		}
