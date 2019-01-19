@@ -56,6 +56,7 @@ func (c *NewCommand) Run(args []string) int {
 	case 1:
 		name = args[0]
 	case 2:
+		name = args[0]
 		path = args[1]
 	default:
 		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 2, got %d)\n", len(args)))
@@ -63,10 +64,10 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	fmt.Println("Creating new Trellis project in", path)
-
 	path, _ = filepath.Abs(path)
 	_, err := os.Stat(path)
+
+	fmt.Println("Creating new Trellis project in", path)
 
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -91,9 +92,9 @@ func (c *NewCommand) Run(args []string) int {
 	trellisVersion := downloadLatestRelease("roots/trellis", path, filepath.Join(path, "trellis"))
 	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "bedrock"))
 
-	fmt.Printf("%s project created with:\n", name)
-	fmt.Println("  Trellis", trellisVersion)
-	fmt.Println("  Bedrock", bedrockVersion)
+	fmt.Printf("\n%s project created with versions:\n", name)
+	fmt.Printf("  Trellis v%s\n", trellisVersion)
+	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
 
 	return 0
 }
