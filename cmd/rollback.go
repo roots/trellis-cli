@@ -32,7 +32,10 @@ func (c *RollbackCommand) init() {
 }
 
 func (c *RollbackCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	var environment string
 	var siteName string
@@ -48,7 +51,7 @@ func (c *RollbackCommand) Run(args []string) int {
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
-		c.UI.Error("Missing SITE argument\n")
+		c.UI.Error("Error: missing SITE argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 2:
@@ -109,6 +112,10 @@ Options:
 }
 
 func (c *RollbackCommand) AutocompleteArgs() complete.Predictor {
+	if err := c.Trellis.LoadProject(); err != nil {
+		return complete.PredictNothing
+	}
+
 	return c.PredictSite()
 }
 

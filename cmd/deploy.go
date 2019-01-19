@@ -17,7 +17,10 @@ type DeployCommand struct {
 }
 
 func (c *DeployCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	var environment string
 	var siteName string
@@ -78,6 +81,10 @@ Options:
 }
 
 func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
+	if err := c.Trellis.LoadProject(); err != nil {
+		return complete.PredictNothing
+	}
+
 	return c.PredictSite()
 }
 

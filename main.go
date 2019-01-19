@@ -20,7 +20,7 @@ func main() {
 		},
 	}
 
-	trellis := trellis.Init()
+	trellis := trellis.NewTrellis()
 
 	c.Commands = map[string]cli.CommandFactory{
 		"deploy": func() (cli.Command, error) {

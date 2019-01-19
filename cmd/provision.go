@@ -34,7 +34,10 @@ func (c *ProvisionCommand) init() {
 }
 
 func (c *ProvisionCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	var environment string
 
@@ -123,6 +126,10 @@ Options:
 }
 
 func (c *ProvisionCommand) AutocompleteArgs() complete.Predictor {
+	if err := c.Trellis.LoadProject(); err != nil {
+		return complete.PredictNothing
+	}
+
 	return c.PredictEnvironment()
 }
 

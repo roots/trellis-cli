@@ -13,7 +13,6 @@ type GalaxyCommand struct {
 }
 
 func (c *GalaxyCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
 	c.UI.Output(c.Help())
 
 	return 0
