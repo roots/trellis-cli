@@ -14,7 +14,10 @@ type InfoCommand struct {
 }
 
 func (c *InfoCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	for name, sites := range c.Trellis.Environments {
 		var siteNames []string

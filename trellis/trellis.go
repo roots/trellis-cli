@@ -1,7 +1,7 @@
 package trellis
 
 import (
-	"github.com/mitchellh/cli"
+	"errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -17,59 +17,73 @@ type Site struct {
 
 type Trellis struct {
 	Environments map[string][]Site
+	Path         string
 }
 
 type Config struct {
 	WordPressSites map[string]interface{} `yaml:"wordpress_sites"`
 }
 
-func Init() *Trellis {
-	trellis := &Trellis{}
-	trellis.Init()
-	return trellis
+func NewTrellis() *Trellis {
+	return &Trellis{}
 }
 
-func (t *Trellis) Detect() []string {
+/*
+Detect if a path is a Trellis project or not
+This will traverse up the directory tree until it finds a valid project,
+or stop at the root and give up.
+*/
+func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
+	configPaths, _ := filepath.Glob(filepath.Join(path, "group_vars/*/wordpress_sites.yml"))
+
+	if len(configPaths) == 0 {
+		parent := filepath.Dir(path)
+
+		if len(parent) == 1 && (parent == "." || os.IsPathSeparator(parent[0])) {
+			return "", false
+		}
+
+		return t.Detect(parent)
+	}
+
+	return path, true
+}
+
+/*
+Loads a Trellis project.
+If a project is detected, the wordpress_sites config files are parsed and
+the directory is changed to the project path.
+*/
+func (t *Trellis) LoadProject() error {
 	wd, err := os.Getwd()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	paths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
+	path, ok := t.Detect(wd)
 
-	if len(paths) == 0 {
-		parent := filepath.Dir(wd)
-
-		if len(parent) == 1 {
-			if parent == "." || os.IsPathSeparator(parent[0]) {
-				return []string{}
-			}
-		}
-
-		if err := os.Chdir(parent); err != nil {
-			log.Fatal(err)
-		}
-
-		return t.Detect()
+	if !ok {
+		return errors.New("No Trellis project detected in the current directory or any of its parent directories.")
 	}
 
-	return paths
-}
+	t.Path = path
+	os.Chdir(t.Path)
 
-func (t *Trellis) Init() {
-	paths := t.Detect()
+	configPaths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
 
-	envs := make([]string, len(paths))
+	envs := make([]string, len(configPaths))
 	t.Environments = make(map[string][]Site)
 
-	for i, p := range paths {
+	for i, p := range configPaths {
 		parts := strings.Split(p, string(os.PathSeparator))
 		envName := parts[1]
 		envs[i] = envName
 
 		t.Environments[envName] = t.ParseConfig(p)
 	}
+
+	return nil
 }
 
 func (t *Trellis) EnvironmentNames() []string {
@@ -96,17 +110,6 @@ func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	sort.Strings(names)
 
 	return names
-}
-
-func (t *Trellis) Valid() bool {
-	return len(t.Environments) > 0
-}
-
-func (t *Trellis) EnforceValid(ui cli.Ui) {
-	if !t.Valid() {
-		ui.Error("No Trellis project detected in the current directory or any of its parent directories.")
-		os.Exit(1)
-	}
 }
 
 func (t *Trellis) ParseConfig(path string) []Site {

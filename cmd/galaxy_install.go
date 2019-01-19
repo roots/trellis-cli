@@ -14,7 +14,10 @@ type GalaxyInstallCommand struct {
 }
 
 func (c *GalaxyInstallCommand) Run(args []string) int {
-	c.Trellis.EnforceValid(c.UI)
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	galaxyInstall := exec.Command("ansible-galaxy", "install", "-r", "requirements.yml")
 	logCmd(galaxyInstall, true)
