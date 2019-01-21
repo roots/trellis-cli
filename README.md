@@ -4,9 +4,9 @@ A command-line interface (CLI) for [Trellis](https://roots.io/trellis/) with aut
 
 Manage your Trellis projects via the `trellis` command.
 
-Warning: this project is very early in development so bug reports are welcome
+Warning: this project is very early in development so bug reports are welcome.
 
-## OSX Quick Install (via Homebrew)
+## macOS Quick Install (via Homebrew)
 
 `brew install roots/tap/trellis-cli`
 
@@ -17,9 +17,7 @@ Warning: this project is very early in development so bug reports are welcome
 3. Put the unarchived binary in your `$PATH`
 4. Run `trellis --autocomplete-install` to install shell autocompletions
 
-Note: only OSX builds are tested so far.
-
-Homebrew support is coming soon!
+Note: only macOS (darwin) builds are tested so far.
 
 ## Usage
 
@@ -36,9 +34,9 @@ Support commands so far:
 
 ## Development
 
-trellis-cli requires Go 1.10+ since it uses Go modules.
+trellis-cli requires Go 1.11+ since it uses Go modules.
 
-1. Make sure Go 1.10+ is installed (`brew install go` on OSX)
+1. Make sure Go 1.11+ is installed (`brew install go` on OSX)
 2. Clone the repo
 3. Run `go build`
 
