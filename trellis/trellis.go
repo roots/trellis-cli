@@ -16,6 +16,7 @@ type Site struct {
 }
 
 type Trellis struct {
+	detector     Detector
 	Environments map[string][]Site
 	Path         string
 }
@@ -24,8 +25,8 @@ type Config struct {
 	WordPressSites map[string]interface{} `yaml:"wordpress_sites"`
 }
 
-func NewTrellis() *Trellis {
-	return &Trellis{}
+func NewTrellis(d Detector) *Trellis {
+	return &Trellis{detector: d}
 }
 
 /*
@@ -34,19 +35,7 @@ This will traverse up the directory tree until it finds a valid project,
 or stop at the root and give up.
 */
 func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
-	configPaths, _ := filepath.Glob(filepath.Join(path, "group_vars/*/wordpress_sites.yml"))
-
-	if len(configPaths) == 0 {
-		parent := filepath.Dir(path)
-
-		if len(parent) == 1 && (parent == "." || os.IsPathSeparator(parent[0])) {
-			return "", false
-		}
-
-		return t.Detect(parent)
-	}
-
-	return path, true
+	return t.detector.Detect(path)
 }
 
 /*

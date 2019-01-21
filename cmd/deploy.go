@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -30,7 +29,7 @@ func (c *DeployCommand) Run(args []string) int {
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
-		c.UI.Error("Missing SITE argument\n")
+		c.UI.Error("Error: missing SITE argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 2:
@@ -42,8 +41,8 @@ func (c *DeployCommand) Run(args []string) int {
 		return 1
 	}
 
-	deploy := exec.Command("./bin/deploy.sh", environment, siteName)
-	logCmd(deploy, true)
+	deploy := execCommand("./bin/deploy.sh", environment, siteName)
+	logCmd(deploy, c.UI, true)
 	err := deploy.Run()
 
 	if err != nil {

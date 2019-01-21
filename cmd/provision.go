@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -49,7 +48,7 @@ func (c *ProvisionCommand) Run(args []string) int {
 
 	switch len(args) {
 	case 0:
-		c.UI.Error("Missing ENVIRONMENT argument\n")
+		c.UI.Error("Error: missing ENVIRONMENT argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
@@ -73,8 +72,8 @@ func (c *ProvisionCommand) Run(args []string) int {
 		playbookArgs = append(playbookArgs, "--tags", c.tags)
 	}
 
-	playbook := exec.Command("ansible-playbook", playbookArgs...)
-	logCmd(playbook, true)
+	playbook := execCommand("ansible-playbook", playbookArgs...)
+	logCmd(playbook, c.UI, true)
 	err := playbook.Run()
 
 	if err != nil {
