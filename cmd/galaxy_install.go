@@ -1,10 +1,11 @@
 package cmd
 
 import (
-	"github.com/mitchellh/cli"
+	"fmt"
 	"log"
-	"os/exec"
 	"strings"
+
+	"github.com/mitchellh/cli"
 	"trellis-cli/trellis"
 )
 
@@ -19,8 +20,14 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		return 1
 	}
 
-	galaxyInstall := exec.Command("ansible-galaxy", "install", "-r", "requirements.yml")
-	logCmd(galaxyInstall, true)
+	if len(args) > 0 {
+		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0, got %d)\n", len(args)))
+		c.UI.Output(c.Help())
+		return 1
+	}
+
+	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", "requirements.yml")
+	logCmd(galaxyInstall, c.UI, true)
 	err := galaxyInstall.Run()
 
 	if err != nil {

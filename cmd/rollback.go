@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -70,8 +69,8 @@ func (c *RollbackCommand) Run(args []string) int {
 	}
 
 	playbookArgs := []string{"rollback.yml", "-e", extraVars}
-	playbook := exec.Command("ansible-playbook", playbookArgs...)
-	logCmd(playbook, true)
+	playbook := execCommand("ansible-playbook", playbookArgs...)
+	logCmd(playbook, c.UI, true)
 	err := playbook.Run()
 
 	if err != nil {
