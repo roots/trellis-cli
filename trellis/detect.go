@@ -11,15 +11,21 @@ type Detector interface {
 
 type Project struct{}
 
+const GlobPattern = "group_vars/*/wordpress_sites.yml"
+
 /*
 Detect if a path is a Trellis project or not
 This will traverse up the directory tree until it finds a valid project,
 or stop at the root and give up.
 */
 func (p *Project) Detect(path string) (projectPath string, ok bool) {
-	configPaths, _ := filepath.Glob(filepath.Join(path, "group_vars/*/wordpress_sites.yml"))
+	configPaths, _ := filepath.Glob(filepath.Join(path, GlobPattern))
 
 	if len(configPaths) == 0 {
+		if p.detectTrellisCLIProject(path) {
+			return filepath.Join(path, "trellis"), true
+		}
+
 		parent := filepath.Dir(path)
 
 		if len(parent) == 1 && (parent == "." || os.IsPathSeparator(parent[0])) {
@@ -30,4 +36,27 @@ func (p *Project) Detect(path string) (projectPath string, ok bool) {
 	}
 
 	return path, true
+}
+
+func (p *Project) detectTrellisCLIProject(path string) bool {
+	trellisPath := filepath.Join(path, "trellis")
+	sitePath := filepath.Join(path, "site")
+
+	trellisDir, err := os.Stat(trellisPath)
+	if err != nil {
+		return false
+	}
+
+	siteDir, err := os.Stat(sitePath)
+	if err != nil {
+		return false
+	}
+
+	if trellisDir.Mode().IsDir() && siteDir.Mode().IsDir() {
+		if _, err := os.Stat(filepath.Join(trellisPath, ".trellis.yml")); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
