@@ -89,8 +89,13 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	fmt.Println("Fetching latest versions of Trellis and Bedrock...")
-	trellisVersion := downloadLatestRelease("roots/trellis", path, filepath.Join(path, "trellis"))
+	trellisPath := filepath.Join(path, "trellis")
+	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
 	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "bedrock"))
+
+	if addTrellisFile(trellisPath) != nil {
+		log.Fatal("Error writing .trellis.yml file")
+	}
 
 	fmt.Printf("\n%s project created with versions:\n", name)
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
@@ -136,6 +141,11 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func addTrellisFile(path string) error {
+	path = filepath.Join(path, ".trellis.yml")
+	return ioutil.WriteFile(path, []byte{}, 0666)
 }
 
 func downloadLatestRelease(repo string, path string, dest string) string {
