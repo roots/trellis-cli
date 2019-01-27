@@ -2,7 +2,6 @@ package trellis
 
 import (
 	"errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,18 +10,10 @@ import (
 	"strings"
 )
 
-type Site struct {
-	Name string
-}
-
 type Trellis struct {
 	detector     Detector
-	Environments map[string][]Site
+	Environments map[string]*Config
 	Path         string
-}
-
-type Config struct {
-	WordPressSites map[string]interface{} `yaml:"wordpress_sites"`
 }
 
 func NewTrellis(d Detector) *Trellis {
@@ -62,7 +53,7 @@ func (t *Trellis) LoadProject() error {
 	configPaths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
 
 	envs := make([]string, len(configPaths))
-	t.Environments = make(map[string][]Site)
+	t.Environments = make(map[string]*Config, len(configPaths)-1)
 
 	for i, p := range configPaths {
 		parts := strings.Split(p, string(os.PathSeparator))
@@ -90,10 +81,10 @@ func (t *Trellis) EnvironmentNames() []string {
 func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	var names []string
 
-	sites := t.Environments[environment]
+	config := t.Environments[environment]
 
-	for _, site := range sites {
-		names = append(names, site.Name)
+	for name, _ := range config.WordPressSites {
+		names = append(names, name)
 	}
 
 	sort.Strings(names)
@@ -101,24 +92,12 @@ func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	return names
 }
 
-func (t *Trellis) ParseConfig(path string) []Site {
-	configYaml, err := ioutil.ReadFile(path)
+func (t *Trellis) WriteYamlFile(path string, data []byte) error {
+	path = filepath.Join(t.Path, path)
 
-	if err != nil {
-		log.Fatalln(err)
+	if err := ioutil.WriteFile(path, data, 0666); err != nil {
+		log.Fatal(err)
 	}
 
-	config := Config{}
-
-	if err = yaml.Unmarshal(configYaml, &config); err != nil {
-		log.Fatalln(err)
-	}
-
-	sites := make([]Site, len(config.WordPressSites)-1)
-
-	for key, _ := range config.WordPressSites {
-		sites = append(sites, Site{Name: key})
-	}
-
-	return sites
+	return nil
 }

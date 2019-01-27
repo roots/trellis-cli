@@ -37,7 +37,7 @@ func main() {
 			return &cmd.InfoCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"new": func() (cli.Command, error) {
-			return cmd.NewNewCommand(ui), nil
+			return cmd.NewNewCommand(ui, trellis), nil
 		},
 		"provision": func() (cli.Command, error) {
 			return cmd.NewProvisionCommand(ui, trellis), nil

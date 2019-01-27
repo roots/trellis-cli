@@ -19,11 +19,11 @@ func (c *InfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	for name, sites := range c.Trellis.Environments {
+	for name, config := range c.Trellis.Environments {
 		var siteNames []string
 
-		for _, site := range sites {
-			siteNames = append(siteNames, site.Name)
+		for name, _ := range config.WordPressSites {
+			siteNames = append(siteNames, name)
 		}
 
 		c.UI.Info(fmt.Sprintf("%s => %s", name, strings.Join(siteNames, ", ")))

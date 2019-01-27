@@ -14,20 +14,23 @@ import (
 
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
+	"trellis-cli/trellis"
 )
 
 type NewCommand struct {
-	UI    cli.Ui
-	flags *flag.FlagSet
-	force bool
+	UI      cli.Ui
+	flags   *flag.FlagSet
+	force   bool
+	trellis *trellis.Trellis
 }
+
 type Release struct {
 	Version string `json:"tag_name"`
 	ZipUrl  string `json:"zipball_url"`
 }
 
-func NewNewCommand(ui cli.Ui) *NewCommand {
-	c := &NewCommand{UI: ui}
+func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis) *NewCommand {
+	c := &NewCommand{UI: ui, trellis: trellis}
 	c.init()
 	return c
 }
@@ -88,13 +91,40 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
+	var host string
+	host, err = c.UI.Ask(fmt.Sprintf("Enter main site host [default: %s]", name))
+
+	if err == nil {
+		if len(host) == 0 {
+			host = name
+		}
+	}
+
 	fmt.Println("Fetching latest versions of Trellis and Bedrock...")
+
 	trellisPath := filepath.Join(path, "trellis")
 	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
-	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "bedrock"))
+	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
 
 	if addTrellisFile(trellisPath) != nil {
 		log.Fatal("Error writing .trellis.yml file")
+	}
+
+	os.Chdir(path)
+
+	if err := c.trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	// Update default configs
+	for env, config := range c.trellis.Environments {
+		c.trellis.UpdateDefaultConfig(config, name, host, env)
+		c.trellis.WriteConfigYaml(config, filepath.Join("group_vars", env, "wordpress_sites.yml"))
+
+		stringGenerator := trellis.RandomStringGenerator{Length: 64}
+		vault := c.trellis.GenerateVaultConfig(name, env, &stringGenerator)
+		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
 	}
 
 	fmt.Printf("\n%s project created with versions:\n", name)
