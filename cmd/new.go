@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
 	"trellis-cli/trellis"
@@ -87,26 +88,17 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
-	var host string
 	name, err := askProjectName(c.UI)
-
 	if err != nil {
 		return 1
 	}
 
-	host, err = c.UI.Ask(fmt.Sprintf("Site domain [default: %s]", name))
-
+	host, err := askDomain(c.UI, name)
 	if err != nil {
 		return 1
 	}
 
-	if err == nil {
-		if len(host) == 0 {
-			host = name
-		}
-	}
-
-	fmt.Println("Fetching latest versions of Trellis and Bedrock...")
+	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
 
 	trellisPath := filepath.Join(path, "trellis")
 	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
@@ -133,7 +125,7 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
 	}
 
-	fmt.Printf("\n%s project created with versions:\n", name)
+	fmt.Printf("\n%s project created with versions:\n", color.GreenString(name))
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
 
@@ -182,7 +174,7 @@ func addTrellisFile(path string) error {
 }
 
 func askProjectName(ui cli.Ui) (name string, err error) {
-	name, err = ui.Ask("Project name:")
+	name, err = ui.Ask(fmt.Sprintf("%s:", color.MagentaString("Project name")))
 
 	if err != nil {
 		return "", err
@@ -193,6 +185,20 @@ func askProjectName(ui cli.Ui) (name string, err error) {
 	}
 
 	return name, nil
+}
+
+func askDomain(ui cli.Ui, name string) (host string, err error) {
+	host, err = ui.Ask(fmt.Sprintf("%s [%s]:", color.MagentaString("Site domain"), color.GreenString(name)))
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(host) == 0 {
+		return name, nil
+	}
+
+	return host, nil
 }
 
 func downloadLatestRelease(repo string, path string, dest string) string {

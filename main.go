@@ -13,6 +13,7 @@ func main() {
 	c.Args = os.Args[1:]
 
 	ui := &cli.ColoredUi{
+		ErrorColor: cli.UiColorRed,
 		Ui: &cli.BasicUi{
 			Reader:      os.Stdin,
 			Writer:      os.Stdout,
