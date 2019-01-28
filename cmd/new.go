@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
 	"trellis-cli/trellis"
@@ -42,7 +43,6 @@ func (c *NewCommand) init() {
 }
 
 func (c *NewCommand) Run(args []string) int {
-	var name string
 	var path string
 
 	if err := c.flags.Parse(args); err != nil {
@@ -53,16 +53,13 @@ func (c *NewCommand) Run(args []string) int {
 
 	switch len(args) {
 	case 0:
-		c.UI.Error("Missing NAME argument\n")
+		c.UI.Error("Missing PATH argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
-		name = args[0]
-	case 2:
-		name = args[0]
-		path = args[1]
+		path = args[0]
 	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 2, got %d)\n", len(args)))
+		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
 		c.UI.Output(c.Help())
 		return 1
 	}
@@ -70,7 +67,7 @@ func (c *NewCommand) Run(args []string) int {
 	path, _ = filepath.Abs(path)
 	_, err := os.Stat(path)
 
-	fmt.Println("Creating new Trellis project in", path)
+	c.UI.Info(fmt.Sprintf("Creating new Trellis project in %s\n", path))
 
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -91,16 +88,17 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
-	var host string
-	host, err = c.UI.Ask(fmt.Sprintf("Enter main site host [default: %s]", name))
-
-	if err == nil {
-		if len(host) == 0 {
-			host = name
-		}
+	name, err := askProjectName(c.UI)
+	if err != nil {
+		return 1
 	}
 
-	fmt.Println("Fetching latest versions of Trellis and Bedrock...")
+	host, err := askDomain(c.UI, name)
+	if err != nil {
+		return 1
+	}
+
+	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
 
 	trellisPath := filepath.Join(path, "trellis")
 	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
@@ -127,7 +125,7 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
 	}
 
-	fmt.Printf("\n%s project created with versions:\n", name)
+	fmt.Printf("\n%s project created with versions:\n", color.GreenString(name))
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
 
@@ -140,30 +138,27 @@ func (c *NewCommand) Synopsis() string {
 
 func (c *NewCommand) Help() string {
 	helpText := `
-Usage: trellis new NAME [PATH]
+Usage: trellis new [PATH]
 
-Creates a new Trellis project in the path specified (defaults to current directory)
-using the latest versions of Trellis and Bedrock.
+Creates a new Trellis project in the path specified using the latest versions of Trellis and Bedrock.
 
 This uses our recommended project structure detailed at
 https://roots.io/trellis/docs/installing-trellis/#create-a-project
 
 Create a new project in the current directory:
 
-  $ trellis new example.com
+  $ trellis new .
 
 Create a new project in the target path:
 
-  $ trellis new example.com ~/dev/example.com
+  $ trellis new ~/dev/example.com
 
 Force create a new project in a non-empty target path:
 
-  $ trellis new --force example.com ~/dev/example.com
+  $ trellis new --force ~/dev/example.com
 
 Arguments:
-  NAME  Name of new Trellis project (ie: example.com)
   PATH  Path to create new project in
-        (default: .)
 
 Options:
   --force     (default: false) Forces the creation of the project even if the target path is not empty
@@ -176,6 +171,34 @@ Options:
 func addTrellisFile(path string) error {
 	path = filepath.Join(path, ".trellis.yml")
 	return ioutil.WriteFile(path, []byte{}, 0666)
+}
+
+func askProjectName(ui cli.Ui) (name string, err error) {
+	name, err = ui.Ask(fmt.Sprintf("%s:", color.MagentaString("Project name")))
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(name) == 0 {
+		return askProjectName(ui)
+	}
+
+	return name, nil
+}
+
+func askDomain(ui cli.Ui, name string) (host string, err error) {
+	host, err = ui.Ask(fmt.Sprintf("%s [%s]:", color.MagentaString("Site domain"), color.GreenString(name)))
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(host) == 0 {
+		return name, nil
+	}
+
+	return host, nil
 }
 
 func downloadLatestRelease(repo string, path string, dest string) string {
