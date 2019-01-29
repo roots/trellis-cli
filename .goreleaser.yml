@@ -43,3 +43,14 @@ brew:
   test: |
     system "#{bin}/trellis --autocomplete-install"
     system "#{bin}/trellis -v"
+snapcraft:
+  name: trellis-cli
+  summary: A CLI to manage Trellis projects
+  description: |
+    Manage your Trellis projects without the need to memorise all the different Vagrant and Ansible commands.
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
