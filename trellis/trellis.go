@@ -2,6 +2,7 @@ package trellis
 
 import (
 	"errors"
+	"gopkg.in/ini.v1"
 	"io/ioutil"
 	"log"
 	"os"
@@ -90,6 +91,22 @@ func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	sort.Strings(names)
 
 	return names
+}
+
+func (t *Trellis) UpdateAnsibleConfig(section string, key string, value string) error {
+	ansibleCfg := filepath.Join(t.Path, "ansible.cfg")
+	cfg, err := ini.Load(ansibleCfg)
+
+	if err != nil {
+		return err
+	}
+
+	cfg.Section(section).Key(key).SetValue(value)
+	if err := cfg.SaveTo(ansibleCfg); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (t *Trellis) WriteYamlFile(path string, data []byte) error {

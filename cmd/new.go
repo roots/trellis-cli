@@ -125,6 +125,16 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
 	}
 
+	if err := c.trellis.GenerateVaultPassFile(".vault_pass"); err != nil {
+		c.UI.Error("Error writing .vault_pass file:")
+		c.UI.Error(err.Error())
+	}
+
+	if err := c.trellis.UpdateAnsibleConfig("defaults", "vault_password_file", ".vault_pass"); err != nil {
+		c.UI.Error("Error adding vault_password_file setting to ansible.cfg:")
+		c.UI.Error(err.Error())
+	}
+
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(name))
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)

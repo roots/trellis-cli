@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"log"
+	"path/filepath"
 )
 
 type StringGenerator interface {
@@ -83,6 +85,14 @@ func (t *Trellis) GenerateVaultConfig(name string, env string, randomString Stri
 	}
 
 	return &vault
+}
+
+func (t *Trellis) GenerateVaultPassFile(path string) error {
+	path = filepath.Join(t.Path, path)
+	randomString := RandomStringGenerator{Length: 64}
+
+	vaultPass := randomString.Generate()
+	return ioutil.WriteFile(path, []byte(vaultPass), 0600)
 }
 
 func (t *Trellis) WriteVaultYaml(vault *Vault, path string) error {
