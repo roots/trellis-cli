@@ -19,10 +19,11 @@ import (
 )
 
 type NewCommand struct {
-	UI      cli.Ui
-	flags   *flag.FlagSet
-	force   bool
-	trellis *trellis.Trellis
+	UI        cli.Ui
+	flags     *flag.FlagSet
+	trellis   *trellis.Trellis
+	force     bool
+	vaultPass string
 }
 
 type Release struct {
@@ -40,6 +41,7 @@ func (c *NewCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.force, "force", false, "Forces the creation of the project even if the target path is not empty")
+	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
 }
 
 func (c *NewCommand) Run(args []string) int {
@@ -125,12 +127,12 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
 	}
 
-	if err := c.trellis.GenerateVaultPassFile(".vault_pass"); err != nil {
-		c.UI.Error("Error writing .vault_pass file:")
+	if err := c.trellis.GenerateVaultPassFile(c.vaultPass); err != nil {
+		c.UI.Error("Error writing Vault pass file:")
 		c.UI.Error(err.Error())
 	}
 
-	if err := c.trellis.UpdateAnsibleConfig("defaults", "vault_password_file", ".vault_pass"); err != nil {
+	if err := c.trellis.UpdateAnsibleConfig("defaults", "vault_password_file", c.vaultPass); err != nil {
 		c.UI.Error("Error adding vault_password_file setting to ansible.cfg:")
 		c.UI.Error(err.Error())
 	}
@@ -171,7 +173,8 @@ Arguments:
   PATH  Path to create new project in
 
 Options:
-  --force     (default: false) Forces the creation of the project even if the target path is not empty
+  --force      (default: false) Forces the creation of the project even if the target path is not empty
+  --vault-pass (default: .vault_pass) Path for the generated Vault pass file
   -h, --help  show this help
 `
 

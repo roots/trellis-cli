@@ -88,7 +88,10 @@ func (t *Trellis) GenerateVaultConfig(name string, env string, randomString Stri
 }
 
 func (t *Trellis) GenerateVaultPassFile(path string) error {
-	path = filepath.Join(t.Path, path)
+	if !filepath.IsAbs(path) {
+		path, _ = filepath.Rel(t.Path, filepath.Join(t.Path, path))
+	}
+
 	randomString := RandomStringGenerator{Length: 64}
 
 	vaultPass := randomString.Generate()
