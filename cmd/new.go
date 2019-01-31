@@ -19,11 +19,12 @@ import (
 )
 
 type NewCommand struct {
-	UI        cli.Ui
-	flags     *flag.FlagSet
-	trellis   *trellis.Trellis
-	force     bool
-	vaultPass string
+	UI         cli.Ui
+	CliVersion string
+	flags      *flag.FlagSet
+	trellis    *trellis.Trellis
+	force      bool
+	vaultPass  string
 }
 
 type Release struct {
@@ -31,8 +32,8 @@ type Release struct {
 	ZipUrl  string `json:"zipball_url"`
 }
 
-func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis) *NewCommand {
-	c := &NewCommand{UI: ui, trellis: trellis}
+func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis, version string) *NewCommand {
+	c := &NewCommand{UI: ui, trellis: trellis, CliVersion: version}
 	c.init()
 	return c
 }
@@ -120,11 +121,19 @@ func (c *NewCommand) Run(args []string) int {
 	// Update default configs
 	for env, config := range c.trellis.Environments {
 		c.trellis.UpdateDefaultConfig(config, name, host, env)
-		c.trellis.WriteConfigYaml(config, filepath.Join("group_vars", env, "wordpress_sites.yml"))
+		c.trellis.WriteYamlFile(
+			config,
+			filepath.Join("group_vars", env, "wordpress_sites.yml"),
+			c.YamlHeader("https://roots.io/trellis/docs/wordpress-sites/"),
+		)
 
 		stringGenerator := trellis.RandomStringGenerator{Length: 64}
 		vault := c.trellis.GenerateVaultConfig(name, env, &stringGenerator)
-		c.trellis.WriteVaultYaml(vault, filepath.Join("group_vars", env, "vault.yml"))
+		c.trellis.WriteYamlFile(
+			vault,
+			filepath.Join("group_vars", env, "vault.yml"),
+			c.YamlHeader("https://roots.io/trellis/docs/vault/"),
+		)
 	}
 
 	if err := c.trellis.GenerateVaultPassFile(c.vaultPass); err != nil {
@@ -179,6 +188,12 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func (c *NewCommand) YamlHeader(doc string) string {
+	const header = "# Created by trellis-cli v%s\n# Documentation: %s\n\n"
+
+	return fmt.Sprintf(header, c.CliVersion, doc)
 }
 
 func addTrellisFile(path string) error {
