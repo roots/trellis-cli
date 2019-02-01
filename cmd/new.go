@@ -108,7 +108,7 @@ func (c *NewCommand) Run(args []string) int {
 	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
 
 	if addTrellisFile(trellisPath) != nil {
-		log.Fatal("Error writing .trellis.yml file")
+		c.UI.Error("Error writing .trellis.yml file")
 	}
 
 	os.Chdir(path)
@@ -137,13 +137,11 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	if err := c.trellis.GenerateVaultPassFile(c.vaultPass); err != nil {
-		c.UI.Error("Error writing Vault pass file:")
-		c.UI.Error(err.Error())
+		c.UI.Error(fmt.Sprintf("Error writing Vault pass file: %s", err))
 	}
 
 	if err := c.trellis.UpdateAnsibleConfig("defaults", "vault_password_file", c.vaultPass); err != nil {
-		c.UI.Error("Error adding vault_password_file setting to ansible.cfg:")
-		c.UI.Error(err.Error())
+		c.UI.Error(fmt.Sprintf("Error adding vault_password_file setting to ansible.cfg: %s", err))
 	}
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(name))

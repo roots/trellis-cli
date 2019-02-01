@@ -25,6 +25,9 @@ func main() {
 	trellis := trellis.NewTrellis(project)
 
 	c.Commands = map[string]cli.CommandFactory{
+		"check": func() (cli.Command, error) {
+			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"deploy": func() (cli.Command, error) {
 			return &cmd.DeployCommand{UI: ui, Trellis: trellis}, nil
 		},

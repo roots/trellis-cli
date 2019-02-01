@@ -6,6 +6,7 @@ require (
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/google/pprof v0.0.0-20190109223431-e84dfd68c163 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
+	github.com/mcuadros/go-version v0.0.0-20180611085657-6d5863ca60fa
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/cli v1.0.0
 	github.com/nwaples/rardecode v1.0.0 // indirect
