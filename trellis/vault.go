@@ -3,7 +3,6 @@ package trellis
 import (
 	"crypto/rand"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"log"
@@ -96,16 +95,6 @@ func (t *Trellis) GenerateVaultPassFile(path string) error {
 
 	vaultPass := randomString.Generate()
 	return ioutil.WriteFile(path, []byte(vaultPass), 0600)
-}
-
-func (t *Trellis) WriteVaultYaml(vault *Vault, path string) error {
-	vaultYaml, err := yaml.Marshal(vault)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return t.WriteYamlFile(path, vaultYaml)
 }
 
 func assertAvailablePRNG() {

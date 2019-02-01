@@ -3,6 +3,7 @@ package trellis
 import (
 	"errors"
 	"gopkg.in/ini.v1"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -109,8 +110,14 @@ func (t *Trellis) UpdateAnsibleConfig(section string, key string, value string) 
 	return nil
 }
 
-func (t *Trellis) WriteYamlFile(path string, data []byte) error {
+func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error {
+	data, err := yaml.Marshal(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	path = filepath.Join(t.Path, path)
+	data = append([]byte(header), data...)
 
 	if err := ioutil.WriteFile(path, data, 0666); err != nil {
 		log.Fatal(err)

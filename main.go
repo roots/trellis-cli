@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	c := cli.NewCLI("trellis", "0.1.0")
+	c := cli.NewCLI("trellis", "0.2.1")
 	c.Args = os.Args[1:]
 
 	ui := &cli.ColoredUi{
@@ -38,7 +38,7 @@ func main() {
 			return &cmd.InfoCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"new": func() (cli.Command, error) {
-			return cmd.NewNewCommand(ui, trellis), nil
+			return cmd.NewNewCommand(ui, trellis, c.Version), nil
 		},
 		"provision": func() (cli.Command, error) {
 			return cmd.NewProvisionCommand(ui, trellis), nil

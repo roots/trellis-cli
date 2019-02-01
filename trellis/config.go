@@ -82,13 +82,3 @@ func (t *Trellis) UpdateDefaultConfig(config *Config, name string, host string, 
 	delete(config.WordPressSites, DefaultSiteName)
 	t.GenerateSite(config.WordPressSites[name], name, host, env)
 }
-
-func (t *Trellis) WriteConfigYaml(config *Config, path string) error {
-	configYaml, err := yaml.Marshal(config)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return t.WriteYamlFile(path, configYaml)
-}
