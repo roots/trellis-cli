@@ -2,11 +2,10 @@ package trellis
 
 import (
 	"fmt"
-	suffix "golang.org/x/net/publicsuffix"
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
-	"strings"
 )
 
 const DefaultSiteName = "example.com"
@@ -48,14 +47,11 @@ func (t *Trellis) ParseConfig(path string) *Config {
 	return config
 }
 
-func (t *Trellis) GenerateSite(site *Site, name string, host string, env string) {
-	var redirect string
+func (t *Trellis) GenerateSite(site *Site, host string, env string) {
+	canonical, redirect := t.HostsFromDomain(host, env)
 
 	if env == "development" {
-		tld, _ := suffix.PublicSuffix(host)
-		host = strings.Replace(host, tld, "test", 1)
-
-		site.AdminEmail = fmt.Sprintf("admin@%s", host)
+		site.AdminEmail = fmt.Sprintf("admin@%s", canonical)
 		site.Branch = ""
 		site.Repo = ""
 		site.RepoSubtreePath = ""
@@ -63,22 +59,47 @@ func (t *Trellis) GenerateSite(site *Site, name string, host string, env string)
 		site.AdminEmail = ""
 	}
 
-	if host[:4] == "www." {
-		redirect = strings.Replace(host, "www.", "", 1)
-	} else {
-		redirect = fmt.Sprintf("www.%s", host)
+	siteHost := SiteHost{
+		Canonical: canonical.String(),
 	}
 
-	siteHost := SiteHost{
-		Canonical: host,
-		Redirects: []string{redirect},
+	if redirect != nil {
+		siteHost.Redirects = []string{redirect.String()}
 	}
 
 	site.SiteHosts = []SiteHost{siteHost}
 }
 
+func (t *Trellis) HostsFromDomain(domain string, env string) (canonical *publicsuffix.DomainName, redirect *publicsuffix.DomainName) {
+	canonical, _ = publicsuffix.Parse(domain)
+
+	if env == "development" {
+		canonical.TLD = "test"
+	}
+
+	redirect = &publicsuffix.DomainName{canonical.TLD, canonical.SLD, canonical.TRD, &publicsuffix.Rule{}}
+
+	switch canonical.TRD {
+	// no subdomain
+	case "":
+		redirect.TRD = "www"
+		return canonical, redirect
+	// www subdomain
+	case "www":
+		redirect.TRD = ""
+		return canonical, redirect
+	// non-www subdomain
+	default:
+		return canonical, nil
+	}
+}
+
 func (t *Trellis) UpdateDefaultConfig(config *Config, name string, host string, env string) {
 	config.WordPressSites[name] = config.WordPressSites[DefaultSiteName]
-	delete(config.WordPressSites, DefaultSiteName)
-	t.GenerateSite(config.WordPressSites[name], name, host, env)
+
+	if name != DefaultSiteName {
+		delete(config.WordPressSites, DefaultSiteName)
+	}
+
+	t.GenerateSite(config.WordPressSites[name], host, env)
 }
