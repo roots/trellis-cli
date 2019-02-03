@@ -49,6 +49,21 @@ func main() {
 		"rollback": func() (cli.Command, error) {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
+		"vault": func() (cli.Command, error) {
+			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
+		},
+		"vault edit": func() (cli.Command, error) {
+			return cmd.NewVaultEditCommand(ui, trellis), nil
+		},
+		"vault encrypt": func() (cli.Command, error) {
+			return cmd.NewVaultEncryptCommand(ui, trellis), nil
+		},
+		"vault decrypt": func() (cli.Command, error) {
+			return cmd.NewVaultDecryptCommand(ui, trellis), nil
+		},
+		"vault view": func() (cli.Command, error) {
+			return cmd.NewVaultViewCommand(ui, trellis), nil
+		},
 	}
 
 	exitStatus, err := c.Run()
