@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -31,7 +30,8 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 	err := galaxyInstall.Run()
 
 	if err != nil {
-		log.Fatal(err)
+		c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
+		return 1
 	}
 
 	return 0

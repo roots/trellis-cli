@@ -1,0 +1,8 @@
+# Add each host to the [staging] group and to a "type" group such as [web] or [db].
+# List each machine only once per [group], even if it will host multiple sites.
+
+[staging]
+your_server_hostname
+
+[web]
+your_server_hostname

@@ -3,7 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"log"
+	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -59,25 +59,11 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
-	extraVars := fmt.Sprintf("env=%s", environment)
+	playbookCmd := ProvisionCmd(environment, c.extraVars, c.tags)
+	logCmd(playbookCmd, c.UI, true)
 
-	if len(c.extraVars) > 0 {
-		fmt.Println(c.extraVars)
-		extraVars = strings.Join([]string{extraVars, c.extraVars}, " ")
-	}
-
-	playbookArgs := []string{"server.yml", "-e", extraVars}
-
-	if len(c.tags) > 0 {
-		playbookArgs = append(playbookArgs, "--tags", c.tags)
-	}
-
-	playbook := execCommand("ansible-playbook", playbookArgs...)
-	logCmd(playbook, c.UI, true)
-	err := playbook.Run()
-
-	if err != nil {
-		log.Fatal(err)
+	if err := playbookCmd.Run(); err != nil {
+		return 1
 	}
 
 	return 0
@@ -133,4 +119,20 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 		"--extra-vars": complete.PredictNothing,
 		"--tags":       complete.PredictNothing,
 	}
+}
+
+func ProvisionCmd(env string, extraVars string, tags string) *exec.Cmd {
+	vars := fmt.Sprintf("env=%s", env)
+
+	if extraVars != "" {
+		vars = strings.Join([]string{vars, extraVars}, " ")
+	}
+
+	playbookArgs := []string{"server.yml", "-e", vars}
+
+	if tags != "" {
+		playbookArgs = append(playbookArgs, "--tags", tags)
+	}
+
+	return execCommand("ansible-playbook", playbookArgs...)
 }

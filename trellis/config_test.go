@@ -213,7 +213,7 @@ wordpress_sites:
 	}
 
 	for _, tc := range cases {
-		config := trellis.ParseConfig(fmt.Sprintf("../test-fixtures/trellis/group_vars/%s/wordpress_sites.yml", tc.env))
+		config := trellis.ParseConfig(fmt.Sprintf("testdata/trellis/group_vars/%s/wordpress_sites.yml", tc.env))
 		trellis.UpdateDefaultConfig(config, tc.siteName, tc.host, tc.env)
 
 		configYaml, _ := yaml.Marshal(config)
