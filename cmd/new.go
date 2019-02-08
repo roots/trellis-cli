@@ -13,8 +13,10 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/manifoldco/promptui"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"trellis-cli/trellis"
 )
 
@@ -68,21 +70,11 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	path, _ = filepath.Abs(path)
-	_, err := os.Stat(path)
+	fi, statErr := os.Stat(path)
 
 	c.UI.Info(fmt.Sprintf("Creating new Trellis project in %s\n", path))
 
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(path, os.ModePerm); err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			log.Fatal(err)
-		}
-	}
-
-	if !c.force {
+	if !c.force && statErr == nil && fi.IsDir() {
 		isPathEmpty, _ := isDirEmpty(path)
 
 		if !isPathEmpty {
@@ -91,14 +83,26 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
-	name, err := askProjectName(c.UI)
+	name, err := askDomain(c.UI, path)
 	if err != nil {
 		return 1
 	}
 
-	host, err := askDomain(c.UI, name)
+	host, err := askHost(c.UI, c.trellis, name)
 	if err != nil {
 		return 1
+	}
+
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			if err := os.MkdirAll(path, os.ModePerm); err != nil {
+				c.UI.Error(fmt.Sprintf("Error creating directory: %s", err))
+				return 1
+			}
+		} else {
+			c.UI.Error(fmt.Sprintf("Error reading path %s", statErr))
+			return 1
+		}
 	}
 
 	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
@@ -109,6 +113,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	if addTrellisFile(trellisPath) != nil {
 		c.UI.Error("Error writing .trellis.yml file")
+		return 1
 	}
 
 	os.Chdir(path)
@@ -199,32 +204,60 @@ func addTrellisFile(path string) error {
 	return ioutil.WriteFile(path, []byte{}, 0666)
 }
 
-func askProjectName(ui cli.Ui) (name string, err error) {
-	name, err = ui.Ask(fmt.Sprintf("%s:", color.MagentaString("Project name")))
-
-	if err != nil {
-		return "", err
+func askDomain(ui cli.Ui, path string) (host string, err error) {
+	currentPath, _ := os.Getwd()
+	if path == currentPath {
+		path = filepath.Dir(path)
 	}
 
-	if len(name) == 0 {
-		return askProjectName(ui)
+	path = filepath.Base(path)
+	domain, _ := publicsuffix.Parse(path)
+
+	if domain.TRD == "www" {
+		domain.TRD = ""
 	}
 
-	return name, nil
-}
+	domainName := domain.String()
 
-func askDomain(ui cli.Ui, name string) (host string, err error) {
-	host, err = ui.Ask(fmt.Sprintf("%s [%s]:", color.MagentaString("Site domain"), color.GreenString(name)))
+	host, err = ui.Ask(fmt.Sprintf("%s [%s]:", color.MagentaString("Site domain"), color.GreenString(domainName)))
 
 	if err != nil {
 		return "", err
 	}
 
 	if len(host) == 0 {
-		return name, nil
+		return domainName, nil
 	}
 
 	return host, nil
+}
+
+func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error) {
+	domain, wwwDomain := t.HostsFromDomain(name, "production")
+	items := []string{domain.String()}
+	index := -1
+	var result string
+
+	if wwwDomain != nil {
+		items = append(items, wwwDomain.String())
+	}
+
+	fmt.Println("")
+
+	for index < 0 {
+		prompt := promptui.SelectWithAdd{
+			Label:    "Select main site host",
+			Items:    items,
+			AddLabel: "Other",
+		}
+		index, result, err = prompt.Run()
+
+		if index == -1 {
+			items = append(items, result)
+		}
+	}
+
+	return result, err
 }
 
 func downloadLatestRelease(repo string, path string, dest string) string {
