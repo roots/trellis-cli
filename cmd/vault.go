@@ -13,9 +13,7 @@ type VaultCommand struct {
 }
 
 func (c *VaultCommand) Run(args []string) int {
-	c.UI.Output(c.Help())
-
-	return 0
+	return cli.RunResultHelp
 }
 
 func (c *VaultCommand) Synopsis() string {

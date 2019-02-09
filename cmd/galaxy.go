@@ -13,9 +13,7 @@ type GalaxyCommand struct {
 }
 
 func (c *GalaxyCommand) Run(args []string) int {
-	c.UI.Output(c.Help())
-
-	return 0
+	return cli.RunResultHelp
 }
 
 func (c *GalaxyCommand) Synopsis() string {
