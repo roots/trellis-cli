@@ -125,27 +125,12 @@ Options:
 }
 
 func (c *ProvisionCommand) AutocompleteArgs() complete.Predictor {
-	if err := c.Trellis.LoadProject(); err != nil {
-		return complete.PredictNothing
-	}
-
-	return c.PredictEnvironment()
+	return c.Trellis.AutocompleteEnvironment()
 }
 
 func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--extra-vars": complete.PredictNothing,
 		"--tags":       complete.PredictNothing,
-	}
-}
-
-func (c *ProvisionCommand) PredictEnvironment() complete.PredictFunc {
-	return func(args complete.Args) []string {
-		switch len(args.Completed) {
-		case 1:
-			return c.Trellis.EnvironmentNames()
-		default:
-			return []string{}
-		}
 	}
 }

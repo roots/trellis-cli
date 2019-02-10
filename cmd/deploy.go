@@ -80,26 +80,9 @@ Options:
 }
 
 func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
-	if err := c.Trellis.LoadProject(); err != nil {
-		return complete.PredictNothing
-	}
-
-	return c.PredictSite()
+	return c.Trellis.AutocompleteSite()
 }
 
 func (c *DeployCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{}
-}
-
-func (c *DeployCommand) PredictSite() complete.PredictFunc {
-	return func(args complete.Args) []string {
-		switch len(args.Completed) {
-		case 1:
-			return c.Trellis.EnvironmentNames()
-		case 2:
-			return c.Trellis.SiteNamesFromEnvironment(args.LastCompleted)
-		default:
-			return []string{}
-		}
-	}
 }

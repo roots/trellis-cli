@@ -113,26 +113,11 @@ Options:
 }
 
 func (c *VaultDecryptCommand) AutocompleteArgs() complete.Predictor {
-	if err := c.Trellis.LoadProject(); err != nil {
-		return complete.PredictNothing
-	}
-
-	return c.PredictEnvironment()
+	return c.Trellis.AutocompleteEnvironment()
 }
 
 func (c *VaultDecryptCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--files": complete.PredictNothing,
-	}
-}
-
-func (c *VaultDecryptCommand) PredictEnvironment() complete.PredictFunc {
-	return func(args complete.Args) []string {
-		switch len(args.Completed) {
-		case 1:
-			return c.Trellis.EnvironmentNames()
-		default:
-			return []string{}
-		}
 	}
 }
