@@ -24,7 +24,7 @@ func TestPredictEnvironment(t *testing.T) {
 	project := &Project{}
 	trellis := NewTrellis(project)
 
-	defer testChdir(t, "../test-fixtures/trellis")()
+	defer testChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
 		t.Fatalf(err.Error())
@@ -70,7 +70,7 @@ func TestPredictSite(t *testing.T) {
 	project := &Project{}
 	trellis := NewTrellis(project)
 
-	defer testChdir(t, "../test-fixtures/trellis")()
+	defer testChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
 		t.Fatalf(err.Error())
