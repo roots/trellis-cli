@@ -118,7 +118,7 @@ func generateRandomBytes(n int) ([]byte, error) {
 }
 
 func generateRandomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_[]{}<>~`+=,.;:/?|"
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	bytes, _ := generateRandomBytes(n)
 
