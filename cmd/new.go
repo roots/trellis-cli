@@ -249,6 +249,7 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 			Label:    "Select main site host",
 			Items:    items,
 			AddLabel: "Other",
+			HideHelp: true,
 		}
 		index, result, err = prompt.Run()
 
