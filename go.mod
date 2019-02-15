@@ -9,7 +9,7 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/pprof v0.0.0-20190109223431-e84dfd68c163 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
-	github.com/manifoldco/promptui v0.3.2
+	github.com/manifoldco/promptui v0.3.3-0.20190214151314-7150aa4d998c
 	github.com/mcuadros/go-version v0.0.0-20180611085657-6d5863ca60fa
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/cli v1.0.0

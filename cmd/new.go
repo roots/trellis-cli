@@ -249,15 +249,20 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 			Label:    "Select main site host",
 			Items:    items,
 			AddLabel: "Other",
+			HideHelp: true,
 		}
 		index, result, err = prompt.Run()
+
+		if err != nil {
+			return "", err
+		}
 
 		if index == -1 {
 			items = append(items, result)
 		}
 	}
 
-	return result, err
+	return result, nil
 }
 
 func downloadLatestRelease(repo string, path string, dest string) string {
