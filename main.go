@@ -1,12 +1,19 @@
 package main
 
 import (
-	"github.com/mitchellh/cli"
 	"log"
 	"os"
+	"path/filepath"
+	"plugin"
 	"trellis-cli/cmd"
 	"trellis-cli/trellis"
+
+	"github.com/mitchellh/cli"
 )
+
+type PluginCommands interface {
+	CommandFactory(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFactory
+}
 
 func main() {
 	c := cli.NewCLI("trellis", "0.3.1")
@@ -24,7 +31,7 @@ func main() {
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
 
-	c.Commands = map[string]cli.CommandFactory{
+	commands := map[string]cli.CommandFactory{
 		"check": func() (cli.Command, error) {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
@@ -72,6 +79,14 @@ func main() {
 		},
 	}
 
+	plugins := loadPlugins(ui, trellis)
+
+	for name, cmdPlugin := range plugins {
+		commands[name] = cmdPlugin
+	}
+
+	c.Commands = commands
+
 	exitStatus, err := c.Run()
 
 	if err != nil {
@@ -79,4 +94,34 @@ func main() {
 	}
 
 	os.Exit(exitStatus)
+}
+
+func loadPlugins(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFactory {
+	plugins, _ := filepath.Glob("*_command.so")
+	pluginCommands := make(map[string]cli.CommandFactory, len(plugins))
+
+	for _, cmdPlugin := range plugins {
+		plug, err := plugin.Open(cmdPlugin)
+		if err != nil {
+			log.Printf("failed to open plugin %s: %v\n", cmdPlugin, err)
+			continue
+		}
+
+		cmdSymbol, err := plug.Lookup("Commands")
+		if err != nil {
+			log.Printf("plugin %s does not export symbol \"%s\"\n", cmdPlugin, "Commands")
+			continue
+		}
+		commands, ok := cmdSymbol.(PluginCommands)
+		if !ok {
+			log.Printf("Symbol %s (from %s) does not implement PluginCommands interface\n", "Commands", cmdPlugin)
+			continue
+		}
+
+		for name, cmd := range commands.CommandFactory(ui, trellis) {
+			pluginCommands[name] = cmd
+		}
+	}
+
+	return pluginCommands
 }
