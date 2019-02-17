@@ -1,23 +1,29 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"plugin"
+	"sort"
+	"strings"
 	"trellis-cli/cmd"
 	"trellis-cli/trellis"
 
 	"github.com/mitchellh/cli"
 )
 
+const Version = "0.3.1"
+
 type PluginCommands interface {
 	CommandFactory(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFactory
 }
 
 func main() {
-	c := cli.NewCLI("trellis", "0.3.1")
-	c.Args = os.Args[1:]
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 
 	ui := &cli.ColoredUi{
 		ErrorColor: cli.UiColorRed,
@@ -27,9 +33,6 @@ func main() {
 			ErrorWriter: os.Stderr,
 		},
 	}
-
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
 
 	commands := map[string]cli.CommandFactory{
 		"check": func() (cli.Command, error) {
@@ -54,7 +57,7 @@ func main() {
 			return &cmd.InfoCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"new": func() (cli.Command, error) {
-			return cmd.NewNewCommand(ui, trellis, c.Version), nil
+			return cmd.NewNewCommand(ui, trellis, Version), nil
 		},
 		"provision": func() (cli.Command, error) {
 			return cmd.NewProvisionCommand(ui, trellis), nil
@@ -79,21 +82,86 @@ func main() {
 		},
 	}
 
-	plugins := loadPlugins(ui, trellis)
+	pluginCommands := loadPlugins(ui, trellis)
 
-	for name, cmdPlugin := range plugins {
+	for name, cmdPlugin := range pluginCommands {
 		commands[name] = cmdPlugin
 	}
 
-	c.Commands = commands
+	c := &cli.CLI{
+		Name:         "trellis",
+		Version:      Version,
+		Autocomplete: true,
+		HelpFunc:     GroupedHelpFunc("trellis", pluginCommands),
+		Commands:     commands,
+		Args:         os.Args[1:],
+	}
 
 	exitStatus, err := c.Run()
 
 	if err != nil {
-		log.Println(err)
+		ui.Error(err.Error())
 	}
 
 	os.Exit(exitStatus)
+}
+
+func GroupedHelpFunc(app string, pluginCommands map[string]cli.CommandFactory) cli.HelpFunc {
+	return func(commands map[string]cli.CommandFactory) string {
+		var buf bytes.Buffer
+
+		// Filter out plugin commands
+		for name, _ := range commands {
+			_, ok := pluginCommands[name]
+			if ok {
+				delete(commands, name)
+			}
+		}
+
+		buf.WriteString(fmt.Sprintf(
+			"Usage: %s [--version] [--help] <command> [<args>]\n\n",
+			app))
+		buf.WriteString("Available commands are:\n")
+		printCommand(&buf, commands)
+
+		// plugin commands
+		buf.WriteString("\nCommands from plugins:\n")
+		printCommand(&buf, pluginCommands)
+
+		return buf.String()
+	}
+}
+
+func printCommand(buf *bytes.Buffer, commands map[string]cli.CommandFactory) *bytes.Buffer {
+	keys := make([]string, 0, len(commands))
+	maxKeyLen := 0
+	for key := range commands {
+		if len(key) > maxKeyLen {
+			maxKeyLen = len(key)
+		}
+
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		commandFunc, ok := commands[key]
+		if !ok {
+			panic("command not found: " + key)
+		}
+
+		command, err := commandFunc()
+		if err != nil {
+			log.Printf("[ERR] cli: Command '%s' failed to load: %s",
+				key, err)
+			continue
+		}
+
+		key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", maxKeyLen-len(key)))
+		buf.WriteString(fmt.Sprintf("    %s    %s\n", key, command.Synopsis()))
+	}
+
+	return buf
 }
 
 func loadPlugins(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFactory {
@@ -103,18 +171,18 @@ func loadPlugins(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFact
 	for _, cmdPlugin := range plugins {
 		plug, err := plugin.Open(cmdPlugin)
 		if err != nil {
-			log.Printf("failed to open plugin %s: %v\n", cmdPlugin, err)
+			ui.Error(fmt.Sprintf("Failed to open plugin %s: %v\n", cmdPlugin, err))
 			continue
 		}
 
 		cmdSymbol, err := plug.Lookup("Commands")
 		if err != nil {
-			log.Printf("plugin %s does not export symbol \"%s\"\n", cmdPlugin, "Commands")
+			ui.Error(fmt.Sprintf("Failed to load plugin %s: plugin does not export required 'Commands' symbol\n", cmdPlugin))
 			continue
 		}
 		commands, ok := cmdSymbol.(PluginCommands)
 		if !ok {
-			log.Printf("Symbol %s (from %s) does not implement PluginCommands interface\n", "Commands", cmdPlugin)
+			ui.Error(fmt.Sprintf("Failed to load plugin %s: plugin does not implement 'PluginCommands' interface\n", cmdPlugin))
 			continue
 		}
 
