@@ -13,6 +13,7 @@ import (
 	"trellis-cli/trellis"
 
 	"github.com/mitchellh/cli"
+	"github.com/mitchellh/go-homedir"
 )
 
 const Version = "0.3.1"
@@ -125,8 +126,10 @@ func GroupedHelpFunc(app string, pluginCommands map[string]cli.CommandFactory) c
 		printCommand(&buf, commands)
 
 		// plugin commands
-		buf.WriteString("\nCommands from plugins:\n")
-		printCommand(&buf, pluginCommands)
+		if len(pluginCommands) > 0 {
+			buf.WriteString("\nPlugin commands:\n")
+			printCommand(&buf, pluginCommands)
+		}
 
 		return buf.String()
 	}
@@ -165,7 +168,13 @@ func printCommand(buf *bytes.Buffer, commands map[string]cli.CommandFactory) *by
 }
 
 func loadPlugins(ui cli.Ui, trellis *trellis.Trellis) map[string]cli.CommandFactory {
-	plugins, _ := filepath.Glob("*_command.so")
+	home, err := homedir.Dir()
+	if err != nil {
+		ui.Error(fmt.Sprintf("Could not read home directory: %s", err))
+	}
+
+	pluginsPattern := filepath.Join(home, ".trellis", "plugins", "*.so")
+	plugins, _ := filepath.Glob(pluginsPattern)
 	pluginCommands := make(map[string]cli.CommandFactory, len(plugins))
 
 	for _, cmdPlugin := range plugins {
