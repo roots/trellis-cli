@@ -102,9 +102,9 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-  --extra-vars     (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
-  --tags           (multiple) only run roles and tasks tagged with these values
-  -h, --help       show this help
+      --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
+      --tags        (multiple) only run roles and tasks tagged with these values
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)

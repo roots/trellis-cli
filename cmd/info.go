@@ -42,7 +42,7 @@ Usage: trellis info [options]
 Displays information about this Trellis project
 
 Options:
-  -h, --help show this help
+  -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)

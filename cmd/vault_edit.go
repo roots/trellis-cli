@@ -81,7 +81,7 @@ Arguments:
   FILE file name to edit
 
 Options:
-  -h, --help show this help
+  -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)

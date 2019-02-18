@@ -185,9 +185,9 @@ Arguments:
   PATH  Path to create new project in
 
 Options:
-  --force      (default: false) Forces the creation of the project even if the target path is not empty
-  --vault-pass (default: .vault_pass) Path for the generated Vault pass file
-  -h, --help  show this help
+      --force       (default: false) Forces the creation of the project even if the target path is not empty
+      --vault-pass  (default: .vault_pass) Path for the generated Vault pass file
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)

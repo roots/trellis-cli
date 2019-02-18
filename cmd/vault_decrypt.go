@@ -104,9 +104,9 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-  -h,      --help show this help
-  --files, (multiple) Files to decrypt
-           (default: group_vars/all/vault.yml group_vars/<ENVIRONMENT>/vault.yml)
+      --files  (multiple) Files to decrypt
+               (default: group_vars/all/vault.yml group_vars/<ENVIRONMENT>/vault.yml)
+  -h, --help   show this help
 `
 
 	return strings.TrimSpace(helpText)

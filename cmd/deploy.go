@@ -73,7 +73,7 @@ Arguments:
   SITE        Name of the site (ie: example.com)
 
 Options:
-  -h, --help show this help
+  -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)

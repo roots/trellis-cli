@@ -103,8 +103,8 @@ Arguments:
   SITE        Name of the site (ie: example.com)
 
 Options:
-  --release     Name of release to rollback instead of latest
-  -h, --help    show this help
+      --release  Name of release to rollback instead of latest
+  -h, --help     show this help
 `
 
 	return strings.TrimSpace(helpText)

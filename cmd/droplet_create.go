@@ -404,11 +404,11 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-  -h, --help       show this help
-  --region         Region to create the server in
-  --size           Server size/type
-  --skip-provision Skip provision after server is created
-  --ssh-key        (default: ~/.ssh/id_rsa.pub) path to SSH public key to be added on the server
+      --region          Region to create the server in
+      --size            Server size/type
+      --skip-provision  Skip provision after server is created
+      --ssh-key         (default: ~/.ssh/id_rsa.pub) path to SSH public key to be added on the server
+  -h, --help            show this help
 `
 
 	return strings.TrimSpace(helpText)

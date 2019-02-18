@@ -50,7 +50,7 @@ Installs Ansible Galaxy roles.
 See https://roots.io/trellis/docs/remote-server-setup/#requirements for more information.
 
 Options:
-  -h, --help show this help
+  -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)
