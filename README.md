@@ -4,41 +4,52 @@ A command-line interface (CLI) for [Trellis](https://roots.io/trellis/) with aut
 
 Manage your Trellis projects via the `trellis` command.
 
-Warning: this project is very early in development so bug reports are welcome.
-
-## macOS Quick Install (via Homebrew)
+## Quick Install (macOS and Linux via Homebrew)
 
 `brew install roots/tap/trellis-cli`
 
+### Script
+
+We also offer a quick script version:
+
+`curl -sL https://roots.io/trellis/cli/get | bas`
+
 ## Installation
 
-1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) for your OS
-2. Unzip/untar
-3. Put the unarchived binary in your `$PATH`
-4. Run `trellis --autocomplete-install` to install shell autocompletions
+trellis-cli provides binary releases for a variety of OSes. These binary versions can be manually downloaded and installed.
 
-Note: only macOS (darwin) builds are tested so far.
+1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) or any [specific version](https://github.com/roots/trellis-cli/releases)
+2. Unpack it (`tar -zxvf trellis_0.3.1_Linux_x86_64.tar.gz`)
+3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.3.1_Darwin_x86_64/trellis /usr/local/bin/trellis`)
+4. Make sure the above path is in your `$PATH`
+5. Run `trellis --autocomplete-install` to install shell autocompletions
 
 ## Usage
 
 Run `trellis` for the complete usage and help.
 
-Support commands so far:
+Supported commands so far:
 
-* `deploy` - Deploys a site to the specified environment.
-* `galaxy` - Commands for Ansible Galaxy
-* `info` - Displays information about this Trellis project
-* `new` - Creates a new Trellis project
-* `provision` - Provisions the specified environment
-* `rollback` - Rollsback the last deploy of the site on the specified environment.
+| Command | Description |
+| --- | --- |
+| `check` | Checks if Trellis requirements are met |
+| `deploy` | Deploys a site to the specified environment|
+| `droplet` | Commands for DigitalOcean Droplets |
+| `galaxy` | Commands for Ansible Galaxy |
+| `info` | Displays information about this Trellis project |
+| `new` | Creates a new Trellis project |
+| `provision` | Provisions the specified environment |
+| `rollback` | Rollsback the last deploy of the site on the specified environment |
+| `vault` | Commands for Ansible Vault |
 
 ## Development
 
 trellis-cli requires Go 1.11+ since it uses Go modules.
 
-1. Make sure Go 1.11+ is installed (`brew install go` on OSX)
+1. Make sure Go 1.11+ is installed (`brew install go` on macOS)
 2. Clone the repo
 3. Run `go build`
+4. To run tests: `go test -v ./...`
 
 ## Contributing
 
