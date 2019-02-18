@@ -34,10 +34,17 @@ func TestDeployRunValidations(t *testing.T) {
 			1,
 		},
 		{
-			"missing_site_arg",
+			"invalid_env",
 			true,
-			[]string{"development"},
-			"Error: missing SITE argument",
+			[]string{"foo"},
+			"Error: foo is not a valid environment",
+			1,
+		},
+		{
+			"invalid_env_with_site",
+			true,
+			[]string{"foo", "example.com"},
+			"Error: foo is not a valid environment",
 			1,
 		},
 		{
@@ -69,9 +76,10 @@ func TestDeployRunValidations(t *testing.T) {
 }
 
 func TestDeployRun(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 	deployCommand := &DeployCommand{ui, trellis}
 
 	execCommand = mockExecCommand
@@ -86,6 +94,12 @@ func TestDeployRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development", "example.com"},
+			"./bin/deploy.sh development example.com",
+			0,
+		},
+		{
+			"site_not_needed_in_defaut_case",
+			[]string{"development"},
 			"./bin/deploy.sh development example.com",
 			0,
 		},
