@@ -12,7 +12,7 @@ Manage your Trellis projects via the `trellis` command.
 
 We also offer a quick script version:
 
-`curl -sL https://roots.io/trellis/cli/get | bas`
+`curl -sL https://roots.io/trellis/cli/get | bash`
 
 ## Installation
 
