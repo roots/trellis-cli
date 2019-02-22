@@ -27,7 +27,7 @@ func (c *InfoCommand) Run(args []string) int {
 			siteNames = append(siteNames, name)
 		}
 
-		c.UI.Info(fmt.Sprintf("🌱 %s => %s", name, strings.Join(siteNames, ", ")))
+		c.UI.Info(fmt.Sprintf("☁️ %s => %s", name, strings.Join(siteNames, ", ")))
 	}
 	return 0
 }
