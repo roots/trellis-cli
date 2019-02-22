@@ -12,12 +12,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"trellis-cli/trellis"
+
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
-	"trellis-cli/trellis"
 )
 
 type NewCommand struct {
@@ -72,7 +73,7 @@ func (c *NewCommand) Run(args []string) int {
 	path, _ = filepath.Abs(path)
 	fi, statErr := os.Stat(path)
 
-	c.UI.Info(fmt.Sprintf("Creating new Trellis project in %s\n", path))
+	c.UI.Info(fmt.Sprintf("🌱 Creating new Trellis project in %s\n", path))
 
 	if !c.force && statErr == nil && fi.IsDir() {
 		isPathEmpty, _ := isDirEmpty(path)

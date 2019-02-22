@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"trellis-cli/trellis"
+
+	"github.com/mitchellh/cli"
 )
 
 type InfoCommand struct {
@@ -26,7 +27,7 @@ func (c *InfoCommand) Run(args []string) int {
 			siteNames = append(siteNames, name)
 		}
 
-		c.UI.Info(fmt.Sprintf("%s => %s", name, strings.Join(siteNames, ", ")))
+		c.UI.Info(fmt.Sprintf("🌱 %s => %s", name, strings.Join(siteNames, ", ")))
 	}
 	return 0
 }

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"trellis-cli/trellis"
+
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"trellis-cli/trellis"
 )
 
 type CheckCommand struct {
@@ -38,7 +39,7 @@ func (c *CheckCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info("Checking Trellis requirements\n")
+	c.UI.Info("🌱 Checking Trellis requirements\n")
 
 	requirementsMet := 0
 
