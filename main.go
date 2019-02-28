@@ -59,7 +59,7 @@ func main() {
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
-		"halt": func() (cli.Command, error) {
+		"down": func() (cli.Command, error) {
 			return cmd.NewHaltCommand(ui, trellis), nil
 		},
 		"vault": func() (cli.Command, error) {
