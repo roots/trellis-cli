@@ -55,6 +55,9 @@ func main() {
 		"rollback": func() (cli.Command, error) {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
+		"up": func() (cli.Command, error) {
+			return cmd.NewUpCommand(ui, trellis), nil
+		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
 		},
