@@ -66,6 +66,26 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 		files = strings.Split(c.files, ",")
 	}
 
+	var filesToDecrypt []string
+
+	for _, file := range files {
+		isEncrypted, err := isFileEncrypted(file)
+
+		if err != nil {
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		if isEncrypted {
+			filesToDecrypt = append(filesToDecrypt, file)
+		}
+	}
+
+	if len(filesToDecrypt) == 0 {
+		c.UI.Info(color.GreenString("All files already decrypted"))
+		return 0
+	}
+
 	vaultArgs = append(vaultArgs, files...)
 
 	vaultDecrypt := execCommand("ansible-vault", vaultArgs...)

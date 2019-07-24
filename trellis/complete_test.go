@@ -1,30 +1,17 @@
 package trellis
 
 import (
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/posener/complete"
 )
 
-func testChdir(t *testing.T, dir string) func() {
-	t.Helper()
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	return func() { os.Chdir(old) }
-}
-
 func TestPredictEnvironment(t *testing.T) {
 	project := &Project{}
 	trellis := NewTrellis(project)
 
-	defer testChdir(t, "testdata/trellis")()
+	defer TestChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
 		t.Fatalf(err.Error())
@@ -70,7 +57,7 @@ func TestPredictSite(t *testing.T) {
 	project := &Project{}
 	trellis := NewTrellis(project)
 
-	defer testChdir(t, "testdata/trellis")()
+	defer TestChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
 		t.Fatalf(err.Error())

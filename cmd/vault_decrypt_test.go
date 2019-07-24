@@ -55,13 +55,19 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 }
 
 func TestVaultDecryptRun(t *testing.T) {
-	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
-	vaultDecryptCommand := NewVaultDecryptCommand(ui, trellis)
-
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
+
+	ui := cli.NewMockUi()
+	project := &trellis.Project{}
+	trellisProject := trellis.NewTrellis(project)
+	vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
+
+	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
+
+	if err := trellisProject.LoadProject(); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	cases := []struct {
 		name string
@@ -72,19 +78,25 @@ func TestVaultDecryptRun(t *testing.T) {
 		{
 			"default",
 			[]string{"production"},
-			"ansible-vault decrypt group_vars/all/vault.yml group_vars/production/vault.yml",
+			"All files already decrypted",
 			0,
 		},
 		{
 			"files_flag_single_file",
-			[]string{"--files=foo", "production"},
-			"ansible-vault decrypt foo",
+			[]string{"--files=group_vars/production/vault.yml", "production"},
+			"All files already decrypted",
 			0,
 		},
 		{
 			"files_flag_multiple_file",
-			[]string{"--files=foo,bar", "production"},
-			"ansible-vault decrypt foo bar",
+			[]string{"--files=group_vars/production/vault.yml,group_vars/development/vault.yml", "production"},
+			"All files already decrypted",
+			0,
+		},
+		{
+			"already_decrypted_file",
+			[]string{"--files=group_vars/production/encrypted.yml", "production"},
+			"ansible-vault decrypt group_vars/production/encrypted.yml",
 			0,
 		},
 	}
