@@ -55,13 +55,19 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 }
 
 func TestVaultEncryptRun(t *testing.T) {
-	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
-	vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
-
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
+
+	ui := cli.NewMockUi()
+	project := &trellis.Project{}
+	trellisProject := trellis.NewTrellis(project)
+	vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
+
+	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
+
+	if err := trellisProject.LoadProject(); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	cases := []struct {
 		name string
@@ -77,14 +83,20 @@ func TestVaultEncryptRun(t *testing.T) {
 		},
 		{
 			"files_flag_single_file",
-			[]string{"--files=foo", "production"},
-			"ansible-vault encrypt foo",
+			[]string{"--files=group_vars/production/vault.yml", "production"},
+			"ansible-vault encrypt group_vars/production/vault.yml",
 			0,
 		},
 		{
 			"files_flag_multiple_file",
-			[]string{"--files=foo,bar", "production"},
-			"ansible-vault encrypt foo bar",
+			[]string{"--files=group_vars/production/vault.yml,group_vars/development/vault.yml", "production"},
+			"ansible-vault encrypt group_vars/production/vault.yml group_vars/development/vault.yml",
+			0,
+		},
+		{
+			"already_encrypted_file",
+			[]string{"--files=group_vars/production/encrypted.yml", "production"},
+			"All files already encrypted",
 			0,
 		},
 	}

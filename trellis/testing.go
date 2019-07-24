@@ -37,3 +37,15 @@ func LoadFixtureProject(t *testing.T) func() {
 		os.RemoveAll(tempDir)
 	}
 }
+
+func TestChdir(t *testing.T, dir string) func() {
+	t.Helper()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	return func() { os.Chdir(old) }
+}

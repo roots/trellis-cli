@@ -66,7 +66,27 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 		files = strings.Split(c.files, ",")
 	}
 
-	vaultArgs = append(vaultArgs, files...)
+	var filesToEncrypt []string
+
+	for _, file := range files {
+		isEncrypted, err := isFileEncrypted(file)
+
+		if err != nil {
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		if !isEncrypted {
+			filesToEncrypt = append(filesToEncrypt, file)
+		}
+	}
+
+	if len(filesToEncrypt) == 0 {
+		c.UI.Info(color.GreenString("All files already encrypted"))
+		return 0
+	}
+
+	vaultArgs = append(vaultArgs, filesToEncrypt...)
 
 	vaultEncrypt := execCommand("ansible-vault", vaultArgs...)
 	logCmd(vaultEncrypt, c.UI, true)
