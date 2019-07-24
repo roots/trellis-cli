@@ -60,7 +60,7 @@ func main() {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
 		"down": func() (cli.Command, error) {
-			return cmd.NewHaltCommand(ui, trellis), nil
+			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
