@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -85,6 +86,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	name, err := askDomain(c.UI, path)
 	if err != nil {
+		c.UI.Error(fmt.Sprintf("Error: %s", err.Error()))
 		return 1
 	}
 
@@ -211,7 +213,11 @@ func askDomain(ui cli.Ui, path string) (host string, err error) {
 	}
 
 	path = filepath.Base(path)
-	domain, _ := publicsuffix.Parse(path)
+	domain, err := publicsuffix.Parse(path)
+
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("path `%s` must be a valid domain name (ie: `example.com` and not just `example`)", path))
+	}
 
 	if domain.TRD == "www" {
 		domain.TRD = ""
