@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/mitchellh/cli"
 	"log"
 	"os"
 	"trellis-cli/cmd"
 	"trellis-cli/trellis"
+
+	"github.com/mitchellh/cli"
 )
 
 func main() {
@@ -57,6 +58,9 @@ func main() {
 		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
+		},
+		"down": func() (cli.Command, error) {
+			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil

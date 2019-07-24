@@ -9,7 +9,7 @@ import (
 	"trellis-cli/trellis"
 )
 
-func TestUpRunValidations(t *testing.T) {
+func TestDownRunValidations(t *testing.T) {
 	ui := cli.NewMockUi()
 
 	cases := []struct {
@@ -38,9 +38,9 @@ func TestUpRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
-		upCommand := NewUpCommand(ui, trellis)
+		downCommand := &DownCommand{ui, trellis}
 
-		code := upCommand.Run(tc.args)
+		code := downCommand.Run(tc.args)
 
 		if code != tc.code {
 			t.Errorf("expected code %d to be %d", code, tc.code)
@@ -54,11 +54,11 @@ func TestUpRunValidations(t *testing.T) {
 	}
 }
 
-func TestUpRun(t *testing.T) {
+func TestDownRun(t *testing.T) {
 	ui := cli.NewMockUi()
 	mockProject := &MockProject{true}
 	trellis := trellis.NewTrellis(mockProject)
-	upCommand := NewUpCommand(ui, trellis)
+	downCommand := &DownCommand{ui, trellis}
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
@@ -72,19 +72,13 @@ func TestUpRun(t *testing.T) {
 		{
 			"default",
 			[]string{},
-			"vagrant up",
-			0,
-		},
-		{
-			"no_provision",
-			[]string{"--no-provision"},
-			"vagrant up --no-provision",
+			"vagrant halt",
 			0,
 		},
 	}
 
 	for _, tc := range cases {
-		code := upCommand.Run(tc.args)
+		code := downCommand.Run(tc.args)
 
 		if code != tc.code {
 			t.Errorf("expected code %d to be %d", code, tc.code)
