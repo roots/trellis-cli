@@ -69,7 +69,7 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 	var filesToDecrypt []string
 
 	for _, file := range files {
-		isEncrypted, err := isFileEncrypted(file)
+		isEncrypted, err := trellis.IsFileEncrypted(file)
 
 		if err != nil {
 			c.UI.Error(err.Error())

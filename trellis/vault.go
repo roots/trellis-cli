@@ -1,13 +1,41 @@
 package trellis
 
 import (
+	"bufio"
 	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
+	"strings"
 )
+
+const fileHeader = "$ANSIBLE_VAULT;1.1;AES256"
+
+func IsFileEncrypted(filepath string) (isEncrypted bool, err error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return false, err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	line := scanner.Text()
+
+	if strings.HasPrefix(line, fileHeader) {
+		return true, nil
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	return false, nil
+}
 
 type StringGenerator interface {
 	Generate() string
