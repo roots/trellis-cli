@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeployRunValidations(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
 
 	cases := []struct {
@@ -45,6 +46,13 @@ func TestDeployRunValidations(t *testing.T) {
 			true,
 			[]string{"foo", "example.com"},
 			"Error: foo is not a valid environment",
+			1,
+		},
+		{
+			"invalid_site",
+			true,
+			[]string{"development", "nosite"},
+			"Error: nosite is not a valid site",
 			1,
 		},
 		{

@@ -10,6 +10,7 @@ import (
 )
 
 func TestRollbackRunValidations(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
 
 	cases := []struct {
@@ -34,10 +35,24 @@ func TestRollbackRunValidations(t *testing.T) {
 			1,
 		},
 		{
-			"missing_site_arg",
+			"invalid_env",
 			true,
-			[]string{"development"},
-			"Error: missing SITE argument",
+			[]string{"foo"},
+			"Error: foo is not a valid environment",
+			1,
+		},
+		{
+			"invalid_env_with_site",
+			true,
+			[]string{"foo", "example.com"},
+			"Error: foo is not a valid environment",
+			1,
+		},
+		{
+			"invalid_site",
+			true,
+			[]string{"development", "nosite"},
+			"Error: nosite is not a valid site",
 			1,
 		},
 		{
@@ -69,9 +84,10 @@ func TestRollbackRunValidations(t *testing.T) {
 }
 
 func TestRollbackRun(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 	rollbackCommand := NewRollbackCommand(ui, trellis)
 
 	execCommand = mockExecCommand
@@ -86,6 +102,12 @@ func TestRollbackRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development", "example.com"},
+			"ansible-playbook rollback.yml -e env=development site=example.com",
+			0,
+		},
+		{
+			"site_not_needed_in_defaut_case",
+			[]string{"development"},
 			"ansible-playbook rollback.yml -e env=development site=example.com",
 			0,
 		},

@@ -50,9 +50,7 @@ func (c *RollbackCommand) Run(args []string) int {
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
-		c.UI.Error("Error: missing SITE argument\n")
-		c.UI.Output(c.Help())
-		return 1
+		environment = args[0]
 	case 2:
 		environment = args[0]
 		siteName = args[1]
@@ -60,6 +58,31 @@ func (c *RollbackCommand) Run(args []string) int {
 		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 2, got %d)\n", len(args)))
 		c.UI.Output(c.Help())
 		return 1
+	}
+
+	_, ok := c.Trellis.Environments[environment]
+	if !ok {
+		c.UI.Error(fmt.Sprintf("Error: %s is not a valid environment", environment))
+		return 1
+	}
+
+	if siteName == "" {
+		sites := c.Trellis.SiteNamesFromEnvironment(environment)
+
+		if len(sites) > 1 {
+			c.UI.Error("Error: missing SITE argument\n")
+			c.UI.Output(c.Help())
+			return 1
+		}
+
+		siteName = sites[0]
+	} else {
+		site := c.Trellis.SiteFromEnvironmentAndName(environment, siteName)
+
+		if site == nil {
+			c.UI.Error(fmt.Sprintf("Error: %s is not a valid site", siteName))
+			return 1
+		}
 	}
 
 	extraVars := fmt.Sprintf("env=%s site=%s", environment, siteName)

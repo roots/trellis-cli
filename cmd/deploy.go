@@ -55,6 +55,13 @@ func (c *DeployCommand) Run(args []string) int {
 		}
 
 		siteName = sites[0]
+	} else {
+		site := c.Trellis.SiteFromEnvironmentAndName(environment, siteName)
+
+		if site == nil {
+			c.UI.Error(fmt.Sprintf("Error: %s is not a valid site", siteName))
+			return 1
+		}
 	}
 
 	deploy := execCommand("./bin/deploy.sh", environment, siteName)
