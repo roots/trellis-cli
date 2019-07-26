@@ -22,6 +22,10 @@ type Site struct {
 	Cache           map[string]interface{} `yaml:"cache"`
 }
 
+func (s *Site) MainHost() string {
+	return s.SiteHosts[0].Canonical
+}
+
 type SiteHost struct {
 	Canonical string   `yaml:"canonical"`
 	Redirects []string `yaml:"redirects"`

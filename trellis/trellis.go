@@ -94,6 +94,10 @@ func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	return names
 }
 
+func (t *Trellis) SiteFromEnvironmentAndName(environment string, name string) *Site {
+	return t.Environments[environment].WordPressSites[name]
+}
+
 func (t *Trellis) UpdateAnsibleConfig(section string, key string, value string) error {
 	ansibleCfg := filepath.Join(t.Path, "ansible.cfg")
 	cfg, err := ini.Load(ansibleCfg)
