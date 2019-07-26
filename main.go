@@ -32,6 +32,9 @@ func main() {
 		"deploy": func() (cli.Command, error) {
 			return &cmd.DeployCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"down": func() (cli.Command, error) {
+			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.DropletCommand{UI: ui, Trellis: trellis}, nil
 		},
@@ -56,11 +59,11 @@ func main() {
 		"rollback": func() (cli.Command, error) {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
+		"ssh": func() (cli.Command, error) {
+			return &cmd.SshCommand{ui, trellis}, nil
+		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
-		},
-		"down": func() (cli.Command, error) {
-			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
