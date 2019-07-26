@@ -83,6 +83,9 @@ func main() {
 		"valet": func() (cli.Command, error) {
 			return &cmd.ValetCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"valet link": func() (cli.Command, error) {
+			return &cmd.ValetLinkCommand{UI: ui, Trellis: trellis}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
