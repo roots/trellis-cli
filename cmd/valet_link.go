@@ -49,10 +49,14 @@ func (c *ValetLinkCommand) Run(args []string) int {
 
 		isSiteSslEnabled := site.Ssl["enabled"] == true
 
-		valetLink := execCommand("valet", "link", app)
+		valetArgs := []string{"link"}
+
 		if isSiteSslEnabled {
-			valetLink = execCommand("valet", "link", "--secure", app)
+			valetArgs = append(valetArgs, "--secure")
 		}
+		valetArgs = append(valetArgs, app)
+
+		valetLink := execCommand("valet", valetArgs...)
 
 		valetLink.Dir = site.LocalPath
 
