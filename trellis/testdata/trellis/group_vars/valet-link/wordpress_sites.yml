@@ -23,3 +23,7 @@ wordpress_sites:
     local_path: ../site-subdomain # path targeting local Bedrock site directory (relative to Ansible root)
     ssl:
       enabled: false
+  no-ssl.com:
+    site_hosts:
+      - canonical: no-ssl.test
+    local_path: ../site-no-ssl # path targeting local Bedrock site directory (relative to Ansible root)

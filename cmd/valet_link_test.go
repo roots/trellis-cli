@@ -174,6 +174,10 @@ func TestValetLinkRun(t *testing.T) {
 			"subdomain_site",
 			"valet link sub.domain",
 		},
+		{
+			"no_ssl_site",
+			"valet link no-ssl",
+		},
 	}
 
 	for _, tc := range cases {
