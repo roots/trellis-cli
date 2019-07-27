@@ -30,7 +30,7 @@ func TestPredictEnvironment(t *testing.T) {
 		{
 			name:      "Command supplied",
 			completed: []string{"command"},
-			want:      []string{"development", "production"},
+			want:      []string{"development", "production", "valet-link"},
 		},
 		{
 			name:      "Command and env supplied",
@@ -79,7 +79,7 @@ func TestPredictSite(t *testing.T) {
 			name:          "Command supplied",
 			completed:     []string{"command"},
 			lastCompleted: "command",
-			want:          []string{"development", "production"},
+			want:          []string{"development", "production", "valet-link"},
 		},
 		{
 			name:          "Command and env supplied",
