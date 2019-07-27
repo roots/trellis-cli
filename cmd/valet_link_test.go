@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os/exec"
-	//"os/exec"
 	"strings"
 	"testing"
 
