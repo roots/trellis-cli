@@ -39,10 +39,10 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info(fmt.Sprintf("Linking environment %s...\n", environment))
+	c.UI.Info(fmt.Sprintf("Linking environment %s...", environment))
 
 	for key, site := range config.WordPressSites {
-		c.UI.Info(fmt.Sprintf("Linking site %s...", key))
+		c.UI.Info(fmt.Sprintf("Linking site %s...\n", key))
 
 		canonical, _ := c.Trellis.HostsFromDomain(site.SiteHosts[0].Canonical, environment)
 		app := strings.TrimSuffix(canonical.String(), "." + canonical.TLD)
