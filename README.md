@@ -1,5 +1,8 @@
 # trellis-cli
 
+[![CircleCI](https://circleci.com/gh/roots/trellis-cli.svg?style=svg)](https://circleci.com/gh/roots/trellis-cli)
+![GitHub release](https://img.shields.io/github/release/roots/trellis-cli)
+
 A command-line interface (CLI) for [Trellis](https://roots.io/trellis/) with autocompletion.
 
 Manage your Trellis projects via the `trellis` command.
