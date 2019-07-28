@@ -80,6 +80,12 @@ func main() {
 		"vault view": func() (cli.Command, error) {
 			return cmd.NewVaultViewCommand(ui, trellis), nil
 		},
+		"valet": func() (cli.Command, error) {
+			return &cmd.ValetCommand{UI: ui, Trellis: trellis}, nil
+		},
+		"valet link": func() (cli.Command, error) {
+			return &cmd.ValetLinkCommand{UI: ui, Trellis: trellis}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
