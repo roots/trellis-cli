@@ -32,6 +32,9 @@ func main() {
 		"deploy": func() (cli.Command, error) {
 			return &cmd.DeployCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"dotenv": func() (cli.Command, error) {
+			return &cmd.DotEnvCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"down": func() (cli.Command, error) {
 			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
