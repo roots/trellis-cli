@@ -49,10 +49,43 @@ Supported commands so far:
 
 trellis-cli requires Go 1.11+ since it uses Go modules.
 
-1. Make sure Go 1.11+ is installed (`brew install go` on macOS)
-2. Clone the repo
-3. Run `go build`
-4. To run tests: `go test -v ./...`
+Make sure Go 1.11+ is installed (`brew install go` on macOS)
+
+```bash
+# Clone the repo
+git clone https://github.com/roots/trellis-cli
+cd trellis-cli
+
+# Build the binary for your machine
+go build
+
+# Run tests (without integration tests)
+go test -v -short ./...
+
+# (Optional) Build the docker image for testing (requires `docker`)
+make docker
+# Alternatively, do not use cache when building the doccker image (requires `docker`)
+make docker-no-cache
+
+# Run all tests (requires `docker`)
+make test
+```
+
+## Releasing Docker Images
+
+*This section only intended for the maintainers*
+
+```bash
+make docker
+
+# docker tag rootsdev/trellis-cli-dev:latest rootsdev/trellis-cli-dev:YYYY.MM.DD.N
+# where N is a sequential integer, starting from 1.
+docker tag rootsdev/trellis-cli-dev:latest rootsdev/trellis-cli-dev:2019.08.12.1
+
+# docker push rootsdev/trellis-cli-dev:YYYY.MM.DD.N
+docker push rootsdev/trellis-cli-dev:2019.08.12.1
+docker push rootsdev/trellis-cli-dev:latest
+```
 
 ## Contributing
 

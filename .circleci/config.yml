@@ -10,11 +10,34 @@ jobs:
       - restore_cache:
           keys:
             - go-mod-v1-{{ checksum "go.sum" }}
-      - run: go test -v ./...
+      - run: go test -v -short ./...
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
           paths:
             - /go/pkg/mod
+
+  integration-test:
+    docker:
+      - image: rootsdev/trellis-cli-dev
+    steps:
+      - run: go version
+      - run: ansible --version
+      - run:
+          name: Trellis version
+          command: git log -1 --format="%h %s %aD"
+          working_directory: /test/dummy/trellis
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v1-{{ checksum "go.sum" }}
+      - run: make test RUN=
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod
+      - store_artifacts:
+          path: /test/trellis-cli
+
   release:
     docker:
       - image: circleci/golang:1.12
@@ -27,6 +50,7 @@ workflows:
   test:
     jobs:
       - test
+      - integration-test
       - release:
           filters:
             branches:
