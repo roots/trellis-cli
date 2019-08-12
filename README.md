@@ -76,7 +76,7 @@ make test
 *This section only intended for the maintainers*
 
 ```bash
-make docker
+make docker-no-cache
 
 # docker tag rootsdev/trellis-cli-dev:latest rootsdev/trellis-cli-dev:YYYY.MM.DD.N
 # where N is a sequential integer, starting from 1.
