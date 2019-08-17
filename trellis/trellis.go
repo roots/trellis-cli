@@ -35,6 +35,20 @@ func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
 	return t.detector.Detect(path)
 }
 
+func (t *Trellis) CreateConfigDir() error {
+	_, err := os.Stat(ConfigDir)
+
+	if os.IsExist(err) {
+		return nil
+	}
+
+	if os.IsNotExist(err) {
+		return os.Mkdir(ConfigDir, 0755)
+	}
+
+	return nil
+}
+
 /*
 Loads a Trellis project.
 If a project is detected, the wordpress_sites config files are parsed and
