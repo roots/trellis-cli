@@ -1,23 +1,20 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
-	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
+	"trellis-cli/github"
 	"trellis-cli/trellis"
 )
 
@@ -30,11 +27,6 @@ type NewCommand struct {
 	name       string
 	host       string
 	vaultPass  string
-}
-
-type Release struct {
-	Version string `json:"tag_name"`
-	ZipUrl  string `json:"zipball_url"`
 }
 
 func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis, version string) *NewCommand {
@@ -122,8 +114,8 @@ func (c *NewCommand) Run(args []string) int {
 	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
 
 	trellisPath := filepath.Join(path, "trellis")
-	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
-	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
+	trellisVersion := github.DownloadLatestRelease("roots/trellis", path, trellisPath)
+	bedrockVersion := github.DownloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
 
 	if addTrellisFile(trellisPath) != nil {
 		c.UI.Error("Error writing .trellis.yml file")
@@ -176,7 +168,7 @@ func (c *NewCommand) Synopsis() string {
 
 func (c *NewCommand) Help() string {
 	helpText := `
-Usage: trellis new [PATH]
+Usage: trellis new [options] [PATH]
 
 Creates a new Trellis project in the path specified using the latest versions of Trellis and Bedrock.
 
@@ -284,64 +276,6 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 	return result, nil
 }
 
-func downloadLatestRelease(repo string, path string, dest string) string {
-	release := fetchLatestRelease(repo)
-
-	os.Chdir(path)
-	archivePath := fmt.Sprintf("%s.zip", release.Version)
-
-	err := downloadFile(archivePath, release.ZipUrl)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := archiver.Unarchive(archivePath, path); err != nil {
-		log.Fatal(err)
-	}
-
-	dirs, _ := filepath.Glob("roots-*")
-
-	if len(dirs) == 0 {
-		log.Fatalln("Error: extracted release zip did not contain the expected directory")
-	}
-
-	for _, dir := range dirs {
-		err := os.Rename(dir, dest)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	err = os.Remove(archivePath)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return release.Version
-}
-
-func fetchLatestRelease(repo string) Release {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	resp, err := http.Get(url)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	release := Release{}
-
-	if err = json.Unmarshal(body, &release); err != nil {
-		log.Fatal(err)
-	}
-
-	return release
-}
-
 func isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 
@@ -356,25 +290,4 @@ func isDirEmpty(name string) (bool, error) {
 	}
 
 	return false, err
-}
-
-func downloadFile(filepath string, url string) error {
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
