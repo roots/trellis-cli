@@ -130,6 +130,9 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
+	initCommand := &InitCommand{UI: c.UI, Trellis: c.trellis}
+	initCommand.Run([]string{})
+
 	// Update default configs
 	for env, config := range c.trellis.Environments {
 		c.trellis.UpdateDefaultConfig(config, c.name, c.host, env)

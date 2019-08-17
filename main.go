@@ -56,6 +56,9 @@ func main() {
 		"info": func() (cli.Command, error) {
 			return &cmd.InfoCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"init": func() (cli.Command, error) {
+			return &cmd.InitCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"new": func() (cli.Command, error) {
 			return cmd.NewNewCommand(ui, trellis, c.Version), nil
 		},

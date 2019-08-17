@@ -39,6 +39,10 @@ func (v *Virtualenv) Create() (err error) {
 
 	cmd.Args = append(cmd.Args, v.Path)
 
+	if v.Initialized() {
+		return nil
+	}
+
 	err = cmd.Run()
 	if err != nil {
 		return err
