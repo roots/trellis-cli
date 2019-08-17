@@ -12,10 +12,14 @@ import (
 	"strings"
 )
 
+const ConfigDir string = ".trellis"
+
 type Trellis struct {
 	detector     Detector
 	Environments map[string]*Config
+	ConfigPath   string
 	Path         string
+	Virtualenv   *Virtualenv
 }
 
 func NewTrellis(d Detector) *Trellis {
@@ -50,6 +54,9 @@ func (t *Trellis) LoadProject() error {
 	}
 
 	t.Path = path
+	t.ConfigPath = filepath.Join(path, ConfigDir)
+	t.Virtualenv = NewVirtualenv(t.ConfigPath)
+
 	os.Chdir(t.Path)
 
 	configPaths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
@@ -63,6 +70,10 @@ func (t *Trellis) LoadProject() error {
 		envs[i] = envName
 
 		t.Environments[envName] = t.ParseConfig(p)
+	}
+
+	if t.Virtualenv.Initialized() {
+		t.Virtualenv.Activate()
 	}
 
 	return nil

@@ -117,10 +117,11 @@ func (c *NewCommand) Run(args []string) int {
 	trellisVersion := github.DownloadLatestRelease("roots/trellis", path, trellisPath)
 	bedrockVersion := github.DownloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
 
-	if addTrellisFile(trellisPath) != nil {
-		c.UI.Error("Error writing .trellis.yml file")
-		return 1
-	}
+	// TODO: not necessary after we commit .trellis to trellis repo
+	//if addTrellisFile(trellisPath) != nil {
+	//c.UI.Error("Error writing .trellis.yml file")
+	//return 1
+	//}
 
 	os.Chdir(path)
 

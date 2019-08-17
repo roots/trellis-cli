@@ -41,8 +41,14 @@ func (p *Project) Detect(path string) (projectPath string, ok bool) {
 func (p *Project) detectTrellisCLIProject(path string) bool {
 	trellisPath := filepath.Join(path, "trellis")
 	sitePath := filepath.Join(path, "site")
+	configPath := filepath.Join(trellisPath, ConfigDir)
 
 	trellisDir, err := os.Stat(trellisPath)
+	if err != nil {
+		return false
+	}
+
+	configDir, err := os.Stat(configPath)
 	if err != nil {
 		return false
 	}
@@ -52,10 +58,8 @@ func (p *Project) detectTrellisCLIProject(path string) bool {
 		return false
 	}
 
-	if trellisDir.Mode().IsDir() && siteDir.Mode().IsDir() {
-		if _, err := os.Stat(filepath.Join(trellisPath, ".trellis.yml")); err == nil {
-			return true
-		}
+	if trellisDir.Mode().IsDir() && siteDir.Mode().IsDir() && configDir.Mode().IsDir() {
+		return true
 	}
 
 	return false
