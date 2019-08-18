@@ -2,6 +2,7 @@ package trellis
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,9 +35,7 @@ func (v *Virtualenv) Active() bool {
 }
 
 func (v *Virtualenv) Create() (err error) {
-	// TODO: error if not installed? or install
 	_, cmd := v.Installed()
-
 	cmd.Args = append(cmd.Args, v.Path)
 
 	if v.Initialized() {
@@ -52,6 +51,21 @@ func (v *Virtualenv) Create() (err error) {
 	return nil
 }
 
+func (v *Virtualenv) LocalPath() string {
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+
+	if configHome == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		configHome = filepath.Join(homeDir, ".local", "share")
+	}
+
+	return filepath.Join(configHome, "trellis", "virtualenv")
+}
+
 func (v *Virtualenv) Initialized() bool {
 	if _, err := os.Stat(filepath.Join(v.BinPath, "python")); os.IsNotExist(err) {
 		return false
@@ -64,9 +78,17 @@ func (v *Virtualenv) Initialized() bool {
 	return true
 }
 
-func (v *Virtualenv) Install(path string) string {
-	installPath := github.DownloadLatestRelease("pypa/virtualenv", os.TempDir(), path)
-	return installPath
+func (v *Virtualenv) Install() string {
+	localPath := v.LocalPath()
+	configDir := filepath.Dir(localPath)
+
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(configDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return github.DownloadLatestRelease("pypa/virtualenv", os.TempDir(), localPath)
 }
 
 func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
@@ -80,7 +102,11 @@ func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
 		return true, exec.Command(path)
 	}
 
-	// TODO: check for local virtualenv installed by trellis-cli
+	localVenvPath := filepath.Join(v.LocalPath(), "virtualenv.py")
+
+	if _, err = os.Stat(localVenvPath); !os.IsNotExist(err) {
+		return true, exec.Command("python", localVenvPath)
+	}
 
 	return false, nil
 }

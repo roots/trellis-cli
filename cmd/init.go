@@ -29,6 +29,16 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	if ok, _ := c.Trellis.Virtualenv.Installed(); !ok {
+		c.UI.Info("virtualenv not found")
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Suffix = " Installing virtualenv..."
+		s.FinalMSG = "✓ virtualenv installed\n"
+		s.Start()
+		c.Trellis.Virtualenv.Install()
+		s.Stop()
+	}
+
 	c.UI.Info(fmt.Sprintf("Creating virtualenv in %s", c.Trellis.Virtualenv.Path))
 
 	err := c.Trellis.Virtualenv.Create()
@@ -70,8 +80,18 @@ Usage: trellis init [options]
 Initializes an existing Trellis project to be managed by trellis-cli.
 The initialization process does two things:
 
-1. creates a virtual environment via virtualenv to manage dependencies
-2. installs dependencies via pip (specified by requirements.txt in your Trellis project)
+1. installs virtualenv if necessary (see below for details)
+2. creates a virtual environment specific to the project to manage dependencies
+3. installs dependencies via pip (specified by requirements.txt in your Trellis project)
+
+trellis-cli will attempt to use an already installed method to manage virtualenvs
+and only fallback to installing virtualenv if necessary:
+
+1. if python3 is installed, use built-in virtualenv feature
+2. use virtualenv command if available
+3. finally install virtualenv at $HOME/.trellis/virtualenv
+
+To learn more about virtual environments, see https://docs.python.org/3/tutorial/venv.html
 
 This command is idempotent meaning it can be run multiple times without side-effects.
 

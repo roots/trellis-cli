@@ -26,6 +26,8 @@ func DownloadLatestRelease(repo string, path string, dest string) string {
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
 	err := DownloadFile(archivePath, release.ZipUrl)
+	defer os.Remove(archivePath)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,14 +47,9 @@ func DownloadLatestRelease(repo string, path string, dest string) string {
 		err := os.Rename(dir, dest)
 
 		if err != nil {
+			os.RemoveAll(dir)
 			log.Fatal(err)
 		}
-	}
-
-	err = os.Remove(archivePath)
-
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	return release.Version
