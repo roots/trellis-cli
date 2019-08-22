@@ -27,6 +27,19 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 4. Make sure the above path is in your `$PATH`
 5. Run `trellis --autocomplete-install` to install shell autocompletions
 
+## Installation (Unstable)
+
+```bash
+# Cleanup preivous versions
+brew uninstall roots/tap/trellis-cli
+
+# Install
+brew install --debug --HEAD roots/tap/trellis-cli
+
+# Upgrade
+brew upgrade --fetch-HEAD roots/tap/trellis-cli
+```
+
 ## Usage
 
 Run `trellis` for the complete usage and help.

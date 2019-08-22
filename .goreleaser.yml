@@ -38,8 +38,16 @@ brews:
     folder: Formula
     homepage:  https://roots.io/trellis
     description: A CLI to manage Trellis projects
+    custom_block: |
+      head "https://github.com/roots/trellis-cli.git"
+      depends_on "go" => :build
     install: |
-      bin.install "trellis"
+      output = "trellis"
+      if build.head?
+        output = "bin/" + output
+        system "go", "build", "-o", output
+      end
+      bin.install output
     test: |
       system "#{bin}/trellis --autocomplete-install"
       system "#{bin}/trellis -v"
