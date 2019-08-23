@@ -86,8 +86,10 @@ func (t *Trellis) LoadProject() error {
 		t.Environments[envName] = t.ParseConfig(p)
 	}
 
-	if t.Virtualenv.Initialized() {
-		t.Virtualenv.Activate()
+	if os.Getenv("TRELLIS_VENV") != "false" {
+		if t.Virtualenv.Initialized() {
+			t.Virtualenv.Activate()
+		}
 	}
 
 	return nil
