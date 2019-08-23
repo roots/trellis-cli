@@ -77,7 +77,7 @@ func TestDetectTrellisProjectStructure(t *testing.T) {
 	os.Mkdir(trellisDir, 0700)
 	os.Mkdir(siteDir, 0700)
 
-	ioutil.WriteFile(filepath.Join(trellisDir, ".trellis.yml"), []byte{}, 0666)
+	os.Mkdir(filepath.Join(trellisDir, ConfigDir), 0700)
 
 	devDir := filepath.Join(trellisDir, "group_vars", "development")
 	os.MkdirAll(devDir, 0700)

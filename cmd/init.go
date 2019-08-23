@@ -60,7 +60,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	if err != nil {
 		s.Stop()
-		c.UI.Error(fmt.Sprintf("Error installing pip requirements", err))
+		c.UI.Error(fmt.Sprintf("Error installing pip requirements: %s", err))
 		return 1
 	}
 
