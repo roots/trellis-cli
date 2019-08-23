@@ -19,14 +19,15 @@ import (
 )
 
 type NewCommand struct {
-	UI         cli.Ui
-	CliVersion string
-	flags      *flag.FlagSet
-	trellis    *trellis.Trellis
-	force      bool
-	name       string
-	host       string
-	vaultPass  string
+	UI             cli.Ui
+	CliVersion     string
+	flags          *flag.FlagSet
+	trellis        *trellis.Trellis
+	force          bool
+	name           string
+	host           string
+	skipVirtualenv bool
+	vaultPass      string
 }
 
 func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis, version string) *NewCommand {
@@ -42,6 +43,7 @@ func (c *NewCommand) init() {
 	c.flags.StringVar(&c.name, "name", "", "Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com")
 	c.flags.StringVar(&c.host, "host", "", "Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com")
 	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
+	c.flags.BoolVar(&c.skipVirtualenv, "skip-virtualenv", false, "Skip creating a new virtual environment for this project")
 }
 
 func (c *NewCommand) Run(args []string) int {
@@ -129,8 +131,10 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	initCommand := &InitCommand{UI: c.UI, Trellis: c.trellis}
-	initCommand.Run([]string{})
+	if !c.skipVirtualenv {
+		initCommand := &InitCommand{UI: c.UI, Trellis: c.trellis}
+		initCommand.Run([]string{})
+	}
 
 	// Update default configs
 	for env, config := range c.trellis.Environments {
@@ -198,11 +202,12 @@ Arguments:
   PATH  Path to create new project in
 
 Options:
-      --force       (default: false) Forces the creation of the project even if the target path is not empty
-      --name        Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
-      --host        Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
-      --vault-pass  (default: .vault_pass) Path for the generated Vault pass file
-  -h, --help        show this help
+      --force            (default: false) Forces the creation of the project even if the target path is not empty
+      --name             Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
+      --host             Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
+      --skip-virtualenv  (default: false) Skip creating a new virtual environment for this project
+      --vault-pass       (default: .vault_pass) Path for the generated Vault pass file
+  -h, --help             show this help
 `
 
 	return strings.TrimSpace(helpText)
