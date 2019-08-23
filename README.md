@@ -11,6 +11,19 @@ Manage your Trellis projects via the `trellis` command.
 
 `brew install roots/tap/trellis-cli`
 
+## Quick Install (Unstable - macOS and Linux via Homebrew)
+
+```bash
+# Cleanup preivous versions (if installed)
+brew uninstall roots/tap/trellis-cli
+
+# Install
+brew install --HEAD roots/tap/trellis-cli-dev
+
+# Upgrade
+brew upgrade --fetch-HEAD roots/tap/trellis-cli-dev
+```
+
 ### Script
 
 We also offer a quick script version:
