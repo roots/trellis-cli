@@ -64,9 +64,7 @@ Supported commands so far:
 
 ## Development
 
-trellis-cli requires Go 1.11+ since it uses Go modules.
-
-Make sure Go 1.11+ is installed (`brew install go` on macOS)
+trellis-cli requires Go >= 1.12 (`brew install go` on macOS)
 
 ```bash
 # Clone the repo
