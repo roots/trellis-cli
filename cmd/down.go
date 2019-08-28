@@ -42,7 +42,7 @@ func (c *DownCommand) Run(args []string) int {
 }
 
 func (c *DownCommand) Synopsis() string {
-	return "Stops the Vagrant machine by running 'vagrant halt'."
+	return "Stops the Vagrant machine by running 'vagrant halt'"
 }
 
 func (c *DownCommand) Help() string {

@@ -76,7 +76,7 @@ func (c *DeployCommand) Run(args []string) int {
 }
 
 func (c *DeployCommand) Synopsis() string {
-	return "Deploys a site to the specified environment."
+	return "Deploys a site to the specified environment"
 }
 
 func (c *DeployCommand) Help() string {

@@ -104,7 +104,7 @@ func (c *RollbackCommand) Run(args []string) int {
 }
 
 func (c *RollbackCommand) Synopsis() string {
-	return "Rollsback the last deploy of the site on the specified environment."
+	return "Rollsback the last deploy of the site on the specified environment"
 }
 
 func (c *RollbackCommand) Help() string {
