@@ -49,13 +49,17 @@ Supported commands so far:
 | Command | Description |
 | --- | --- |
 | `check` | Checks if Trellis requirements are met |
-| `deploy` | Deploys a site to the specified environment|
+| `deploy` | Deploys a site to the specified environment |
+| `down` | Stops the Vagrant machine by running `vagrant halt`|
 | `droplet` | Commands for DigitalOcean Droplets |
 | `galaxy` | Commands for Ansible Galaxy |
 | `info` | Displays information about this Trellis project |
 | `new` | Creates a new Trellis project |
 | `provision` | Provisions the specified environment |
 | `rollback` | Rollsback the last deploy of the site on the specified environment |
+| `ssh` | Connects to host via SSH |
+| `up` | Starts and provisions the Vagrant environment by running `vagrant up` |
+| `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
 
 ## Development
