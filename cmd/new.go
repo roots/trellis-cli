@@ -27,6 +27,8 @@ type NewCommand struct {
 	flags      *flag.FlagSet
 	trellis    *trellis.Trellis
 	force      bool
+	name       string
+	host       string
 	vaultPass  string
 }
 
@@ -45,6 +47,8 @@ func (c *NewCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.force, "force", false, "Forces the creation of the project even if the target path is not empty")
+	c.flags.StringVar(&c.name, "name", "", "Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com")
+	c.flags.StringVar(&c.host, "host", "", "Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com")
 	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
 }
 
@@ -84,15 +88,23 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
-	name, err := askDomain(c.UI, path)
-	if err != nil {
-		c.UI.Error(fmt.Sprintf("Error: %s", err.Error()))
-		return 1
+	if c.name == "" {
+		name, err := askDomain(c.UI, path)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error: %s", err.Error()))
+			return 1
+		}
+
+		c.name = name
 	}
 
-	host, err := askHost(c.UI, c.trellis, name)
-	if err != nil {
-		return 1
+	if c.host == "" {
+		host, err := askHost(c.UI, c.trellis, c.name)
+		if err != nil {
+			return 1
+		}
+
+		c.host = host
 	}
 
 	if statErr != nil {
@@ -127,7 +139,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	// Update default configs
 	for env, config := range c.trellis.Environments {
-		c.trellis.UpdateDefaultConfig(config, name, host, env)
+		c.trellis.UpdateDefaultConfig(config, c.name, c.host, env)
 		c.trellis.WriteYamlFile(
 			config,
 			filepath.Join("group_vars", env, "wordpress_sites.yml"),
@@ -135,7 +147,7 @@ func (c *NewCommand) Run(args []string) int {
 		)
 
 		stringGenerator := trellis.RandomStringGenerator{Length: 64}
-		vault := c.trellis.GenerateVaultConfig(name, env, &stringGenerator)
+		vault := c.trellis.GenerateVaultConfig(c.name, env, &stringGenerator)
 		c.trellis.WriteYamlFile(
 			vault,
 			filepath.Join("group_vars", env, "vault.yml"),
@@ -151,7 +163,7 @@ func (c *NewCommand) Run(args []string) int {
 		c.UI.Error(fmt.Sprintf("Error adding vault_password_file setting to ansible.cfg: %s", err))
 	}
 
-	fmt.Printf("\n%s project created with versions:\n", color.GreenString(name))
+	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
 
@@ -183,11 +195,17 @@ Force create a new project in a non-empty target path:
 
   $ trellis new --force ~/dev/example.com
 
+Specify name and host to bypass the prompts:
+
+  $ trellis new --name example.com --host www.example.com ~/dev/foo
+
 Arguments:
   PATH  Path to create new project in
 
 Options:
       --force       (default: false) Forces the creation of the project even if the target path is not empty
+      --name        Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
+      --host        Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
       --vault-pass  (default: .vault_pass) Path for the generated Vault pass file
   -h, --help        show this help
 `
