@@ -225,11 +225,6 @@ func addTrellisFile(path string) error {
 }
 
 func askDomain(ui cli.Ui, path string) (host string, err error) {
-	currentPath, _ := os.Getwd()
-	if path == currentPath {
-		path = filepath.Dir(path)
-	}
-
 	path = filepath.Base(path)
 	domain, err := publicsuffix.Parse(path)
 
