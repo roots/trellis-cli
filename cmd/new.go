@@ -63,7 +63,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	switch len(args) {
 	case 0:
-		c.UI.Error("Missing PATH argument\n")
+		c.UI.Error("Error: missing PATH argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
@@ -225,11 +225,6 @@ func addTrellisFile(path string) error {
 }
 
 func askDomain(ui cli.Ui, path string) (host string, err error) {
-	currentPath, _ := os.Getwd()
-	if path == currentPath {
-		path = filepath.Dir(path)
-	}
-
 	path = filepath.Base(path)
 	domain, err := publicsuffix.Parse(path)
 
