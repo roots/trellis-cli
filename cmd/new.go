@@ -63,7 +63,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	switch len(args) {
 	case 0:
-		c.UI.Error("Missing PATH argument\n")
+		c.UI.Error("Error: missing PATH argument\n")
 		c.UI.Output(c.Help())
 		return 1
 	case 1:
