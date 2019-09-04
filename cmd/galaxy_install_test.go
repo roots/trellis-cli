@@ -72,7 +72,7 @@ func TestGalaxyInstallRun(t *testing.T) {
 		{
 			"default",
 			[]string{},
-			"ansible-galaxy install -r requirements.yml",
+			"ansible-galaxy install -r galaxy.yml",
 			0,
 		},
 	}

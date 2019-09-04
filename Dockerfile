@@ -26,7 +26,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367 &&
 # Trellis
 RUN git clone https://github.com/roots/trellis.git "${TEST_DUMMY}/trellis" && \
     cd "${TEST_DUMMY}/trellis" && \
-    ansible-galaxy install -r requirements.yml
+    ansible-galaxy install -r galaxy.yml
 
 # Bedrock
 RUN mkdir -p "${TEST_DUMMY}/site" && \
