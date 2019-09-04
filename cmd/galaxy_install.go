@@ -25,7 +25,7 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		return 1
 	}
 
-	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", "requirements.yml")
+	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", "galaxy.yml")
 	logCmd(galaxyInstall, c.UI, true)
 	err := galaxyInstall.Run()
 
