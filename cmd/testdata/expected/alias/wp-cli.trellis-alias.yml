@@ -1,0 +1,6 @@
+@production:
+  ssh: "web@your_server_hostname:22"
+  path: "/srv/www/example.com/current/web/wp"
+@staging:
+  ssh: "web@your_server_hostname:22"
+  path: "/srv/www/example.com/current/web/wp"
