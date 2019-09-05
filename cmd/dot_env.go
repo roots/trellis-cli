@@ -2,41 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
-	"path"
-	"runtime"
 	"strings"
 
 	"github.com/mitchellh/cli"
+	. "trellis-cli/templates"
 	"trellis-cli/trellis"
 )
 
 type DotEnvCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
-}
-
-func copyPlaybook(source string, destination string) {
-	b, readFileErr := ioutil.ReadFile(source)
-	if readFileErr != nil {
-		log.Fatal(readFileErr)
-	}
-
-	writeFileErr := ioutil.WriteFile(destination, b, 0644)
-	if writeFileErr != nil {
-		log.Fatal(writeFileErr)
-	}
-}
-
-func deletePlaybook(path string) {
-	err := os.Remove(path)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func appendEnvironmentVariable(cmd *exec.Cmd, elem string) {
@@ -73,12 +50,10 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Copy playbook file from package to Trellis
-	_, filename, _, ok := runtime.Caller(0)
-	playbookTemplatePath := path.Join(path.Dir(filename), "../playbooks/dotenv.yml")
+	// Template playbook file from package to Trellis
 	playbookPath := "dotenv.yml"
-	copyPlaybook(playbookTemplatePath, playbookPath)
-	defer deletePlaybook(playbookPath)
+	writeFile(playbookPath, TrimSpace(DOTENV_YML))
+	defer deleteFile(playbookPath)
 
 	dotEnv := execCommand("ansible-playbook", "dotenv.yml", "-e", "env=" + environment)
 	appendEnvironmentVariable(dotEnv, "ANSIBLE_RETRY_FILES_ENABLED=false")
