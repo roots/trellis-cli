@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -14,15 +12,6 @@ import (
 type DotEnvCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
-}
-
-func appendEnvironmentVariable(cmd *exec.Cmd, elem string) {
-	env := os.Environ()
-	// To allow mockExecCommand injects its environment variables
-	if cmd.Env != nil {
-		env = cmd.Env
-	}
-	cmd.Env = append(env, elem)
 }
 
 func (c *DotEnvCommand) Run(args []string) int {
