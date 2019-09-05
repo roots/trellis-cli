@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -55,29 +56,58 @@ func TestGalaxyInstallRunValidations(t *testing.T) {
 }
 
 func TestGalaxyInstallRun(t *testing.T) {
-	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
-	galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
+	defer trellis.LoadFixtureProject(t)()
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
 
 	cases := []struct {
-		name string
-		args []string
-		out  string
-		code int
+		name      string
+		args      []string
+		roleFiles []string
+		out       string
+		code      int
 	}{
 		{
 			"default",
 			[]string{},
+			[]string{"galaxy.yml"},
 			"ansible-galaxy install -r galaxy.yml",
+			0,
+		},
+		{
+			"default",
+			[]string{},
+			[]string{"requirements.yml"},
+			"ansible-galaxy install -r requirements.yml",
+			0,
+		},
+		{
+			"default",
+			[]string{},
+			[]string{},
+			"Error: no role file found",
+			1,
+		},
+		{
+			"default",
+			[]string{},
+			[]string{"galaxy.yml", "requirements.yml"},
+			"ansible-galaxy install -r galaxy.yml\nWarning: multiple role files found. Defaulting to galaxy.yml",
 			0,
 		},
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		mockProject := &MockProject{true}
+		trellis := trellis.NewTrellis(mockProject)
+		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
+
+		for _, file := range tc.roleFiles {
+			os.Create(file)
+		}
+
 		code := galaxyInstallCommand.Run(tc.args)
 
 		if code != tc.code {
@@ -88,6 +118,10 @@ func TestGalaxyInstallRun(t *testing.T) {
 
 		if !strings.Contains(combined, tc.out) {
 			t.Errorf("expected output %q to contain %q", combined, tc.out)
+		}
+
+		for _, file := range tc.roleFiles {
+			os.Remove(file)
 		}
 	}
 }

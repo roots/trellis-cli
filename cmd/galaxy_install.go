@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -25,7 +26,24 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		return 1
 	}
 
-	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", "galaxy.yml")
+	var roleFiles = []string{"galaxy.yml", "requirements.yml"}
+	var files []string
+
+	for _, file := range roleFiles {
+		if _, err := os.Stat(file); !os.IsNotExist(err) {
+			files = append(files, file)
+		}
+	}
+
+	switch len(files) {
+	case 0:
+		c.UI.Error("Error: no role file found")
+		return 1
+	case 2:
+		c.UI.Warn("Warning: multiple role files found. Defaulting to galaxy.yml")
+	}
+
+	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", files[0])
 	logCmd(galaxyInstall, c.UI, true)
 	err := galaxyInstall.Run()
 
