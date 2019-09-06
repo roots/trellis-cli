@@ -47,6 +47,9 @@ func main() {
 		"droplet create": func() (cli.Command, error) {
 			return cmd.NewDropletCreateCommand(ui, trellis), nil
 		},
+		"exec": func() (cli.Command, error) {
+			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"galaxy": func() (cli.Command, error) {
 			return &cmd.GalaxyCommand{UI: ui, Trellis: trellis}, nil
 		},
