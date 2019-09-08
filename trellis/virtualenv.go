@@ -14,8 +14,9 @@ const VirtualenvDir string = "virtualenv"
 const EnvName string = "VIRTUALENV"
 
 type Virtualenv struct {
-	Path    string
-	BinPath string
+	Path       string
+	BinPath    string
+	OldPathEnv string
 }
 
 func NewVirtualenv(path string) *Virtualenv {
@@ -26,12 +27,13 @@ func NewVirtualenv(path string) *Virtualenv {
 }
 
 func (v *Virtualenv) Activate() {
+	v.OldPathEnv = os.Getenv("PATH")
 	os.Setenv(EnvName, v.Path)
-	os.Setenv("PATH", fmt.Sprintf("%s/bin:$PATH", v.Path))
+	os.Setenv("PATH", fmt.Sprintf("%s:$PATH", v.BinPath))
 }
 
 func (v *Virtualenv) Active() bool {
-	return v.BinPath == os.Getenv(EnvName)
+	return os.Getenv(EnvName) == v.Path
 }
 
 func (v *Virtualenv) Create() (err error) {
@@ -49,6 +51,11 @@ func (v *Virtualenv) Create() (err error) {
 
 	v.Activate()
 	return nil
+}
+
+func (v *Virtualenv) Deactivate() {
+	os.Unsetenv(EnvName)
+	os.Setenv("PATH", v.OldPathEnv)
 }
 
 func (v *Virtualenv) LocalPath() string {
