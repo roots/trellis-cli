@@ -3,21 +3,20 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/mitchellh/cli"
 	"trellis-cli/trellis"
 )
 
 type VaultEditCommand struct {
-	UI      cli.Ui
-	Trellis *trellis.Trellis
+	UI              cli.Ui
+	Trellis         *trellis.Trellis
+	CommandExecutor CommandExecutor
 }
 
-func NewVaultEditCommand(ui cli.Ui, trellis *trellis.Trellis) *VaultEditCommand {
-	c := &VaultEditCommand{UI: ui, Trellis: trellis}
+func NewVaultEditCommand(ui cli.Ui, trellis *trellis.Trellis, ce CommandExecutor) *VaultEditCommand {
+	c := &VaultEditCommand{UI: ui, Trellis: trellis, CommandExecutor: ce}
 	return c
 }
 
@@ -42,7 +41,7 @@ func (c *VaultEditCommand) Run(args []string) int {
 		return 1
 	}
 
-	ansibleVault, lookErr := exec.LookPath("ansible-vault")
+	ansibleVault, lookErr := c.CommandExecutor.LookPath("ansible-vault")
 	if lookErr != nil {
 		c.UI.Error(fmt.Sprintf("ansible-vault command not found: %s", lookErr))
 		return 1
@@ -50,7 +49,7 @@ func (c *VaultEditCommand) Run(args []string) int {
 
 	vaultArgs := []string{"ansible-vault", "edit", file}
 	env := os.Environ()
-	execErr := syscall.Exec(ansibleVault, vaultArgs, env)
+	execErr := c.CommandExecutor.Exec(ansibleVault, vaultArgs, env)
 
 	if execErr != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-vault: %s", execErr))
