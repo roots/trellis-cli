@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"golang.org/x/sys/unix"
 	"os/exec"
-	"syscall"
 )
 
 type CommandExecutor interface {
@@ -13,7 +13,7 @@ type CommandExecutor interface {
 type SyscallCommandExecutor struct{}
 
 func (s *SyscallCommandExecutor) Exec(argv0 string, argv []string, envv []string) (err error) {
-	return syscall.Exec(argv0, argv, envv)
+	return unix.Exec(argv0, argv, envv)
 }
 
 func (s *SyscallCommandExecutor) LookPath(file string) (string, error) {
