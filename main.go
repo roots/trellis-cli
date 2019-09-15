@@ -66,7 +66,7 @@ func main() {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
 		"ssh": func() (cli.Command, error) {
-			return &cmd.SshCommand{ui, trellis}, nil
+			return &cmd.SshCommand{ui, trellis, &cmd.SyscallCommandExecutor{}}, nil
 		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
@@ -75,7 +75,7 @@ func main() {
 			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vault edit": func() (cli.Command, error) {
-			return cmd.NewVaultEditCommand(ui, trellis), nil
+			return cmd.NewVaultEditCommand(ui, trellis, &cmd.SyscallCommandExecutor{}), nil
 		},
 		"vault encrypt": func() (cli.Command, error) {
 			return cmd.NewVaultEncryptCommand(ui, trellis), nil

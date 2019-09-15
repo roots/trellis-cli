@@ -3,9 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -13,8 +11,9 @@ import (
 )
 
 type SshCommand struct {
-	UI      cli.Ui
-	Trellis *trellis.Trellis
+	UI              cli.Ui
+	Trellis         *trellis.Trellis
+	CommandExecutor CommandExecutor
 }
 
 func (c *SshCommand) Run(args []string) int {
@@ -70,10 +69,10 @@ func (c *SshCommand) Run(args []string) int {
 
 	host = fmt.Sprintf("%s@%s", user, host)
 
-	ssh, _ := exec.LookPath("ssh")
+	ssh, _ := c.CommandExecutor.LookPath("ssh")
 	sshArgs := []string{"ssh", host}
 	env := os.Environ()
-	execErr := syscall.Exec(ssh, sshArgs, env)
+	execErr := c.CommandExecutor.Exec(ssh, sshArgs, env)
 
 	if execErr != nil {
 		c.UI.Error(fmt.Sprintf("Error running ssh: %s", execErr))

@@ -25,6 +25,7 @@ require (
 	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc
 	golang.org/x/net v0.0.0-20190119204137-ed066c81e75e
 	golang.org/x/oauth2 v0.0.0-20190130055435-99b60b757ec1
+	golang.org/x/sys v0.0.0-20181122145206-62eef0e2fa9b
 	gopkg.in/ini.v1 v1.41.0
 	gopkg.in/yaml.v2 v2.2.2
 )

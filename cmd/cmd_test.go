@@ -32,3 +32,24 @@ func TestHelperProcess(t *testing.T) {
 	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }
+
+type MockCommand struct {
+	cmd  string
+	args string
+	env  []string
+}
+
+type MockCommandExecutor struct {
+	Command *MockCommand
+}
+
+func (m *MockCommandExecutor) Exec(argv0 string, argv []string, envv []string) (err error) {
+	m.Command.cmd = argv0
+	m.Command.args = strings.Join(argv, " ")
+	m.Command.env = envv
+	return nil
+}
+
+func (m *MockCommandExecutor) LookPath(file string) (string, error) {
+	return file, nil
+}
