@@ -37,8 +37,12 @@ If a project is detected, the wordpress_sites config files are parsed and
 the directory is changed to the project path.
 */
 func (t *Trellis) LoadProject() error {
-	wd, err := os.Getwd()
+	if t.Path != "" {
+		os.Chdir(t.Path)
+		return nil
+	}
 
+	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
