@@ -29,6 +29,11 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	if err := c.Trellis.CreateConfigDir(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
 	if ok, _ := c.Trellis.Virtualenv.Installed(); !ok {
 		c.UI.Info("virtualenv not found")
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)

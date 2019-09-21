@@ -121,11 +121,6 @@ func (c *NewCommand) Run(args []string) int {
 
 	os.Chdir(path)
 
-	if err := c.trellis.CreateConfigDir(); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-
 	if err := c.trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1

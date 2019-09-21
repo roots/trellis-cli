@@ -36,14 +36,14 @@ func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
 }
 
 func (t *Trellis) CreateConfigDir() error {
-	_, err := os.Stat(ConfigDir)
+	_, err := os.Stat(t.ConfigPath)
 
 	if os.IsExist(err) {
 		return nil
 	}
 
 	if os.IsNotExist(err) {
-		return os.Mkdir(ConfigDir, 0755)
+		return os.Mkdir(t.ConfigPath, 0755)
 	}
 
 	return nil
