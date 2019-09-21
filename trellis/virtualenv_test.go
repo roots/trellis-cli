@@ -29,8 +29,8 @@ func TestActivateSetsEnv(t *testing.T) {
 
 	venv.Activate()
 
-	if os.Getenv("VIRTUALENV") != "trellis/virtualenv" {
-		t.Error("expected VIRTUALENV env var to set")
+	if os.Getenv("VIRTUAL_ENV") != "trellis/virtualenv" {
+		t.Error("expected VIRTUAL_ENV env var to set")
 	}
 
 	if os.Getenv("PATH") != "trellis/virtualenv/bin:$PATH" {

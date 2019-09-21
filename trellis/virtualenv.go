@@ -11,7 +11,7 @@ import (
 )
 
 const VirtualenvDir string = "virtualenv"
-const EnvName string = "VIRTUALENV"
+const EnvName string = "VIRTUAL_ENV"
 
 type Virtualenv struct {
 	Path       string
@@ -41,6 +41,7 @@ func (v *Virtualenv) Create() (err error) {
 	cmd.Args = append(cmd.Args, v.Path)
 
 	if v.Initialized() {
+		v.Activate()
 		return nil
 	}
 
