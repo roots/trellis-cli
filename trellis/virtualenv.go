@@ -11,7 +11,7 @@ import (
 )
 
 const VirtualenvDir string = "virtualenv"
-const EnvName string = "VIRTUALENV"
+const EnvName string = "VIRTUAL_ENV"
 
 type Virtualenv struct {
 	Path       string
@@ -41,6 +41,7 @@ func (v *Virtualenv) Create() (err error) {
 	cmd.Args = append(cmd.Args, v.Path)
 
 	if v.Initialized() {
+		v.Activate()
 		return nil
 	}
 
@@ -101,7 +102,7 @@ func (v *Virtualenv) Install() string {
 func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
 	path, err := exec.LookPath("python3")
 	if err == nil {
-		return true, exec.Command(path, "-m", "venv")
+		return true, exec.Command(path, "-m", "venv", "--system-site-packages")
 	}
 
 	path, err = exec.LookPath("virtualenv")

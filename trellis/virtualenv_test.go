@@ -29,8 +29,8 @@ func TestActivateSetsEnv(t *testing.T) {
 
 	venv.Activate()
 
-	if os.Getenv("VIRTUALENV") != "trellis/virtualenv" {
-		t.Error("expected VIRTUALENV env var to set")
+	if os.Getenv("VIRTUAL_ENV") != "trellis/virtualenv" {
+		t.Error("expected VIRTUAL_ENV env var to set")
 	}
 
 	if os.Getenv("PATH") != "trellis/virtualenv/bin:$PATH" {
@@ -153,7 +153,7 @@ func TestInstalledPython3(t *testing.T) {
 		t.Error("Expected to be installed")
 	}
 
-	if strings.Join(cmd.Args, " ") != fmt.Sprintf("%s -m venv", pythonPath) {
+	if strings.Join(cmd.Args, " ") != fmt.Sprintf("%s -m venv --system-site-packages", pythonPath) {
 		t.Error("Expected args incorrect")
 	}
 }
