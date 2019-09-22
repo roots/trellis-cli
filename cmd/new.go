@@ -1,40 +1,33 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
-	"github.com/mholt/archiver"
 	"github.com/mitchellh/cli"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
+	"trellis-cli/github"
 	"trellis-cli/trellis"
 )
 
 type NewCommand struct {
-	UI         cli.Ui
-	CliVersion string
-	flags      *flag.FlagSet
-	trellis    *trellis.Trellis
-	force      bool
-	name       string
-	host       string
-	vaultPass  string
-}
-
-type Release struct {
-	Version string `json:"tag_name"`
-	ZipUrl  string `json:"zipball_url"`
+	UI             cli.Ui
+	CliVersion     string
+	flags          *flag.FlagSet
+	trellis        *trellis.Trellis
+	force          bool
+	name           string
+	host           string
+	skipVirtualenv bool
+	vaultPass      string
 }
 
 func NewNewCommand(ui cli.Ui, trellis *trellis.Trellis, version string) *NewCommand {
@@ -50,6 +43,7 @@ func (c *NewCommand) init() {
 	c.flags.StringVar(&c.name, "name", "", "Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com")
 	c.flags.StringVar(&c.host, "host", "", "Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com")
 	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
+	c.flags.BoolVar(&c.skipVirtualenv, "skip-virtualenv", false, "Skip creating a new virtual environment for this project")
 }
 
 func (c *NewCommand) Run(args []string) int {
@@ -122,19 +116,19 @@ func (c *NewCommand) Run(args []string) int {
 	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
 
 	trellisPath := filepath.Join(path, "trellis")
-	trellisVersion := downloadLatestRelease("roots/trellis", path, trellisPath)
-	bedrockVersion := downloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
-
-	if addTrellisFile(trellisPath) != nil {
-		c.UI.Error("Error writing .trellis.yml file")
-		return 1
-	}
+	trellisVersion := github.DownloadLatestRelease("roots/trellis", path, trellisPath)
+	bedrockVersion := github.DownloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
 
 	os.Chdir(path)
 
 	if err := c.trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
+	}
+
+	if !c.skipVirtualenv {
+		initCommand := &InitCommand{UI: c.UI, Trellis: c.trellis}
+		initCommand.Run([]string{})
 	}
 
 	// Update default configs
@@ -176,7 +170,7 @@ func (c *NewCommand) Synopsis() string {
 
 func (c *NewCommand) Help() string {
 	helpText := `
-Usage: trellis new [PATH]
+Usage: trellis new [options] [PATH]
 
 Creates a new Trellis project in the path specified using the latest versions of Trellis and Bedrock.
 
@@ -203,11 +197,12 @@ Arguments:
   PATH  Path to create new project in
 
 Options:
-      --force       (default: false) Forces the creation of the project even if the target path is not empty
-      --name        Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
-      --host        Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
-      --vault-pass  (default: .vault_pass) Path for the generated Vault pass file
-  -h, --help        show this help
+      --force            (default: false) Forces the creation of the project even if the target path is not empty
+      --name             Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
+      --host             Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
+      --skip-virtualenv  (default: false) Skip creating a new virtual environment for this project
+      --vault-pass       (default: .vault_pass) Path for the generated Vault pass file
+  -h, --help             show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -284,64 +279,6 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 	return result, nil
 }
 
-func downloadLatestRelease(repo string, path string, dest string) string {
-	release := fetchLatestRelease(repo)
-
-	os.Chdir(path)
-	archivePath := fmt.Sprintf("%s.zip", release.Version)
-
-	err := downloadFile(archivePath, release.ZipUrl)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := archiver.Unarchive(archivePath, path); err != nil {
-		log.Fatal(err)
-	}
-
-	dirs, _ := filepath.Glob("roots-*")
-
-	if len(dirs) == 0 {
-		log.Fatalln("Error: extracted release zip did not contain the expected directory")
-	}
-
-	for _, dir := range dirs {
-		err := os.Rename(dir, dest)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	err = os.Remove(archivePath)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return release.Version
-}
-
-func fetchLatestRelease(repo string) Release {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	resp, err := http.Get(url)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	release := Release{}
-
-	if err = json.Unmarshal(body, &release); err != nil {
-		log.Fatal(err)
-	}
-
-	return release
-}
-
 func isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 
@@ -356,25 +293,4 @@ func isDirEmpty(name string) (bool, error) {
 	}
 
 	return false, err
-}
-
-func downloadFile(filepath string, url string) error {
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
