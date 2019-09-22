@@ -102,7 +102,7 @@ func (v *Virtualenv) Install() string {
 func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
 	path, err := exec.LookPath("python3")
 	if err == nil {
-		return true, exec.Command(path, "-m", "venv", "--system-site-packages")
+		return true, exec.Command(path, "-m", "venv")
 	}
 
 	path, err = exec.LookPath("virtualenv")

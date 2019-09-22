@@ -153,7 +153,7 @@ func TestInstalledPython3(t *testing.T) {
 		t.Error("Expected to be installed")
 	}
 
-	if strings.Join(cmd.Args, " ") != fmt.Sprintf("%s -m venv --system-site-packages", pythonPath) {
+	if strings.Join(cmd.Args, " ") != fmt.Sprintf("%s -m venv", pythonPath) {
 		t.Error("Expected args incorrect")
 	}
 }
