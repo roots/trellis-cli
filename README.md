@@ -52,8 +52,10 @@ Supported commands so far:
 | `deploy` | Deploys a site to the specified environment |
 | `down` | Stops the Vagrant machine by running `vagrant halt`|
 | `droplet` | Commands for DigitalOcean Droplets |
+| `exec` | Exec runs a command in the Trellis virtualenv |
 | `galaxy` | Commands for Ansible Galaxy |
 | `info` | Displays information about this Trellis project |
+| `init` | Initializes an existing Trellis project |
 | `new` | Creates a new Trellis project |
 | `provision` | Provisions the specified environment |
 | `rollback` | Rollsback the last deploy of the site on the specified environment |
