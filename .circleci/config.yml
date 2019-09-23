@@ -46,11 +46,21 @@ jobs:
       - checkout
       - run: curl -sL https://git.io/goreleaser | bash
 
+  release-test:
+    docker:
+      - image: circleci/golang:1.13
+    steps:
+      - run: go version
+      - checkout
+      - run: curl -sL https://git.io/goreleaser | bash -s check
+      - run: curl -sL https://git.io/goreleaser | bash -s -- --snapshot --skip-publish --rm-dist
+
 workflows:
   test:
     jobs:
       - test
       - integration-test
+      - release-test
       - release:
           filters:
             branches:
