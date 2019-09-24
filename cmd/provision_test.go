@@ -10,6 +10,7 @@ import (
 )
 
 func TestProvisionRunValidations(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
 
 	cases := []struct {
@@ -40,6 +41,13 @@ func TestProvisionRunValidations(t *testing.T) {
 			"Error: too many arguments",
 			1,
 		},
+		{
+			"invalid_env",
+			true,
+			[]string{"foo"},
+			"Error: foo is not a valid environment",
+			1,
+		},
 	}
 
 	for _, tc := range cases {
@@ -62,9 +70,10 @@ func TestProvisionRunValidations(t *testing.T) {
 }
 
 func TestProvisionRun(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 	provisionCommand := NewProvisionCommand(ui, trellis)
 
 	execCommand = mockExecCommand

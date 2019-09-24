@@ -59,6 +59,12 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
+	_, ok := c.Trellis.Environments[environment]
+	if !ok {
+		c.UI.Error(fmt.Sprintf("Error: %s is not a valid environment", environment))
+		return 1
+	}
+
 	playbookCmd := ProvisionCmd(environment, c.extraVars, c.tags)
 	logCmd(playbookCmd, c.UI, true)
 
