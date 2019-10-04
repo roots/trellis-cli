@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	c := cli.NewCLI("trellis", "0.6.0")
+	c := cli.NewCLI("trellis", "0.6.1")
 	c.Args = os.Args[1:]
 
 	ui := &cli.ColoredUi{
