@@ -33,7 +33,7 @@ func TestActivateSetsEnv(t *testing.T) {
 		t.Error("expected VIRTUAL_ENV env var to set")
 	}
 
-	if os.Getenv("PATH") != "trellis/virtualenv/bin:$PATH" {
+	if os.Getenv("PATH") != fmt.Sprintf("trellis/virtualenv/bin:%s", originalPath) {
 		t.Error("expected PATH to contain bin path")
 	}
 
