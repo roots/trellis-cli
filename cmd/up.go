@@ -67,6 +67,7 @@ func (c *UpCommand) Run(args []string) int {
 	logCmd(vagrantUp, c.UI, true)
 	err := vagrantUp.Run()
 	if err != nil {
+		c.UI.Error(err.Error())
 		return 1
 	}
 
