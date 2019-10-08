@@ -1,5 +1,5 @@
 DOCKER_NAME=rootsdev/trellis-cli-dev
-DOCKER_RUN=docker run --rm -it -v "$(shell pwd)":/app -v $(GOPATH):/go
+DOCKER_RUN=docker run --rm -it -v "$(shell pwd)":/app -v "$(GOPATH)":/go
 RUN=$(DOCKER_RUN) $(DOCKER_NAME)
 
 .PHONY: docker docker-no-cache
