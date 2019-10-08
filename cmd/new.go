@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -224,7 +223,7 @@ func askDomain(ui cli.Ui, path string) (host string, err error) {
 	domain, err := publicsuffix.Parse(path)
 
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("path `%s` must be a valid domain name (ie: `example.com` and not just `example`)", path))
+		return "", fmt.Errorf("path `%s` must be a valid domain name (ie: `example.com` and not just `example`)", path)
 	}
 
 	if domain.TRD == "www" {
