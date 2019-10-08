@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"strings"
@@ -10,9 +11,23 @@ import (
 	"trellis-cli/trellis"
 )
 
+func NewDeployCommand(ui cli.Ui, trellis *trellis.Trellis) *DeployCommand {
+	c := &DeployCommand{UI: ui, Trellis: trellis}
+	c.init()
+	return c
+}
+
 type DeployCommand struct {
-	UI      cli.Ui
-	Trellis *trellis.Trellis
+	UI        cli.Ui
+	flags     *flag.FlagSet
+	extraVars string
+	Trellis   *trellis.Trellis
+}
+
+func (c *DeployCommand) init() {
+	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.StringVar(&c.extraVars, "extra-vars", "", "Additional variables which are passed through to Ansible as 'extra-vars'")
 }
 
 func (c *DeployCommand) Run(args []string) int {
@@ -23,6 +38,12 @@ func (c *DeployCommand) Run(args []string) int {
 
 	var environment string
 	var siteName string
+
+	if err := c.flags.Parse(args); err != nil {
+		return 1
+	}
+
+	args = c.flags.Args()
 
 	switch len(args) {
 	case 0:
@@ -64,7 +85,19 @@ func (c *DeployCommand) Run(args []string) int {
 		}
 	}
 
-	deploy := execCommand("./bin/deploy.sh", environment, siteName)
+	vars := []string{
+		fmt.Sprintf("env=%s", environment),
+		fmt.Sprintf("site=%s", siteName),
+	}
+
+	if c.extraVars != "" {
+		vars = append(vars, c.extraVars)
+	}
+
+	extraVars := fmt.Sprintf("\"%s\"", strings.Join(vars, " "))
+
+	playbookArgs := []string{"deploy.yml", "-e", extraVars}
+	deploy := execCommand("ansible-playbook", playbookArgs...)
 	logCmd(deploy, c.UI, true)
 	err := deploy.Run()
 
@@ -96,7 +129,8 @@ Arguments:
   SITE        Name of the site (ie: example.com)
 
 Options:
-  -h, --help  show this help
+      --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -107,5 +141,7 @@ func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *DeployCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{}
+	return complete.Flags{
+		"--extra-vars": complete.PredictNothing,
+	}
 }
