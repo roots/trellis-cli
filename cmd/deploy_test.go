@@ -67,7 +67,7 @@ func TestDeployRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
-		deployCommand := &DeployCommand{ui, trellis}
+		deployCommand := NewDeployCommand(ui, trellis)
 
 		code := deployCommand.Run(tc.args)
 
@@ -88,7 +88,7 @@ func TestDeployRun(t *testing.T) {
 	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	deployCommand := &DeployCommand{ui, trellis}
+	deployCommand := NewDeployCommand(ui, trellis)
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
@@ -102,13 +102,19 @@ func TestDeployRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development", "example.com"},
-			"./bin/deploy.sh development example.com",
+			`ansible-playbook deploy.yml -e "env=development site=example.com"`,
 			0,
 		},
 		{
 			"site_not_needed_in_defaut_case",
 			[]string{"development"},
-			"./bin/deploy.sh development example.com",
+			`ansible-playbook deploy.yml -e "env=development site=example.com"`,
+			0,
+		},
+		{
+			"with_extra_vars",
+			[]string{"-extra-vars", "k=v foo=bar", "development"},
+			`ansible-playbook deploy.yml -e "env=development site=example.com k=v foo=bar"`,
 			0,
 		},
 	}
