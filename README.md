@@ -14,7 +14,7 @@ Manage your Trellis projects via the `trellis` command.
 ## Quick Install (Unstable - macOS and Linux via Homebrew)
 
 ```bash
-# Cleanup preivous versions (if installed)
+# Cleanup previous versions (if installed)
 brew uninstall roots/tap/trellis-cli
 
 # Install
