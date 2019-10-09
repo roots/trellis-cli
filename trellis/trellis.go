@@ -96,7 +96,7 @@ func (t *Trellis) LoadProject() error {
 func (t *Trellis) EnvironmentNames() []string {
 	var names []string
 
-	for key, _ := range t.Environments {
+	for key := range t.Environments {
 		names = append(names, key)
 	}
 
@@ -110,7 +110,7 @@ func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 
 	config := t.Environments[environment]
 
-	for name, _ := range config.WordPressSites {
+	for name := range config.WordPressSites {
 		names = append(names, name)
 	}
 
