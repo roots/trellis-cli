@@ -66,6 +66,11 @@ func FetchLatestRelease(repo string) Release {
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	release := Release{}
 
 	if err = json.Unmarshal(body, &release); err != nil {
