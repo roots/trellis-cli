@@ -48,12 +48,15 @@ Supported commands so far:
 
 | Command | Description |
 | --- | --- |
+| `alias` | Generate WP CLI aliases for remote environments |
 | `check` | Checks if Trellis requirements are met |
 | `deploy` | Deploys a site to the specified environment |
+| `dotenv` | Template .env files to local system |
 | `down` | Stops the Vagrant machine by running `vagrant halt`|
 | `droplet` | Commands for DigitalOcean Droplets |
 | `exec` | Exec runs a command in the Trellis virtualenv |
 | `galaxy` | Commands for Ansible Galaxy |
+| `exec` | Exec runs a command in the Trellis virtualenv |
 | `info` | Displays information about this Trellis project |
 | `init` | Initializes an existing Trellis project |
 | `new` | Creates a new Trellis project |
