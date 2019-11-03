@@ -57,25 +57,20 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	var environment string
-
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}
 
 	args = c.flags.Args()
 
-	switch len(args) {
-	case 0:
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		environment = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
+	argCountErr := validateArgumentCount(args, 0, 1)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	environment := args[0]
 
 	if environment == "development" {
 		c.UI.Error("create command only supports staging/production environments")
