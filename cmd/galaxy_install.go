@@ -20,8 +20,9 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(args) > 0 {
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0, got %d)\n", len(args)))
+	argCountErr := validateArgumentCount(args, 0, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
