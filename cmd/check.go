@@ -33,7 +33,9 @@ var Requirements = []trellis.Requirement{
 }
 
 func (c *CheckCommand) Run(args []string) int {
-	if len(args) > 0 {
+	argCountErr := validateArgumentCount(args, 0, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
