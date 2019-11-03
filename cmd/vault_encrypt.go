@@ -42,21 +42,16 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	var environment string
-	var files []string
-
-	switch len(args) {
-	case 0:
-		c.UI.Error("Error: missing ENVIRONMENT argument\n")
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		environment = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
+	argCountErr := validateArgumentCount(args, 1, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	environment := args[0]
+
+	var files []string
 
 	vaultArgs := []string{"encrypt"}
 
