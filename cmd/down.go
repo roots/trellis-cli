@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"trellis-cli/trellis"
@@ -20,10 +19,9 @@ func (c *DownCommand) Run(args []string) int {
 		return 1
 	}
 
-	switch len(args) {
-	case 0:
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0, got %d)\n", len(args)))
+	argCountErr := validateArgumentCount(args, 0, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
