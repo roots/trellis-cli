@@ -19,6 +19,13 @@ func (c *InfoCommand) Run(args []string) int {
 		return 1
 	}
 
+	argCountErr := validateArgumentCount(args, 0, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
+		c.UI.Output(c.Help())
+		return 1
+	}
+
 	for name, config := range c.Trellis.Environments {
 		var siteNames []string
 
