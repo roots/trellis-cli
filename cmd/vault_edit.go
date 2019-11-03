@@ -26,20 +26,14 @@ func (c *VaultEditCommand) Run(args []string) int {
 		return 1
 	}
 
-	var file string
-
-	switch len(args) {
-	case 0:
-		c.UI.Error("Error: missing FILE argument\n")
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		file = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
+	argCountErr := validateArgumentCount(args, 1, 0)
+	if argCountErr != nil {
+		c.UI.Error(argCountErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	file := args[0]
 
 	ansibleVault, lookErr := c.CommandExecutor.LookPath("ansible-vault")
 	if lookErr != nil {
