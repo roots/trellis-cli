@@ -50,6 +50,7 @@ func (c *DeployCommand) Run(args []string) int {
 	}
 
 	environment := args[0]
+
 	siteName := ""
 	if len(args) == 2 {
 		siteName = args[1]
