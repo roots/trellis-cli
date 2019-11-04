@@ -17,10 +17,11 @@ func (c *CommandArgumentValidator) validate(args []string) (err error) {
 	}
 
 	if argCount > totalArgs {
-		err = fmt.Errorf("Error: too many arguments (expected %s, got %d)\n", expectedCount, len(args))
-	} else if argCount < c.required {
-		err = fmt.Errorf("Error: missing arguments (expected %s, got %d)\n", expectedCount, len(args))
+		return fmt.Errorf("Error: too many arguments (expected %s, got %d)\n", expectedCount, len(args))
+	}
+	if argCount < c.required {
+		return fmt.Errorf("Error: missing arguments (expected %s, got %d)\n", expectedCount, len(args))
 	}
 
-	return
+	return nil
 }
