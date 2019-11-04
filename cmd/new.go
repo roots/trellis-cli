@@ -54,18 +54,15 @@ func (c *NewCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	switch len(args) {
-	case 0:
-		c.UI.Error("Error: missing PATH argument\n")
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		path = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	path = args[0]
 
 	path, _ = filepath.Abs(path)
 	fi, statErr := os.Stat(path)

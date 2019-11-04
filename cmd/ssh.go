@@ -22,9 +22,10 @@ func (c *SshCommand) Run(args []string) int {
 		return 1
 	}
 
-	argCountErr := validateArgumentCount(args, 1, 1)
-	if argCountErr != nil {
-		c.UI.Error(argCountErr.Error())
+	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 1}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}

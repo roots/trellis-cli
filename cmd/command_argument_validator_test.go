@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestValidateArgumentCount(t *testing.T) {
+func TestCommandArgumentValidatorValidate(t *testing.T) {
 	cases := []struct {
 		name             string
 		args             []string
@@ -58,7 +58,12 @@ func TestValidateArgumentCount(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		actual := validateArgumentCount(tc.args, tc.requiredArgCount, tc.optionalArgCount)
+		validator := &CommandArgumentValidator{
+			required: tc.requiredArgCount,
+			optional: tc.optionalArgCount,
+		}
+
+		actual := validator.validate(tc.args)
 
 		if "" == tc.expectedMessage && actual != nil {
 			t.Errorf("expected result to be valid, got %s", actual)
