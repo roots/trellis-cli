@@ -46,8 +46,6 @@ func (c *NewCommand) init() {
 }
 
 func (c *NewCommand) Run(args []string) int {
-	var path string
-
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}
@@ -62,7 +60,7 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	path = args[0]
+	path := args[0]
 
 	path, _ = filepath.Abs(path)
 	fi, statErr := os.Stat(path)
