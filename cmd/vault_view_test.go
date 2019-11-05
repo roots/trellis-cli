@@ -56,6 +56,18 @@ func TestVaultViewRunValidations(t *testing.T) {
 
 func TestVaultViewRun(t *testing.T) {
 	ui := cli.NewMockUi()
+	project := &trellis.Project{}
+	trellisProject := trellis.NewTrellis(project)
+
+	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
+
+	if err := trellisProject.LoadProject(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	execCommand = mockExecCommand
+	defer func() { execCommand = exec.Command }()
+
 	mockProject := &MockProject{true}
 	trellis := trellis.NewTrellis(mockProject)
 	vaultViewCommand := NewVaultViewCommand(ui, trellis)

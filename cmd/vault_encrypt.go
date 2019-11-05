@@ -52,6 +52,12 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 
 	environment := args[0]
 
+	environmentErr := c.Trellis.ValidateEnvironment(environment)
+	if environmentErr != nil {
+		c.UI.Error(environmentErr.Error())
+		return 1
+	}
+
 	var files []string
 
 	vaultArgs := []string{"encrypt"}
