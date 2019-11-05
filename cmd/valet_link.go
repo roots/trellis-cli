@@ -33,11 +33,13 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		environment = args[0]
 	}
 
-	config, ok := c.Trellis.Environments[environment]
-	if !ok {
-		c.UI.Error(fmt.Sprintf("Error: %s is not a valid environment", environment))
+	environmentErr := c.Trellis.ValidateEnvironment(environment)
+	if environmentErr != nil {
+		c.UI.Error(environmentErr.Error())
 		return 1
 	}
+
+	config, _ := c.Trellis.Environments[environment]
 
 	c.UI.Info(fmt.Sprintf("Linking environment %s...", environment))
 

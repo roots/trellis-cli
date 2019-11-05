@@ -54,9 +54,9 @@ func (c *ProvisionCommand) Run(args []string) int {
 
 	environment := args[0]
 
-	_, ok := c.Trellis.Environments[environment]
-	if !ok {
-		c.UI.Error(fmt.Sprintf("Error: %s is not a valid environment", environment))
+	environmentErr := c.Trellis.ValidateEnvironment(environment)
+	if environmentErr != nil {
+		c.UI.Error(environmentErr.Error())
 		return 1
 	}
 

@@ -2,6 +2,7 @@ package trellis
 
 import (
 	"errors"
+	"fmt"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -103,6 +104,15 @@ func (t *Trellis) EnvironmentNames() []string {
 	sort.Strings(names)
 
 	return names
+}
+
+func (t *Trellis) ValidateEnvironment(name string) (err error) {
+	_, ok := t.Environments[name]
+	if ok {
+		return nil
+	}
+
+	return fmt.Errorf("Error: %s is not a valid environment, valid options are %s", name, t.EnvironmentNames())
 }
 
 func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
