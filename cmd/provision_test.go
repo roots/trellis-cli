@@ -31,7 +31,7 @@ func TestProvisionRunValidations(t *testing.T) {
 			"no_args",
 			true,
 			nil,
-			"Error: missing ENVIRONMENT argument",
+			"Error: missing arguments (expected exactly 1, got 0)",
 			1,
 		},
 		{

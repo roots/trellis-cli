@@ -33,7 +33,10 @@ var Requirements = []trellis.Requirement{
 }
 
 func (c *CheckCommand) Run(args []string) int {
-	if len(args) > 0 {
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}

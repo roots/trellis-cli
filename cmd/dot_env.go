@@ -20,17 +20,17 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	var environment string
-
-	switch len(args) {
-	case 0:
-		environment = "development"
-	case 1:
-		environment = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0 or 1, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
+	}
+
+	environment := "development"
+	if len(args) == 1 {
+		environment = args[0]
 	}
 
 	_, ok := c.Trellis.Environments[environment]

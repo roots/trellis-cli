@@ -38,26 +38,21 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
-	var environment string
-
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}
 
 	args = c.flags.Args()
 
-	switch len(args) {
-	case 0:
-		c.UI.Error("Error: missing ENVIRONMENT argument\n")
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		environment = args[0]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 1, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	environment := args[0]
 
 	_, ok := c.Trellis.Environments[environment]
 	if !ok {

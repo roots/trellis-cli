@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strings"
 
@@ -44,10 +43,10 @@ func (c *UpCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	switch len(args) {
-	case 0:
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}

@@ -21,10 +21,10 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	switch len(args) {
-	case 0:
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 0, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}

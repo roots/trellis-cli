@@ -23,7 +23,7 @@ func TestNewRunValidations(t *testing.T) {
 			"no_args",
 			false,
 			nil,
-			"Error: missing PATH argument",
+			"Error: missing arguments (expected exactly 1, got 0)",
 			1,
 		},
 		{

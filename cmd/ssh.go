@@ -22,24 +22,22 @@ func (c *SshCommand) Run(args []string) int {
 		return 1
 	}
 
-	var environment string
-	var siteName string
-	var user string
-
-	switch len(args) {
-	case 0:
-		c.UI.Output(c.Help())
-		return 1
-	case 1:
-		environment = args[0]
-	case 2:
-		environment = args[0]
-		siteName = args[1]
-	default:
-		c.UI.Error(fmt.Sprintf("Error: too many arguments (expected 2, got %d)\n", len(args)))
+	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 1}
+	commandArgumentErr := commandArgumentValidator.validate(args)
+	if commandArgumentErr != nil {
+		c.UI.Error(commandArgumentErr.Error())
 		c.UI.Output(c.Help())
 		return 1
 	}
+
+	environment := args[0]
+
+	siteName := ""
+	if len(args) == 2 {
+		siteName = args[1]
+	}
+
+	var user string
 
 	_, ok := c.Trellis.Environments[environment]
 	if !ok {
