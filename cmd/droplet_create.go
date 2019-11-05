@@ -73,6 +73,12 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 	environment := args[0]
 
+	environmentErr := c.Trellis.ValidateEnvironment(environment)
+	if environmentErr != nil {
+		c.UI.Error(environmentErr.Error())
+		return 1
+	}
+
 	if environment == "development" {
 		c.UI.Error("create command only supports staging/production environments")
 		return 1
