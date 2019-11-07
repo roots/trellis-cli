@@ -31,34 +31,25 @@ func (c *SshCommand) Run(args []string) int {
 	}
 
 	environment := args[0]
-
-	siteName := ""
-	if len(args) == 2 {
-		siteName = args[1]
-	}
-
-	var user string
-
 	environmentErr := c.Trellis.ValidateEnvironment(environment)
 	if environmentErr != nil {
 		c.UI.Error(environmentErr.Error())
 		return 1
 	}
 
-	if siteName == "" {
-		sites := c.Trellis.SiteNamesFromEnvironment(environment)
-		siteName = sites[0]
-	} else {
-		site := c.Trellis.SiteFromEnvironmentAndName(environment, siteName)
-
-		if site == nil {
-			c.UI.Error(fmt.Sprintf("Error: %s is not a valid site", siteName))
-			return 1
-		}
+	siteNameArg := ""
+	if len(args) == 2 {
+		siteNameArg = args[1]
+	}
+	siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment(environment, siteNameArg)
+	if siteNameErr != nil {
+		c.UI.Error(siteNameErr.Error())
+		return 1
 	}
 
 	host := c.Trellis.SiteFromEnvironmentAndName(environment, siteName).MainHost()
 
+	var user string
 	if environment == "development" {
 		user = "vagrant"
 	} else {
