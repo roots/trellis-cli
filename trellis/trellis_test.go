@@ -3,8 +3,8 @@ package trellis
 import (
 	"fmt"
 	"io/ioutil"
-	"testing"
 	"os"
+	"testing"
 )
 
 func TestCreateConfigDir(t *testing.T) {
@@ -185,5 +185,28 @@ func TestFindSiteNameFromEnvironmentInvalid(t *testing.T) {
 
 	if actual != "" {
 		t.Errorf("expected empty string got %s", actual)
+	}
+}
+
+func TestSiteFromEnvironmentAndName(t *testing.T) {
+	expected := &Site{}
+
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites["a1"] = &Site{}
+	environments["a"].WordPressSites["a2"] = expected
+	environments["a"].WordPressSites["a3"] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual := trellis.SiteFromEnvironmentAndName("a", "a2")
+
+	if actual != expected {
+		t.Error("expected site not returned")
 	}
 }
