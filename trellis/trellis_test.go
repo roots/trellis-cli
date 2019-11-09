@@ -93,3 +93,97 @@ func TestSiteNamesFromEnvironment(t *testing.T) {
 		t.Errorf("expected %s got %s", expected, actual)
 	}
 }
+
+func TestFindSiteNameFromEnvironmentDefault(t *testing.T) {
+	expected := "a1"
+
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites[expected] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual, actualErr := trellis.FindSiteNameFromEnvironment("a", "")
+
+	if actual != expected {
+		t.Errorf("expected %s got %s", expected, actual)
+	}
+
+	if actualErr != nil {
+		t.Errorf("expected nil got %s", actual)
+	}
+}
+
+func TestFindSiteNameFromEnvironmentDefaultError(t *testing.T) {
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual, actualErr := trellis.FindSiteNameFromEnvironment("a", "")
+
+	if actualErr == nil {
+		t.Error("expected error got nil")
+	}
+
+	if actual != "" {
+		t.Errorf("expected empty string got %s", actual)
+	}
+}
+
+func TestFindSiteNameFromEnvironment(t *testing.T) {
+	expected := "a1"
+
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites[expected] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual, actualErr := trellis.FindSiteNameFromEnvironment("a", expected)
+
+	if actual != expected {
+		t.Errorf("expected %s got %s", expected, actual)
+	}
+
+	if actualErr != nil {
+		t.Errorf("expected nil got %s", actual)
+	}
+}
+
+func TestFindSiteNameFromEnvironmentInvalid(t *testing.T) {
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites["a1"] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual, actualErr := trellis.FindSiteNameFromEnvironment("a", "not-exist")
+
+	if actualErr == nil {
+		t.Error("expected error got nil")
+	}
+
+	if actual != "" {
+		t.Errorf("expected empty string got %s", actual)
+	}
+}
