@@ -70,3 +70,26 @@ func TestValidateEnvironmentInvalid(t *testing.T) {
 		t.Error("expected error got nil", actual)
 	}
 }
+
+func TestSiteNamesFromEnvironment(t *testing.T) {
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites["a1"] = &Site{}
+	environments["a"].WordPressSites["a2"] = &Site{}
+	environments["a"].WordPressSites["a3"] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual := trellis.SiteNamesFromEnvironment("a")
+
+	expected := []string{"a1", "a2", "a3"}
+
+	if fmt.Sprintf("%s", actual) != fmt.Sprintf("%s", expected) {
+		t.Errorf("expected %s got %s", expected, actual)
+	}
+}
