@@ -42,3 +42,31 @@ func TestEnvironmentNames(t *testing.T) {
 		t.Errorf("expected %s got %s", expected, actual)
 	}
 }
+
+func TestValidateEnvironment(t *testing.T) {
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual := trellis.ValidateEnvironment("a")
+	if actual != nil {
+		t.Errorf("expected nil got %s", actual)
+	}
+}
+
+func TestValidateEnvironmentInvalid(t *testing.T) {
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	actual := trellis.ValidateEnvironment("x")
+	if actual == nil {
+		t.Error("expected error got nil", actual)
+	}
+}
