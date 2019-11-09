@@ -26,6 +26,8 @@ func TestCreateConfigDir(t *testing.T) {
 
 func TestEnvironmentNames(t *testing.T) {
 	environments := make(map[string]*Config)
+
+	// Intentionally not in alphabetical order.
 	environments["b"] = &Config{}
 	environments["z"] = &Config{}
 	environments["a"] = &Config{}
