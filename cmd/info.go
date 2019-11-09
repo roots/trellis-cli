@@ -30,7 +30,7 @@ func (c *InfoCommand) Run(args []string) int {
 	for name, config := range c.Trellis.Environments {
 		var siteNames []string
 
-		for name, _ := range config.WordPressSites {
+		for name := range config.WordPressSites {
 			siteNames = append(siteNames, name)
 		}
 
