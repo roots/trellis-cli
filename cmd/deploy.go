@@ -51,35 +51,17 @@ func (c *DeployCommand) Run(args []string) int {
 	}
 
 	environment := args[0]
-
-	siteName := ""
-	if len(args) == 2 {
-		siteName = args[1]
-	}
-
 	environmentErr := c.Trellis.ValidateEnvironment(environment)
 	if environmentErr != nil {
 		c.UI.Error(environmentErr.Error())
 		return 1
 	}
 
-	if siteName == "" {
-		sites := c.Trellis.SiteNamesFromEnvironment(environment)
-
-		if len(sites) > 1 {
-			c.UI.Error("Error: missing SITE argument\n")
-			c.UI.Output(c.Help())
-			return 1
-		}
-
-		siteName = sites[0]
-	} else {
-		site := c.Trellis.SiteFromEnvironmentAndName(environment, siteName)
-
-		if site == nil {
-			c.UI.Error(fmt.Sprintf("Error: %s is not a valid site", siteName))
-			return 1
-		}
+	siteNameArg := c.flags.Arg(1)
+	siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment(environment, siteNameArg)
+	if siteNameErr != nil {
+		c.UI.Error(siteNameErr.Error())
+		return 1
 	}
 
 	vars := []string{
