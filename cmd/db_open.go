@@ -12,7 +12,8 @@ import (
 	"trellis-cli/trellis"
 )
 
-var dumpDbCredentialsYmlTemplate = `
+const playbookPath = "dump_db_credentials.yml"
+const dumpDbCredentialsYmlTemplate = `
 ---
 - name: 'Trellis CLI: Dump database credentials'
   hosts: web:&{{ env }}
@@ -29,7 +30,8 @@ var dumpDbCredentialsYmlTemplate = `
       when: item.key == site
 `
 
-var dbCredentialsJsonJ2Template = `
+const j2TemplatePath = "db_credentials.json.j2"
+const dbCredentialsJsonJ2Template = `
 {
     "web_user": "{{ web_user }}",
     "ansible_host": "{{ ansible_host }}",
@@ -114,10 +116,8 @@ func (c *DBOpenCommand) Run(args []string) int {
 	defer deleteFile(dbCredentialsJson.Name())
 
 	// Template playbook files from package to Trellis
-	playbookPath := "dump_db_credentials.yml"
 	writeFile(playbookPath, templates.TrimSpace(dumpDbCredentialsYmlTemplate))
 	defer deleteFile(playbookPath)
-	j2TemplatePath := "db_credentials.json.j2"
 	writeFile(j2TemplatePath, templates.TrimSpace(dbCredentialsJsonJ2Template))
 	defer deleteFile(j2TemplatePath)
 
