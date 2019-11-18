@@ -166,7 +166,7 @@ func (c *DBOpenCommand) Synopsis() string {
 
 func (c *DBOpenCommand) Help() string {
 	helpText := `
-Usage: trellis deploy [options] ENVIRONMENT [SITE]
+Usage: trellis db [options] ENVIRONMENT [SITE]
 
 Open database with GUI applications
 
