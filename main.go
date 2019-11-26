@@ -32,12 +32,6 @@ func main() {
 		"check": func() (cli.Command, error) {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
-		"db": func() (cli.Command, error) {
-			return &cmd.DBCommand{UI: ui, Trellis: trellis}, nil
-		},
-		"db open": func() (cli.Command, error) {
-			return cmd.NewDBOpenCommand(ui, trellis, &cmd.DBOpenerFactory{}), nil
-		},
 		"deploy": func() (cli.Command, error) {
 			return cmd.NewDeployCommand(ui, trellis), nil
 		},
