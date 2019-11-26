@@ -50,7 +50,6 @@ Supported commands so far:
 | --- | --- |
 | `alias` | Generate WP CLI aliases for remote environments |
 | `check` | Checks if Trellis requirements are met |
-| `db` | Commands for database management |
 | `deploy` | Deploys a site to the specified environment |
 | `dotenv` | Template .env files to local system |
 | `down` | Stops the Vagrant machine by running `vagrant halt`|
