@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -12,7 +10,7 @@ import (
 )
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
-	c := &ProvisionCommand{UI: ui, Trellis: trellis}
+	c := &ProvisionCommand{UI: ui, Trellis: trellis, playbook: &Playbook{}}
 	c.init()
 	return c
 }
@@ -23,6 +21,7 @@ type ProvisionCommand struct {
 	extraVars string
 	tags      string
 	Trellis   *trellis.Trellis
+	playbook  PlaybookInterface
 }
 
 func (c *ProvisionCommand) init() {
@@ -60,10 +59,20 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
-	playbookCmd := ProvisionCmd(environment, c.extraVars, c.tags)
-	logCmd(playbookCmd, c.UI, true)
+	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err := playbookCmd.Run(); err != nil {
+	vars := "env=" + environment
+	if c.extraVars != "" {
+		vars = strings.Join([]string{vars, c.extraVars}, " ")
+	}
+
+	playbookArgs := []string{"-e", vars}
+	if c.tags != "" {
+		playbookArgs = append(playbookArgs, "--tags", c.tags)
+	}
+
+	if err := c.playbook.Run("server.yml", playbookArgs, c.UI); err != nil {
+		c.UI.Error(err.Error())
 		return 1
 	}
 
@@ -120,20 +129,4 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 		"--extra-vars": complete.PredictNothing,
 		"--tags":       complete.PredictNothing,
 	}
-}
-
-func ProvisionCmd(env string, extraVars string, tags string) *exec.Cmd {
-	vars := fmt.Sprintf("env=%s", env)
-
-	if extraVars != "" {
-		vars = strings.Join([]string{vars, extraVars}, " ")
-	}
-
-	playbookArgs := []string{"server.yml", "-e", vars}
-
-	if tags != "" {
-		playbookArgs = append(playbookArgs, "--tags", tags)
-	}
-
-	return execCommand("ansible-playbook", playbookArgs...)
 }
