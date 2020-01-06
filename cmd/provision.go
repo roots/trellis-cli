@@ -10,7 +10,7 @@ import (
 )
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
-	c := &ProvisionCommand{UI: ui, Trellis: trellis, playbook: &Playbook{}}
+	c := &ProvisionCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
 	c.init()
 	return c
 }
@@ -71,7 +71,7 @@ func (c *ProvisionCommand) Run(args []string) int {
 		playbookArgs = append(playbookArgs, "--tags", c.tags)
 	}
 
-	if err := c.playbook.Run("server.yml", playbookArgs, c.UI); err != nil {
+	if err := c.playbook.Run("server.yml", playbookArgs); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 func NewRollbackCommand(ui cli.Ui, trellis *trellis.Trellis) *RollbackCommand {
-	c := &RollbackCommand{UI: ui, Trellis: trellis, playbook: &Playbook{}}
+	c := &RollbackCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
 	c.init()
 	return c
 }
@@ -72,7 +72,7 @@ func (c *RollbackCommand) Run(args []string) int {
 
 	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err := c.playbook.Run("rollback.yml", []string{"-e", extraVars}, c.UI); err != nil {
+	if err := c.playbook.Run("rollback.yml", []string{"-e", extraVars}); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

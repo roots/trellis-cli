@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/mitchellh/cli"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,17 +11,19 @@ type AdHocPlaybook struct {
 	files map[string]string
 }
 
-func (p *AdHocPlaybook) Run(playbookYml string, args []string, ui cli.Ui) error {
-	// TODO: Panic if root & files are empty.
+func (p *AdHocPlaybook) Run(playbookYml string, args []string) error {
+	// TODO: Panic if files is empty.
 	defer p.removeFiles()
 	if err := p.dumpFiles(); err != nil {
 		return err
 	}
 
-	playbook := &Playbook{}
-	playbook.SetRoot(p.root)
+	playbook := &Playbook{
+		root: p.root,
+		ui: p.ui,
+	}
 
-	return playbook.Run(playbookYml, args, ui)
+	return playbook.Run(playbookYml, args)
 }
 
 func (p *AdHocPlaybook) dumpFiles() error {

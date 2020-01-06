@@ -27,7 +27,7 @@ import (
 var client *digitalocean.Client
 
 func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreateCommand {
-	c := &DropletCreateCommand{UI: ui, Trellis: trellis, playbook: &Playbook{}}
+	c := &DropletCreateCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
 	c.init()
 	return c
 }
@@ -176,7 +176,7 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 		c.playbook.SetRoot(c.Trellis.Path)
 
-		if err := c.playbook.Run("server.yml", []string{"-e", "env" + environment}, c.UI); err != nil {
+		if err := c.playbook.Run("server.yml", []string{"-e", "env" + environment}); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}

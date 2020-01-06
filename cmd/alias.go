@@ -71,11 +71,17 @@ func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
 			"alias.yml":    aliasYml,
 			"alias.yml.j2": strings.TrimSpace(aliasYmlJ2) + "\n",
 		},
+		Playbook: Playbook{
+			ui: ui,
+		},
 	}
 
 	aliasCopyPlaybook := &AdHocPlaybook{
 		files: map[string]string{
 			"alias-copy.yml": aliasCopyYml,
+		},
+		Playbook: Playbook{
+			ui: ui,
 		},
 	}
 
@@ -133,7 +139,7 @@ func (c *AliasCommand) Run(args []string) int {
 			"-e", "trellis_alias_j2=alias.yml.j2",
 			"-e", "trellis_alias_temp_dir=" + tempDir,
 		}
-		if err := c.aliasPlaybook.Run("alias.yml", args, c.UI); err != nil {
+		if err := c.aliasPlaybook.Run("alias.yml", args); err != nil {
 			c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias.yml: %s", err))
 			return 1
 		}
@@ -156,7 +162,7 @@ func (c *AliasCommand) Run(args []string) int {
 
 	c.aliasCopyPlaybook.SetRoot(c.Trellis.Path)
 
-	if err := c.aliasCopyPlaybook.Run("alias-copy.yml", []string{"-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath}, c.UI); err != nil {
+	if err := c.aliasCopyPlaybook.Run("alias-copy.yml", []string{"-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath}); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias-copy.yml: %s", err))
 		return 1
 	}

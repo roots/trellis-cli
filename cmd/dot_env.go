@@ -34,6 +34,9 @@ func NewDotEnvCommand(ui cli.Ui, trellis *trellis.Trellis) *DotEnvCommand {
 		files: map[string]string{
 			"dotenv.yml": dotenvYmlContent,
 		},
+		Playbook: Playbook{
+			ui: ui,
+		},
 	}
 
 	return &DotEnvCommand{UI: ui, Trellis: trellis, playbook: playbook}
@@ -66,7 +69,7 @@ func (c *DotEnvCommand) Run(args []string) int {
 
 	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}, c.UI); err != nil {
+	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}

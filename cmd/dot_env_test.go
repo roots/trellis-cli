@@ -103,7 +103,10 @@ func TestDotEnvRun(t *testing.T) {
 	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &AdHocPlaybook{}}
+	playbook := &AdHocPlaybook{
+		Playbook: Playbook{ui: ui},
+	}
+	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: playbook}
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
