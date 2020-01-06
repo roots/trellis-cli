@@ -19,8 +19,8 @@ type AliasCommand struct {
 	flags             *flag.FlagSet
 	Trellis           *trellis.Trellis
 	local             string
-	aliasPlaybook     PlaybookInterface
-	aliasCopyPlaybook PlaybookInterface
+	aliasPlaybook     PlaybookRunner
+	aliasCopyPlaybook PlaybookRunner
 }
 
 const aliasYml = `
@@ -66,7 +66,20 @@ const aliasCopyYml = `
 `
 
 func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
-	c := &AliasCommand{UI: ui, Trellis: trellis, aliasPlaybook: &Playbook{}, aliasCopyPlaybook: &Playbook{}}
+	aliasPlaybook := &AdHocPlaybook{
+		files: map[string]string{
+			"alias.yml":    aliasYml,
+			"alias.yml.j2": strings.TrimSpace(aliasYmlJ2) + "\n",
+		},
+	}
+
+	aliasCopyPlaybook := &AdHocPlaybook{
+		files: map[string]string{
+			"alias-copy.yml": aliasCopyYml,
+		},
+	}
+
+	c := &AliasCommand{UI: ui, Trellis: trellis, aliasPlaybook: aliasPlaybook, aliasCopyPlaybook: aliasCopyPlaybook}
 	c.init()
 	return c
 }
@@ -112,10 +125,7 @@ func (c *AliasCommand) Run(args []string) int {
 	defer os.RemoveAll(tempDir)
 
 	c.aliasPlaybook.SetRoot(c.Trellis.Path)
-	c.aliasPlaybook.SetFiles(map[string]string{
-		"alias.yml":    aliasYml,
-		"alias.yml.j2": strings.TrimSpace(aliasYmlJ2) + "\n",
-	})
+
 	for _, environment := range remoteEnvironments {
 		args := []string{
 			"-vvv",
@@ -145,9 +155,6 @@ func (c *AliasCommand) Run(args []string) int {
 	}
 
 	c.aliasCopyPlaybook.SetRoot(c.Trellis.Path)
-	c.aliasCopyPlaybook.SetFiles(map[string]string{
-		"alias-copy.yml": aliasCopyYml,
-	})
 
 	if err := c.aliasCopyPlaybook.Run("alias-copy.yml", []string{"-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath}, c.UI); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias-copy.yml: %s", err))

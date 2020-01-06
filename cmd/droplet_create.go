@@ -40,7 +40,7 @@ type DropletCreateCommand struct {
 	region        string
 	size          string
 	skipProvision bool
-	playbook      PlaybookInterface
+	playbook      PlaybookRunner
 }
 
 func (c *DropletCreateCommand) init() {

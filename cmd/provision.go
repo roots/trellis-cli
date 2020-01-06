@@ -21,7 +21,7 @@ type ProvisionCommand struct {
 	extraVars string
 	tags      string
 	Trellis   *trellis.Trellis
-	playbook  PlaybookInterface
+	playbook  PlaybookRunner
 }
 
 func (c *ProvisionCommand) init() {

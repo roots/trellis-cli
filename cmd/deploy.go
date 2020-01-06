@@ -12,7 +12,7 @@ import (
 )
 
 func NewDeployCommand(ui cli.Ui, trellis *trellis.Trellis) *DeployCommand {
-	c := &DeployCommand{UI: ui, Trellis: trellis, Playbook: &Playbook{}}
+	c := &DeployCommand{UI: ui, Trellis: trellis, playbook: &Playbook{}}
 	c.init()
 	return c
 }
@@ -22,7 +22,7 @@ type DeployCommand struct {
 	flags     *flag.FlagSet
 	extraVars string
 	Trellis   *trellis.Trellis
-	Playbook  PlaybookInterface
+	playbook  PlaybookRunner
 }
 
 func (c *DeployCommand) init() {
@@ -76,9 +76,9 @@ func (c *DeployCommand) Run(args []string) int {
 
 	extraVars := strings.Join(vars, " ")
 
-	c.Playbook.SetRoot(c.Trellis.Path)
+	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err := c.Playbook.Run("deploy.yml", []string{"-e", extraVars}, c.UI); err != nil {
+	if err := c.playbook.Run("deploy.yml", []string{"-e", extraVars}, c.UI); err != nil {
 		log.Fatal(err)
 	}
 

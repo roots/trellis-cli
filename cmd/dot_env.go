@@ -11,7 +11,7 @@ import (
 type DotEnvCommand struct {
 	UI       cli.Ui
 	Trellis  *trellis.Trellis
-	Playbook PlaybookInterface
+	playbook PlaybookRunner
 }
 
 const dotenvYmlContent = `
@@ -28,6 +28,16 @@ const dotenvYmlContent = `
         mode: '0644'
       with_dict: "{{ wordpress_sites }}"
 `
+
+func NewDotEnvCommand(ui cli.Ui, trellis *trellis.Trellis) *DotEnvCommand {
+	playbook := &AdHocPlaybook{
+		files: map[string]string{
+			"dotenv.yml": dotenvYmlContent,
+		},
+	}
+
+	return &DotEnvCommand{UI: ui, Trellis: trellis, playbook: playbook}
+}
 
 func (c *DotEnvCommand) Run(args []string) int {
 	if err := c.Trellis.LoadProject(); err != nil {
@@ -54,11 +64,9 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Playbook.SetRoot(c.Trellis.Path)
-	c.Playbook.SetFiles(map[string]string{
-		"dotenv.yml": dotenvYmlContent,
-	})
-	if err := c.Playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}, c.UI); err != nil {
+	c.playbook.SetRoot(c.Trellis.Path)
+
+	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}, c.UI); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}

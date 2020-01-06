@@ -36,7 +36,7 @@ func main() {
 			return cmd.NewDeployCommand(ui, trellis), nil
 		},
 		"dotenv": func() (cli.Command, error) {
-			return &cmd.DotEnvCommand{UI: ui, Trellis: trellis, Playbook: &cmd.Playbook{}}, nil
+			return cmd.NewDotEnvCommand(ui, trellis), nil
 		},
 		"down": func() (cli.Command, error) {
 			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil

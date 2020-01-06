@@ -21,7 +21,7 @@ type RollbackCommand struct {
 	flags    *flag.FlagSet
 	release  string
 	Trellis  *trellis.Trellis
-	playbook PlaybookInterface
+	playbook PlaybookRunner
 }
 
 func (c *RollbackCommand) init() {

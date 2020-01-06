@@ -42,7 +42,7 @@ func TestDotEnvArgumentValidations(t *testing.T) {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 
-		dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, Playbook: &Playbook{}}
+		dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, playbook: &AdHocPlaybook{}}
 
 		code := dotEnvCommand.Run(tc.args)
 
@@ -82,7 +82,7 @@ func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 
-		dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, Playbook: &Playbook{}}
+		dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, playbook: &AdHocPlaybook{}}
 
 		code := dotEnvCommand.Run(tc.args)
 
@@ -103,7 +103,7 @@ func TestDotEnvRun(t *testing.T) {
 	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, Playbook: &Playbook{}}
+	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &AdHocPlaybook{}}
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()
