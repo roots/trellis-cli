@@ -18,12 +18,7 @@ func (p *AdHocPlaybook) Run(playbookYml string, args []string) error {
 		return err
 	}
 
-	playbook := &Playbook{
-		root: p.root,
-		ui: p.ui,
-	}
-
-	return playbook.Run(playbookYml, args)
+	return p.Playbook.Run(playbookYml, args)
 }
 
 func (p *AdHocPlaybook) dumpFiles() error {
