@@ -28,7 +28,16 @@ brew upgrade --fetch-HEAD roots/tap/trellis-cli-dev
 
 We also offer a quick script version:
 
-`curl -sL https://roots.io/trellis/cli/get | bash`
+```bash
+# You might need sudo before bash
+curl -sL https://roots.io/trellis/cli/get | bash
+
+# Turns on debug logging
+curl -sL https://roots.io/trellis/cli/get | bash -s -- -d
+
+# Sets bindir or installation directory, Defaults to '/usr/local/bin'
+curl -sL https://roots.io/trellis/cli/get | bash -s -- -b /path/to/my/bin
+```
 
 ## Installation
 
