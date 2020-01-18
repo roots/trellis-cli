@@ -11,8 +11,8 @@ builds:
   goarch:
     - 386
     - amd64
-archive:
-  replacements:
+archives:
+- replacements:
     darwin: Darwin
     linux: Linux
     386: i386
