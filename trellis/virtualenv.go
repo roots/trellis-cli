@@ -27,6 +27,10 @@ func NewVirtualenv(path string) *Virtualenv {
 }
 
 func (v *Virtualenv) Activate() {
+	if v.Active() {
+		return
+	}
+
 	v.OldPathEnv = os.Getenv("PATH")
 	os.Setenv(EnvName, v.Path)
 	os.Setenv("PATH", fmt.Sprintf("%s:%s", v.BinPath, v.OldPathEnv))

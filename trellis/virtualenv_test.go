@@ -44,6 +44,28 @@ func TestActivateSetsEnv(t *testing.T) {
 	venv.Deactivate()
 }
 
+func TestActivateIsIdempotent(t *testing.T) {
+	venv := NewVirtualenv("trellis")
+	originalPath := os.Getenv("PATH")
+
+	venv.Activate()
+	venv.Activate()
+
+	if os.Getenv("VIRTUAL_ENV") != "trellis/virtualenv" {
+		t.Error("expected VIRTUAL_ENV env var to set")
+	}
+
+	if os.Getenv("PATH") != fmt.Sprintf("trellis/virtualenv/bin:%s", originalPath) {
+		t.Error("expected PATH to contain bin path")
+	}
+
+	if venv.OldPathEnv != originalPath {
+		t.Error("expected OldPathEnv to be the original PATH")
+	}
+
+	venv.Deactivate()
+}
+
 func TestActive(t *testing.T) {
 	venv := NewVirtualenv("trellis")
 
