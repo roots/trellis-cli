@@ -73,7 +73,7 @@ func (c *DeployCommand) Run(args []string) int {
 		vars = append(vars, c.extraVars)
 	}
 
-	extraVars := fmt.Sprintf("\"%s\"", strings.Join(vars, " "))
+	extraVars := strings.Join(vars, " ")
 
 	playbookArgs := []string{"deploy.yml", "-e", extraVars}
 	deploy := execCommand("ansible-playbook", playbookArgs...)
