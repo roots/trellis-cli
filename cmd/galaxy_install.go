@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -13,6 +16,8 @@ type GalaxyInstallCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 }
+
+var RoleAlreadyInstalledPattern = regexp.MustCompile(`^.*\[WARNING\]\: - (.*) \(.*\) .*`)
 
 func (c *GalaxyInstallCommand) Run(args []string) int {
 	if err := c.Trellis.LoadProject(); err != nil {
@@ -45,13 +50,44 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		c.UI.Warn("Warning: multiple role files found. Defaulting to galaxy.yml")
 	}
 
+	mockUi := cli.NewMockUi()
+
 	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", files[0])
-	logCmd(galaxyInstall, c.UI, true)
+	logCmd(galaxyInstall, mockUi, true)
 	err := galaxyInstall.Run()
 
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
 		return 1
+	}
+
+	c.UI.Info(mockUi.OutputWriter.String())
+	c.UI.Error(mockUi.ErrorWriter.String())
+
+	var rolesToForceUpdate []string
+
+	s := bufio.NewScanner(bytes.NewReader(mockUi.ErrorWriter.Bytes()))
+	s.Split(bufio.ScanLines)
+
+	for s.Scan() {
+		match := RoleAlreadyInstalledPattern.FindStringSubmatch(s.Text())
+
+		if len(match) > 0 {
+			rolesToForceUpdate = append(rolesToForceUpdate, match[1])
+		}
+	}
+
+	if len(rolesToForceUpdate) > 0 {
+		c.UI.Info(fmt.Sprintf("Updating roles: %s\n", strings.Join(rolesToForceUpdate, ", ")))
+		installArgs := append([]string{"install", "-f", "-r", files[0]}, rolesToForceUpdate...)
+		galaxyInstall = execCommand("ansible-galaxy", installArgs...)
+		logCmd(galaxyInstall, c.UI, true)
+		err = galaxyInstall.Run()
+
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
+			return 1
+		}
 	}
 
 	return 0
@@ -68,6 +104,11 @@ Usage: trellis galaxy install
 Installs Ansible Galaxy roles.
 
 See https://roots.io/trellis/docs/remote-server-setup/#requirements for more information.
+
+Any previously installed roles that have a new version updated in galaxy.yml will automatically be installed.
+
+This means there's no need to use the --force option with ansible-galaxy to get a newer version of a role.
+If you want to clear out all the roles and re-install them all it's recommended to simply delete your vendor directory.
 
 Options:
   -h, --help  show this help
