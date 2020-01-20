@@ -174,12 +174,8 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 		c.UI.Info("\nProvisioning server...\n")
 
-		c.playbook.SetRoot(c.Trellis.Path)
-
-		if err := c.playbook.Run("server.yml", []string{"-e", "env" + environment}); err != nil {
-			c.UI.Error(err.Error())
-			return 1
-		}
+		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
+		return provisionCmd.Run([]string{environment})
 	}
 
 	return 0
