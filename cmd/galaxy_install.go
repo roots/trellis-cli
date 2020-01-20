@@ -57,12 +57,12 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 	err := galaxyInstall.Run()
 
 	if err != nil {
+		c.UI.Error(mockUi.ErrorWriter.String())
 		c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
 		return 1
 	}
 
 	c.UI.Info(mockUi.OutputWriter.String())
-	c.UI.Error(mockUi.ErrorWriter.String())
 
 	var rolesToForceUpdate []string
 
