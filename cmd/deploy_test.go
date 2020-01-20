@@ -88,7 +88,9 @@ func TestDeployRun(t *testing.T) {
 	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	deployCommand := NewDeployCommand(ui, trellis)
+
+	deployCommand := &DeployCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
+	deployCommand.init()
 
 	execCommand = mockExecCommand
 	defer func() { execCommand = exec.Command }()

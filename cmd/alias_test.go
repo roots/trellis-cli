@@ -42,7 +42,8 @@ func TestAliasArgumentValidations(t *testing.T) {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 
-		aliasCommand := NewAliasCommand(ui, trellis)
+		aliasCommand := &AliasCommand{UI: ui, Trellis: trellis, aliasPlaybook: &MockPlaybook{ui: ui}, aliasCopyPlaybook: &MockPlaybook{ui: ui}}
+		aliasCommand.init()
 
 		code := aliasCommand.Run(tc.args)
 
