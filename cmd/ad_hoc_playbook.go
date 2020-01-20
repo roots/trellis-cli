@@ -12,7 +12,10 @@ type AdHocPlaybook struct {
 }
 
 func (p *AdHocPlaybook) Run(playbookYml string, args []string) error {
-	// TODO: Panic if files is empty.
+	if len(p.files) == 0 {
+		panic("AdHocPlaybook files is empty; This is a flaw in the source code. Please send bug report.")
+	}
+
 	defer p.removeFiles()
 	if err := p.dumpFiles(); err != nil {
 		return err

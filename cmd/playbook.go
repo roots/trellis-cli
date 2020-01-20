@@ -20,7 +20,14 @@ func (p *Playbook) SetRoot(root string) {
 }
 
 func (p *Playbook) Run(playbookYml string, args []string) error {
-	// TODO: Panic if root & ui are empty.
+	if p.root == "" {
+		panic("Playbook root is empty; This is a flaw in the source code. Please send bug report.")
+	}
+
+	if p.ui == nil {
+		panic("Playbook ui is nil; This is a flaw in the source code. Please send bug report.")
+	}
+
 	command := execCommand("ansible-playbook", append([]string{playbookYml}, args...)...)
 
 	command.Dir = p.root
