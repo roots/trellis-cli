@@ -102,19 +102,19 @@ func TestDeployRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development", "example.com"},
-			`ansible-playbook deploy.yml -e "env=development site=example.com"`,
+			"ansible-playbook deploy.yml -e env=development site=example.com",
 			0,
 		},
 		{
 			"site_not_needed_in_defaut_case",
 			[]string{"development"},
-			`ansible-playbook deploy.yml -e "env=development site=example.com"`,
+			"ansible-playbook deploy.yml -e env=development site=example.com",
 			0,
 		},
 		{
 			"with_extra_vars",
 			[]string{"-extra-vars", "k=v foo=bar", "development"},
-			`ansible-playbook deploy.yml -e "env=development site=example.com k=v foo=bar"`,
+			"ansible-playbook deploy.yml -e env=development site=example.com k=v foo=bar",
 			0,
 		},
 	}
