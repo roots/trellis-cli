@@ -93,7 +93,7 @@ func TestGalaxyInstallRun(t *testing.T) {
 			"default",
 			[]string{},
 			[]string{"galaxy.yml", "requirements.yml"},
-			"ansible-galaxy install -r galaxy.yml\nWarning: multiple role files found. Defaulting to galaxy.yml",
+			"ansible-galaxy install -r galaxy.yml\n\nWarning: multiple role files found. Defaulting to galaxy.yml",
 			0,
 		},
 	}
