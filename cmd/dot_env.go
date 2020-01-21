@@ -5,13 +5,41 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	. "trellis-cli/templates"
 	"trellis-cli/trellis"
 )
 
 type DotEnvCommand struct {
-	UI      cli.Ui
-	Trellis *trellis.Trellis
+	UI       cli.Ui
+	Trellis  *trellis.Trellis
+	playbook PlaybookRunner
+}
+
+const dotenvYmlContent = `
+---
+- name: 'Trellis CLI: Template .env files to local system'
+  hosts: web:&{{ env }}
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Template .env files to local system
+      template:
+        src: roles/deploy/templates/env.j2
+        dest: "{{ item.value.local_path }}/.env"
+        mode: '0644'
+      with_dict: "{{ wordpress_sites }}"
+`
+
+func NewDotEnvCommand(ui cli.Ui, trellis *trellis.Trellis) *DotEnvCommand {
+	playbook := &AdHocPlaybook{
+		files: map[string]string{
+			"dotenv.yml": dotenvYmlContent,
+		},
+		Playbook: Playbook{
+			ui: ui,
+		},
+	}
+
+	return &DotEnvCommand{UI: ui, Trellis: trellis, playbook: playbook}
 }
 
 func (c *DotEnvCommand) Run(args []string) int {
@@ -39,19 +67,10 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Template playbook file from package to Trellis
-	playbookPath := "dotenv.yml"
-	writeFile(playbookPath, TrimSpace(DOTENV_YML))
-	defer deleteFile(playbookPath)
+	c.playbook.SetRoot(c.Trellis.Path)
 
-	dotEnv := execCommand("ansible-playbook", "dotenv.yml", "-e", "env=" + environment)
-	appendEnvironmentVariable(dotEnv, "ANSIBLE_RETRY_FILES_ENABLED=false")
-
-	logCmd(dotEnv, c.UI, true)
-	runErr := dotEnv.Run()
-
-	if runErr != nil {
-		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", runErr))
+	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}); err != nil {
+		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}
 

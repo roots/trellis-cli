@@ -27,7 +27,7 @@ import (
 var client *digitalocean.Client
 
 func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreateCommand {
-	c := &DropletCreateCommand{UI: ui, Trellis: trellis}
+	c := &DropletCreateCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
 	c.init()
 	return c
 }
@@ -40,6 +40,7 @@ type DropletCreateCommand struct {
 	region        string
 	size          string
 	skipProvision bool
+	playbook      PlaybookRunner
 }
 
 func (c *DropletCreateCommand) init() {
@@ -172,12 +173,9 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		galaxyInstallCmd.Run([]string{})
 
 		c.UI.Info("\nProvisioning server...\n")
-		playbookCmd := ProvisionCmd(environment, "", "")
-		logCmd(playbookCmd, c.UI, true)
 
-		if err := playbookCmd.Run(); err != nil {
-			return 1
-		}
+		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
+		return provisionCmd.Run([]string{environment})
 	}
 
 	return 0

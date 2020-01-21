@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -12,16 +11,17 @@ import (
 )
 
 func NewRollbackCommand(ui cli.Ui, trellis *trellis.Trellis) *RollbackCommand {
-	c := &RollbackCommand{UI: ui, Trellis: trellis}
+	c := &RollbackCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
 	c.init()
 	return c
 }
 
 type RollbackCommand struct {
-	UI      cli.Ui
-	flags   *flag.FlagSet
-	release string
-	Trellis *trellis.Trellis
+	UI       cli.Ui
+	flags    *flag.FlagSet
+	release  string
+	Trellis  *trellis.Trellis
+	playbook PlaybookRunner
 }
 
 func (c *RollbackCommand) init() {
@@ -70,13 +70,11 @@ func (c *RollbackCommand) Run(args []string) int {
 		extraVars = fmt.Sprintf("%s release=%s", extraVars, c.release)
 	}
 
-	playbookArgs := []string{"rollback.yml", "-e", extraVars}
-	playbook := execCommand("ansible-playbook", playbookArgs...)
-	logCmd(playbook, c.UI, true)
-	err := playbook.Run()
+	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err != nil {
-		log.Fatal(err)
+	if err := c.playbook.Run("rollback.yml", []string{"-e", extraVars}); err != nil {
+		c.UI.Error(err.Error())
+		return 1
 	}
 
 	return 0
