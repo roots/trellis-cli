@@ -47,7 +47,30 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 2. Unpack it (`tar -zxvf trellis_0.3.1_Linux_x86_64.tar.gz`)
 3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.3.1_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
-5. Run `trellis --autocomplete-install` to install shell autocompletions
+
+### Shell Autocompletions
+
+Homebrew installs trellis-cli' shell completion automatically by default. If shell completions aren't working, or you installed manually not using Homebrew, you'll need to install the completions manually
+
+To use the trellis-cli's autocomplete via Homebrew's shell completion:
+
+1. Follow Homebrew's install instructions https://docs.brew.sh/Shell-Completion
+
+    Note: For zsh, as the instructions mention, be sure compinit is autoloaded and called, either explicitly or via a framework like oh-my-zsh.
+
+2. Then run:
+
+    ```bash
+    brew reinstall trellis-cli
+    ```
+
+To use the trellis-cli's autocomplete via manually install, run:
+
+```bash
+trellis --autocomplete-install
+```
+
+It should modify your `.bashrc`, `.zshrc` or similar.
 
 ## Usage
 
