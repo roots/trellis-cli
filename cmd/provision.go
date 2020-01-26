@@ -59,6 +59,9 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
+	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.Trellis}
+	galaxyInstallCommand.Run([]string{})
+
 	c.playbook.SetRoot(c.Trellis.Path)
 
 	vars := "env=" + environment
