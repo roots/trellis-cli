@@ -54,10 +54,10 @@ func (c *InitCommand) Run(args []string) int {
 
 	c.UI.Info("✓ Virtualenv created\n")
 
-	pip := execCommand("pip", "install", "-r", "requirements.txt")
+	pip := execCommand("pip", "install", "--upgrade", "--upgrade-strategy", "eager", "-r", "requirements.txt")
 
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Suffix = " Installing pip dependencies (pip install -r requirements.txt) ..."
+	s.Suffix = " Installing pip dependencies (pip install --upgrade --upgrade-strategy eager -r requirements.txt) ..."
 	s.FinalMSG = "✓ Dependencies installed\n"
 	s.Start()
 
