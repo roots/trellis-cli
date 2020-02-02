@@ -118,7 +118,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	// Initialize db opener object; check app is supported.
-	opener, dbOpenerFactoryMakeErr := c.dbOpenerFactory.make(c.app, c.UI)
+	opener, dbOpenerFactoryMakeErr := c.dbOpenerFactory.Make(c.app, c.UI)
 	if dbOpenerFactoryMakeErr != nil {
 		c.UI.Error(fmt.Sprintf("Error initializing new db opener object: %s", dbOpenerFactoryMakeErr))
 		c.UI.Error(fmt.Sprintf("Supported apps are: %s", c.dbOpenerFactory.getSupportedApps()))

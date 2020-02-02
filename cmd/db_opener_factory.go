@@ -11,7 +11,7 @@ type DBOpener interface {
 	open(c DBCredentials) (err error)
 }
 
-func (f *DBOpenerFactory) make(app string, ui cli.Ui) (o DBOpener, err error) {
+func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
 	switch app {
 	case "tableplus":
 		return &DBOpenerTableplus{}, nil

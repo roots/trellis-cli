@@ -10,7 +10,7 @@ import (
 func TestMakeUnexpected(t *testing.T) {
 	factory := &DBOpenerFactory{}
 
-	_, actualErr := factory.make("unexpected-app", cli.NewMockUi())
+	_, actualErr := factory.Make("unexpected-app", cli.NewMockUi())
 
 	actualErrorMessage := actualErr.Error()
 
@@ -38,7 +38,7 @@ func TestMake(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		actual, actualErr := factory.make(tc.app, cli.NewMockUi())
+		actual, actualErr := factory.Make(tc.app, cli.NewMockUi())
 
 		if actualErr != nil {
 			t.Errorf("expected error %s to be nil", actualErr)
