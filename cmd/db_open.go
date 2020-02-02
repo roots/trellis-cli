@@ -81,7 +81,7 @@ type DBCredentials struct {
 func (c *DBOpenCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	appUsage := fmt.Sprintf("Database client to be used; Supported: %s", c.dbOpenerFactory.getSupportedApps())
+	appUsage := fmt.Sprintf("Database client to be used; Supported: %s", c.dbOpenerFactory.GetSupportedApps())
 	c.flags.StringVar(&c.app, "app", "", appUsage)
 }
 
@@ -121,7 +121,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	opener, dbOpenerFactoryMakeErr := c.dbOpenerFactory.Make(c.app, c.UI)
 	if dbOpenerFactoryMakeErr != nil {
 		c.UI.Error(fmt.Sprintf("Error initializing new db opener object: %s", dbOpenerFactoryMakeErr))
-		c.UI.Error(fmt.Sprintf("Supported apps are: %s", c.dbOpenerFactory.getSupportedApps()))
+		c.UI.Error(fmt.Sprintf("Supported apps are: %s", c.dbOpenerFactory.GetSupportedApps()))
 		return 1
 	}
 
@@ -190,5 +190,5 @@ Options:
   -h, --help        show this help
 `
 
-	return strings.TrimSpace(fmt.Sprintf(helpText, c.dbOpenerFactory.getSupportedApps()))
+	return strings.TrimSpace(fmt.Sprintf(helpText, c.dbOpenerFactory.GetSupportedApps()))
 }

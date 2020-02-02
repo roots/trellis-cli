@@ -22,7 +22,7 @@ func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
 	return nil, fmt.Errorf("%s is not supported", app)
 }
 
-func (f *DBOpenerFactory) getSupportedApps() []string {
+func (f *DBOpenerFactory) GetSupportedApps() []string {
 	return []string{
 		"tableplus",
 		"sequel-pro",

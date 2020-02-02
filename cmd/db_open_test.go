@@ -89,7 +89,7 @@ func TestDBOpenPlaybook(t *testing.T) {
 
 	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: dbOpenerFactory, playbook: mockPlaybook}
 	dbOpenCommand.init()
-	dbOpenCommand.app = dbOpenerFactory.getSupportedApps()[0]
+	dbOpenCommand.app = dbOpenerFactory.GetSupportedApps()[0]
 
 	dbOpenCommand.Run([]string{"production", "example.com"})
 
