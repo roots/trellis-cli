@@ -32,6 +32,15 @@ func main() {
 		"check": func() (cli.Command, error) {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"db": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis db <subcommand> [<args>]",
+				SynopsisText: "Commands for database management",
+			}, nil
+		},
+		"db open": func() (cli.Command, error) {
+			return cmd.NewDBOpenCommand(ui, trellis), nil
+		},
 		"deploy": func() (cli.Command, error) {
 			return cmd.NewDeployCommand(ui, trellis), nil
 		},
