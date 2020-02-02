@@ -58,8 +58,8 @@ func TestDBOpenAppFlagValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{detected: true}
-	trellis := trellis.NewTrellis(mockProject)
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 
 	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
 	dbOpenCommand.init()
@@ -82,8 +82,8 @@ func TestDBOpenPlaybook(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{detected: true}
-	trellis := trellis.NewTrellis(mockProject)
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
 	mockPlaybook := &MockPlaybook{ui: ui}
 	dbOpenerFactory := &DBOpenerFactory{}
 
