@@ -100,8 +100,8 @@ func TestGalaxyInstallRun(t *testing.T) {
 
 	for _, tc := range cases {
 		ui := cli.NewMockUi()
-		mockProject := &MockProject{true}
-		trellis := trellis.NewTrellis(mockProject)
+		project := &trellis.Project{}
+		trellis := trellis.NewTrellis(project)
 		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
 		for _, file := range tc.roleFiles {
