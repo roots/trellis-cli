@@ -48,7 +48,10 @@ func main() {
 			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"droplet": func() (cli.Command, error) {
-			return &cmd.DropletCommand{UI: ui, Trellis: trellis}, nil
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
+				SynopsisText: "Commands for DigitalOcean Droplets",
+			}, nil
 		},
 		"droplet create": func() (cli.Command, error) {
 			return cmd.NewDropletCreateCommand(ui, trellis), nil
@@ -57,7 +60,10 @@ func main() {
 			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"galaxy": func() (cli.Command, error) {
-			return &cmd.GalaxyCommand{UI: ui, Trellis: trellis}, nil
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis galaxy <subcommand> [<args>]",
+				SynopsisText: "Commands for Ansible Galaxy",
+			}, nil
 		},
 		"galaxy install": func() (cli.Command, error) {
 			return &cmd.GalaxyInstallCommand{UI: ui, Trellis: trellis}, nil
@@ -84,7 +90,10 @@ func main() {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
 		"vault": func() (cli.Command, error) {
-			return &cmd.VaultCommand{UI: ui, Trellis: trellis}, nil
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis vault <subcommand> [<args>]",
+				SynopsisText: "Commands for Ansible Vault",
+			}, nil
 		},
 		"vault edit": func() (cli.Command, error) {
 			return cmd.NewVaultEditCommand(ui, trellis, &cmd.SyscallCommandExecutor{}), nil
@@ -99,7 +108,10 @@ func main() {
 			return cmd.NewVaultViewCommand(ui, trellis), nil
 		},
 		"valet": func() (cli.Command, error) {
-			return &cmd.ValetCommand{UI: ui, Trellis: trellis}, nil
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis valet <subcommand> [<args>]",
+				SynopsisText: "Commands for Laravel Valet",
+			}, nil
 		},
 		"valet link": func() (cli.Command, error) {
 			return &cmd.ValetLinkCommand{UI: ui, Trellis: trellis}, nil
