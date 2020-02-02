@@ -27,7 +27,7 @@ func TestOpen(t *testing.T) {
 		ui: ui,
 	}
 
-	sequelPro.open(dbCredentials)
+	sequelPro.Open(dbCredentials)
 
 	actualCombined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 	actualCombined = strings.TrimSpace(actualCombined)

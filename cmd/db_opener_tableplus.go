@@ -6,7 +6,7 @@ import (
 
 type DBOpenerTableplus struct{}
 
-func (o *DBOpenerTableplus) open(c DBCredentials) (err error) {
+func (o *DBOpenerTableplus) Open(c DBCredentials) (err error) {
 	uri := o.uriFor(c)
 	open := execCommand("open", uri)
 

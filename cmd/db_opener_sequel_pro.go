@@ -54,7 +54,7 @@ const sequelProSpfTemplate = `
 </plist>
 `
 
-func (o *DBOpenerSequelPro) open(c DBCredentials) (err error) {
+func (o *DBOpenerSequelPro) Open(c DBCredentials) (err error) {
 	sequelProSpf, sequelProSpfErr := ioutil.TempFile("", "*.spf")
 	if sequelProSpfErr != nil {
 		return fmt.Errorf("Error creating temporary SequelPro SPF file: %s", sequelProSpfErr)

@@ -158,7 +158,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	// Open database with GUI application.
-	if err := opener.open(dbCredentials); err != nil {
+	if err := opener.Open(dbCredentials); err != nil {
 		c.UI.Error(fmt.Sprintf("Error opening db: %s", err))
 		return 1
 	}

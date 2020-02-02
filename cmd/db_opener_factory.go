@@ -8,7 +8,7 @@ import (
 type DBOpenerFactory struct{}
 
 type DBOpener interface {
-	open(c DBCredentials) (err error)
+	Open(c DBCredentials) (err error)
 }
 
 func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
