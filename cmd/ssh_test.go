@@ -112,8 +112,8 @@ func TestSshRun(t *testing.T) {
 
 	for _, tc := range cases {
 		mockCmd := &MockCommand{}
-		mockProject := &MockProject{true}
-		trellis := trellis.NewTrellis(mockProject)
+		project := &trellis.Project{}
+		trellis := trellis.NewTrellis(project)
 		sshCommand := &SshCommand{ui, trellis, &MockCommandExecutor{mockCmd}}
 
 		code := sshCommand.Run(tc.args)

@@ -76,8 +76,8 @@ func TestVaultEditRun(t *testing.T) {
 
 	for _, tc := range cases {
 		mockCmd := &MockCommand{}
-		mockProject := &MockProject{true}
-		trellis := trellis.NewTrellis(mockProject)
+		project := &trellis.Project{}
+		trellis := trellis.NewTrellis(project)
 		vaultEditCommand := NewVaultEditCommand(ui, trellis, &MockCommandExecutor{mockCmd})
 
 		code := vaultEditCommand.Run(tc.args)
