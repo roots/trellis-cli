@@ -89,6 +89,12 @@ func main() {
 		"ssh": func() (cli.Command, error) {
 			return &cmd.SshCommand{ui, trellis, &cmd.SyscallCommandExecutor{}}, nil
 		},
+		"ssl": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis ssl <subcommand> [<args>]",
+				SynopsisText: "Commands for SSL certificates management",
+			}, nil
+		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},

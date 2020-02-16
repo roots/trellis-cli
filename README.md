@@ -96,6 +96,7 @@ Supported commands so far:
 | `provision` | Provisions the specified environment |
 | `rollback` | Rollsback the last deploy of the site on the specified environment |
 | `ssh` | Connects to host via SSH |
+| `ssl` | Commands for SSL certificates management |
 | `up` | Starts and provisions the Vagrant environment by running `vagrant up` |
 | `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
