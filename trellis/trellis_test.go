@@ -236,3 +236,43 @@ func TestSiteFromEnvironmentAndName(t *testing.T) {
 		t.Error("expected site not returned")
 	}
 }
+
+func TestActivateProjectProjects(t *testing.T) {
+	defer LoadFixtureProject(t)()
+
+	project := &Project{}
+	tp := NewTrellis(project)
+
+	if !tp.ActivateProject() {
+		t.Error("expected true")
+	}
+}
+
+func TestActivateProjectForNonProjects(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "trellis")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	defer TestChdir(t, tempDir)()
+	defer os.RemoveAll(tempDir)
+
+	project := &Project{}
+	tp := NewTrellis(project)
+
+	if tp.ActivateProject() {
+		t.Error("expected false")
+	}
+}
+
+func TestActivateProjectForNonVirtualenvInitializedProjects(t *testing.T) {
+	defer LoadFixtureProject(t)()
+	os.RemoveAll(".trellis/virtualenv")
+
+	project := &Project{}
+	tp := NewTrellis(project)
+
+	if tp.ActivateProject() {
+		t.Error("expected false")
+	}
+}

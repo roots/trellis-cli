@@ -45,6 +45,36 @@ func (t *Trellis) CreateConfigDir() error {
 }
 
 /*
+Activates a Trellis project's virtualenv without loading the config files.
+This is optimized to be a lighter weight version of LoadProject more suitable
+for the shell hook.
+*/
+func (t *Trellis) ActivateProject() bool {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	path, ok := t.Detect(wd)
+
+	if !ok {
+		return false
+	}
+
+	t.Path = path
+	t.ConfigPath = filepath.Join(path, ConfigDir)
+	t.Virtualenv = NewVirtualenv(t.ConfigPath)
+
+	if !t.Virtualenv.Initialized() {
+		return false
+	}
+
+	os.Chdir(t.Path)
+
+	return true
+}
+
+/*
 Loads a Trellis project.
 If a project is detected, the wordpress_sites config files are parsed and
 the directory is changed to the project path.
@@ -72,6 +102,12 @@ func (t *Trellis) LoadProject() error {
 
 	os.Chdir(t.Path)
 
+	if os.Getenv("TRELLIS_VENV") != "false" {
+		if t.Virtualenv.Initialized() {
+			t.Virtualenv.Activate()
+		}
+	}
+
 	configPaths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
 
 	envs := make([]string, len(configPaths))
@@ -83,12 +119,6 @@ func (t *Trellis) LoadProject() error {
 		envs[i] = envName
 
 		t.Environments[envName] = t.ParseConfig(p)
-	}
-
-	if os.Getenv("TRELLIS_VENV") != "false" {
-		if t.Virtualenv.Initialized() {
-			t.Virtualenv.Activate()
-		}
 	}
 
 	return nil
