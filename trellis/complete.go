@@ -5,23 +5,19 @@ import (
 )
 
 func (t *Trellis) AutocompleteSite() complete.Predictor {
-	if err := t.LoadProject(); err != nil {
-		return complete.PredictNothing
-	}
-
 	return t.PredictSite()
 }
 
 func (t *Trellis) AutocompleteEnvironment() complete.Predictor {
-	if err := t.LoadProject(); err != nil {
-		return complete.PredictNothing
-	}
-
 	return t.PredictEnvironment()
 }
 
 func (t *Trellis) PredictSite() complete.PredictFunc {
 	return func(args complete.Args) []string {
+		if err := t.LoadProject(); err != nil {
+			return []string{}
+		}
+
 		switch len(args.Completed) {
 		case 1:
 			return t.EnvironmentNames()
@@ -35,6 +31,10 @@ func (t *Trellis) PredictSite() complete.PredictFunc {
 
 func (t *Trellis) PredictEnvironment() complete.PredictFunc {
 	return func(args complete.Args) []string {
+		if err := t.LoadProject(); err != nil {
+			return []string{}
+		}
+
 		switch len(args.Completed) {
 		case 1:
 			return t.EnvironmentNames()
