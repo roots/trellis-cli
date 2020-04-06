@@ -151,6 +151,9 @@ func (c *NewCommand) Run(args []string) int {
 		c.UI.Error(fmt.Sprintf("Error adding vault_password_file setting to ansible.cfg: %s", err))
 	}
 
+	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.trellis}
+	galaxyInstallCommand.Run([]string{})
+
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis v%s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
