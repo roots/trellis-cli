@@ -13,13 +13,18 @@ func TestNewVirtualenv(t *testing.T) {
 	venv := NewVirtualenv("trellis")
 	path := "trellis/virtualenv"
 	binPath := "trellis/virtualenv/bin"
+	oldPath := os.Getenv("PATH")
 
 	if venv.Path != path {
-		t.Errorf("expected path to be %s, but got %s", venv.Path, path)
+		t.Errorf("expected Path to be %s, but got %s", venv.Path, path)
 	}
 
 	if venv.BinPath != binPath {
-		t.Errorf("expected path to be %s, but got %s", venv.Path, binPath)
+		t.Errorf("expected BinPath to be %s, but got %s", venv.BinPath, binPath)
+	}
+
+	if venv.OldPath != oldPath {
+		t.Errorf("expected OldPath to be %s, but got %s", venv.OldPath, oldPath)
 	}
 }
 
@@ -37,8 +42,8 @@ func TestActivateSetsEnv(t *testing.T) {
 		t.Error("expected PATH to contain bin path")
 	}
 
-	if venv.OldPathEnv != originalPath {
-		t.Error("expected OldPathEnv to be the original PATH")
+	if venv.OldPath != os.Getenv("PRE_TRELLIS_PATH") {
+		t.Error("expected OldPath to be the original PATH")
 	}
 
 	venv.Deactivate()
@@ -59,8 +64,8 @@ func TestActivateIsIdempotent(t *testing.T) {
 		t.Error("expected PATH to contain bin path")
 	}
 
-	if venv.OldPathEnv != originalPath {
-		t.Error("expected OldPathEnv to be the original PATH")
+	if venv.OldPath != originalPath {
+		t.Error("expected OldPath to be the original PATH")
 	}
 
 	venv.Deactivate()
@@ -89,8 +94,12 @@ func TestDeactive(t *testing.T) {
 		t.Error("Expected VIRTUALENV to be empty")
 	}
 
-	if os.Getenv("PATH") != venv.OldPathEnv {
+	if os.Getenv("PATH") != venv.OldPath {
 		t.Error("Expected PATH to be reset")
+	}
+
+	if os.Getenv("PRE_TRELLIS_PATH") != "" {
+		t.Error("Expected PRE_TRELLIS_PATH to be empty")
 	}
 }
 

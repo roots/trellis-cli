@@ -11,18 +11,21 @@ import (
 )
 
 const VirtualenvDir string = "virtualenv"
-const EnvName string = "VIRTUAL_ENV"
+const VenvEnvName string = "VIRTUAL_ENV"
+const PathEnvName string = "PATH"
+const OldPathEnvName string = "PRE_TRELLIS_PATH"
 
 type Virtualenv struct {
-	Path       string
-	BinPath    string
-	OldPathEnv string
+	Path    string
+	BinPath string
+	OldPath string
 }
 
 func NewVirtualenv(path string) *Virtualenv {
 	return &Virtualenv{
 		Path:    filepath.Join(path, VirtualenvDir),
 		BinPath: filepath.Join(path, VirtualenvDir, "bin"),
+		OldPath: os.Getenv(PathEnvName),
 	}
 }
 
@@ -31,18 +34,19 @@ func (v *Virtualenv) Activate() {
 		return
 	}
 
-	v.OldPathEnv = os.Getenv("PATH")
-	os.Setenv(EnvName, v.Path)
-	os.Setenv("PATH", fmt.Sprintf("%s:%s", v.BinPath, v.OldPathEnv))
+	os.Setenv(VenvEnvName, v.Path)
+	os.Setenv(OldPathEnvName, v.OldPath)
+	os.Setenv(PathEnvName, fmt.Sprintf("%s:%s", v.BinPath, v.OldPath))
 }
 
 func (v *Virtualenv) Active() bool {
-	return os.Getenv(EnvName) == v.Path
+	return os.Getenv(VenvEnvName) == v.Path
 }
 
 func (v *Virtualenv) Create() (err error) {
 	_, cmd := v.Installed()
 	cmd.Args = append(cmd.Args, v.Path)
+	cmd.Stderr = os.Stderr
 
 	if v.Initialized() {
 		v.Activate()
@@ -59,8 +63,9 @@ func (v *Virtualenv) Create() (err error) {
 }
 
 func (v *Virtualenv) Deactivate() {
-	os.Unsetenv(EnvName)
-	os.Setenv("PATH", v.OldPathEnv)
+	os.Unsetenv(VenvEnvName)
+	os.Unsetenv(OldPathEnvName)
+	os.Setenv(PathEnvName, v.OldPath)
 }
 
 func (v *Virtualenv) LocalPath() string {
