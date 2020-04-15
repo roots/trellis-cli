@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"os"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -14,7 +13,7 @@ type UpCommand struct {
 	UI          cli.Ui
 	Trellis     *trellis.Trellis
 	flags       *flag.FlagSet
-	noGalaxy    bool
+	withGalaxy  bool
 	noProvision bool
 }
 
@@ -27,8 +26,8 @@ func NewUpCommand(ui cli.Ui, trellis *trellis.Trellis) *UpCommand {
 func (c *UpCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.BoolVar(&c.noGalaxy, "no-galaxy", false, "Disable Ansible Galaxy auto-install")
-	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Disable provisioning")
+	c.flags.BoolVar(&c.withGalaxy, "with-galaxy", false, "Run Ansible Galaxy install")
+	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skip provisioning")
 }
 
 func (c *UpCommand) Run(args []string) int {
@@ -59,8 +58,8 @@ func (c *UpCommand) Run(args []string) int {
 
 	vagrantUp := execCommand("vagrant", vagrantArgs...)
 
-	if c.noGalaxy {
-		vagrantUp.Env = append(os.Environ(), "SKIP_GALAXY=true")
+	if !c.withGalaxy {
+		vagrantUp.Env = append(vagrantUp.Env, "SKIP_GALAXY=true")
 	}
 
 	logCmd(vagrantUp, c.UI, true)
@@ -87,13 +86,17 @@ Start Vagrant VM:
 
   $ trellis up
 
-Start VM without running Ansible Galaxy:
+Start VM without provisioning:
 
-  $ trellis up --no-galaxy
+  $ trellis up --no-provision
+
+Start VM and auto-run Galaxy install:
+
+  $ trellis up --with-galaxy
 
 Options:
-      --no-galaxy    (default: false) Disable Ansible Galaxy auto-install
-      --no-provision (default: false) Disable provisioning
+      --no-provision (default: false) Skip provisioning
+      --with-galaxy  (default: false) Run Ansible Galaxy install
   -h, --help         show this help
 `
 
@@ -106,7 +109,7 @@ func (c *UpCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *UpCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--no-galaxy":    complete.PredictNothing,
 		"--no-provision": complete.PredictNothing,
+		"--with-galaxy":  complete.PredictNothing,
 	}
 }
