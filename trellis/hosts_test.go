@@ -2,15 +2,15 @@ package trellis
 
 import (
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
 func TestUpdateHosts(t *testing.T) {
+	defer TestChdir(t, "testdata/trellis")()
+
 	project := &Project{}
 	trellis := NewTrellis(project)
 
-	os.Chdir("testdata/trellis")
 	err := trellis.LoadProject()
 	if err != nil {
 		t.Fatalf("Could not load Trellis project: %s", err)
