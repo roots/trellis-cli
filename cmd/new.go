@@ -155,7 +155,7 @@ func (c *NewCommand) Run(args []string) int {
 	galaxyInstallCommand.Run([]string{})
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
-	fmt.Printf("  Trellis v%s\n", trellisVersion)
+	fmt.Printf("  Trellis %s\n", trellisVersion)
 	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
 
 	return 0
