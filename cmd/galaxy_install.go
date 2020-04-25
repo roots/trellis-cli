@@ -52,8 +52,7 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 
 	mockUi := cli.NewMockUi()
 
-	galaxyInstall := execCommand("ansible-galaxy", "install", "-r", files[0])
-	logCmd(galaxyInstall, mockUi, true)
+	galaxyInstall := execCommandWithOutput("ansible-galaxy", []string{"install", "-r", files[0]}, mockUi)
 	err := galaxyInstall.Run()
 
 	if err != nil {
@@ -80,8 +79,7 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 	if len(rolesToForceUpdate) > 0 {
 		c.UI.Info(fmt.Sprintf("Updating roles: %s\n", strings.Join(rolesToForceUpdate, ", ")))
 		installArgs := append([]string{"install", "-f", "-r", files[0]}, rolesToForceUpdate...)
-		galaxyInstall = execCommand("ansible-galaxy", installArgs...)
-		logCmd(galaxyInstall, c.UI, true)
+		galaxyInstall := execCommandWithOutput("ansible-galaxy", installArgs, c.UI)
 		err = galaxyInstall.Run()
 
 		if err != nil {

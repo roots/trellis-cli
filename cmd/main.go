@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/mitchellh/cli"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/mitchellh/cli"
 )
 
-var execCommand = exec.Command
+var execCommandWithOutput = CommandExecWithOutput
+var execCommand = CommandExec
 
 type UiErrorWriter struct {
 	Ui cli.Ui
@@ -23,12 +26,24 @@ func (w *UiErrorWriter) Write(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func logCmd(cmd *exec.Cmd, ui cli.Ui, output bool) {
+func CommandExecWithOutput(command string, args []string, ui cli.Ui) *exec.Cmd {
+	cmd := exec.Command(command, args...)
+	cmd.Stdin = os.Stdin
 	cmd.Stderr = &UiErrorWriter{ui}
-
-	if output {
-		cmd.Stdout = &cli.UiWriter{ui}
-	}
+	cmd.Stdout = &cli.UiWriter{ui}
 
 	ui.Info(fmt.Sprintf("Running command => %s", strings.Join(cmd.Args, " ")))
+
+	return cmd
+}
+
+func CommandExec(command string, args []string, ui cli.Ui) *exec.Cmd {
+	cmd := exec.Command(command, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	ui.Info(fmt.Sprintf("Running command => %s", strings.Join(cmd.Args, " ")))
+
+	return cmd
 }

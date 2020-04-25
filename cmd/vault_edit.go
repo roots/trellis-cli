@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -10,14 +9,8 @@ import (
 )
 
 type VaultEditCommand struct {
-	UI              cli.Ui
-	Trellis         *trellis.Trellis
-	CommandExecutor CommandExecutor
-}
-
-func NewVaultEditCommand(ui cli.Ui, trellis *trellis.Trellis, ce CommandExecutor) *VaultEditCommand {
-	c := &VaultEditCommand{UI: ui, Trellis: trellis, CommandExecutor: ce}
-	return c
+	UI      cli.Ui
+	Trellis *trellis.Trellis
 }
 
 func (c *VaultEditCommand) Run(args []string) int {
@@ -36,18 +29,11 @@ func (c *VaultEditCommand) Run(args []string) int {
 
 	file := args[0]
 
-	ansibleVault, lookErr := c.CommandExecutor.LookPath("ansible-vault")
-	if lookErr != nil {
-		c.UI.Error(fmt.Sprintf("ansible-vault command not found: %s", lookErr))
-		return 1
-	}
+	vaultEdit := execCommand("ansible-vault", []string{"edit", file}, c.UI)
+	err := vaultEdit.Run()
 
-	vaultArgs := []string{"ansible-vault", "edit", file}
-	env := os.Environ()
-	execErr := c.CommandExecutor.Exec(ansibleVault, vaultArgs, env)
-
-	if execErr != nil {
-		c.UI.Error(fmt.Sprintf("Error running ansible-vault: %s", execErr))
+	if err != nil {
+		c.UI.Error(fmt.Sprintf("Error running ansible-vault: %s", err))
 		return 1
 	}
 

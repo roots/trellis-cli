@@ -35,10 +35,9 @@ func TestVaultEditRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockCmd := &MockCommand{}
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
-		vaultEditCommand := NewVaultEditCommand(ui, trellis, &MockCommandExecutor{mockCmd})
+		vaultEditCommand := VaultEditCommand{ui, trellis}
 
 		code := vaultEditCommand.Run(tc.args)
 
@@ -56,42 +55,38 @@ func TestVaultEditRunValidations(t *testing.T) {
 
 func TestVaultEditRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
+	defer MockExec(t)()
+
 	ui := cli.NewMockUi()
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
+	vaultEditCommand := VaultEditCommand{ui, trellis}
 
 	cases := []struct {
-		name    string
-		args    []string
-		runCmd  string
-		runArgs string
-		code    int
+		name string
+		args []string
+		out  string
+		code int
 	}{
 		{
 			"default",
 			[]string{"group_vars/development/vault.yml"},
-			"ansible-vault",
 			"ansible-vault edit group_vars/development/vault.yml",
 			0,
 		},
 	}
 
 	for _, tc := range cases {
-		mockCmd := &MockCommand{}
-		project := &trellis.Project{}
-		trellis := trellis.NewTrellis(project)
-		vaultEditCommand := NewVaultEditCommand(ui, trellis, &MockCommandExecutor{mockCmd})
-
 		code := vaultEditCommand.Run(tc.args)
 
 		if code != tc.code {
 			t.Errorf("expected code %d to be %d", code, tc.code)
 		}
 
-		if tc.runCmd != mockCmd.cmd {
-			t.Errorf("expected command %q to contain %q", mockCmd.cmd, tc.runCmd)
-		}
+		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if tc.runArgs != mockCmd.args {
-			t.Errorf("expected args %s to be %s", mockCmd.args, tc.runArgs)
+		if !strings.Contains(combined, tc.out) {
+			t.Errorf("expected output %q to contain %q", combined, tc.out)
 		}
 	}
 }

@@ -47,7 +47,7 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		c.UI.Info(fmt.Sprintf("Linking site %s...\n", key))
 
 		canonical, _ := c.Trellis.HostsFromDomain(site.SiteHosts[0].Canonical, environment)
-		app := strings.TrimSuffix(canonical.String(), "." + canonical.TLD)
+		app := strings.TrimSuffix(canonical.String(), "."+canonical.TLD)
 
 		isSiteSslEnabled := site.Ssl["enabled"] == true
 
@@ -58,11 +58,9 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		}
 		valetArgs = append(valetArgs, app)
 
-		valetLink := execCommand("valet", valetArgs...)
-
+		valetLink := execCommandWithOutput("valet", valetArgs, c.UI)
 		valetLink.Dir = site.LocalPath
 
-		logCmd(valetLink, c.UI, true)
 		err := valetLink.Run()
 
 		if err != nil {

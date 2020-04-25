@@ -80,8 +80,7 @@ func (o *DBOpenerSequelPro) Open(c DBCredentials) (err error) {
 		return fmt.Errorf("Error writing SequelPro SPF: %s", err)
 	}
 
-	open := execCommand("open", sequelProSpf.Name())
-	logCmd(open, o.ui, true)
+	open := execCommandWithOutput("open", []string{sequelProSpf.Name()}, o.ui)
 	if err := open.Run(); err != nil {
 		return fmt.Errorf("Error opening database with Tableplus: %s", err)
 	}

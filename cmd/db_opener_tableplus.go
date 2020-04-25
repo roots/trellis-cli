@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"os/exec"
 )
 
 type DBOpenerTableplus struct{}
 
 func (o *DBOpenerTableplus) Open(c DBCredentials) (err error) {
 	uri := o.uriFor(c)
-	open := execCommand("open", uri)
+	open := exec.Command("open", uri)
 
 	// Intentionally omitting `logCmd` to prevent printing db credentials.
 	if err := open.Run(); err != nil {

@@ -28,8 +28,7 @@ func (p *Playbook) Run(playbookYml string, args []string) error {
 		panic("Playbook ui is nil; This is a flaw in the source code. Please send bug report.")
 	}
 
-	command := execCommand("ansible-playbook", append([]string{playbookYml}, args...)...)
-
+	command := execCommandWithOutput("ansible-playbook", append([]string{playbookYml}, args...), p.ui)
 	command.Dir = p.root
 
 	env := os.Environ()
@@ -38,8 +37,6 @@ func (p *Playbook) Run(playbookYml string, args []string) error {
 		env = command.Env
 	}
 	command.Env = append(env, "ANSIBLE_RETRY_FILES_ENABLED=false")
-
-	logCmd(command, p.ui, true)
 
 	return command.Run()
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -11,9 +10,8 @@ import (
 )
 
 type SshCommand struct {
-	UI              cli.Ui
-	Trellis         *trellis.Trellis
-	CommandExecutor CommandExecutor
+	UI      cli.Ui
+	Trellis *trellis.Trellis
 }
 
 func (c *SshCommand) Run(args []string) int {
@@ -58,13 +56,11 @@ func (c *SshCommand) Run(args []string) int {
 
 	host = fmt.Sprintf("%s@%s", user, host)
 
-	ssh, _ := c.CommandExecutor.LookPath("ssh")
-	sshArgs := []string{"ssh", host}
-	env := os.Environ()
-	execErr := c.CommandExecutor.Exec(ssh, sshArgs, env)
+	ssh := execCommand("ssh", []string{host}, c.UI)
+	err := ssh.Run()
 
-	if execErr != nil {
-		c.UI.Error(fmt.Sprintf("Error running ssh: %s", execErr))
+	if err != nil {
+		c.UI.Error(fmt.Sprintf("Error running ssh: %s", err))
 		return 1
 	}
 
