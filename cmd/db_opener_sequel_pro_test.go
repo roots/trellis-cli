@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/mitchellh/cli"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -30,13 +31,11 @@ func TestOpen(t *testing.T) {
 	actualCombined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 	actualCombined = strings.TrimSpace(actualCombined)
 
-	expectedPrefix := "open"
-	if !strings.HasPrefix(actualCombined, expectedPrefix) {
-		t.Errorf("expected command %q to have prefix %q", actualCombined, expectedPrefix)
-	}
+	pattern := `open .*\.spf`
 
-	expectedSuffix := ".spf"
-	if !strings.HasSuffix(actualCombined, expectedSuffix) {
-		t.Errorf("expected command %q to have suffix %q", actualCombined, expectedSuffix)
+	matched, _ := regexp.MatchString(pattern, actualCombined)
+
+	if !matched {
+		t.Errorf("expected command %q to match %q", actualCombined, pattern)
 	}
 }

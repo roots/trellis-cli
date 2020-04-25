@@ -30,5 +30,5 @@ func logCmd(cmd *exec.Cmd, ui cli.Ui, output bool) {
 		cmd.Stdout = &cli.UiWriter{ui}
 	}
 
-	fmt.Println("Running command =>", strings.Join(cmd.Args, " "))
+	ui.Info(fmt.Sprintf("Running command => %s", strings.Join(cmd.Args, " ")))
 }
