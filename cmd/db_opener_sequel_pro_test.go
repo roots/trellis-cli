@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"github.com/mitchellh/cli"
-	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestOpen(t *testing.T) {
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	dbCredentials := DBCredentials{
 		SSHUser:    "ssh-user",

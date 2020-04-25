@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -58,8 +57,7 @@ func TestGalaxyInstallRunValidations(t *testing.T) {
 func TestGalaxyInstallRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name      string

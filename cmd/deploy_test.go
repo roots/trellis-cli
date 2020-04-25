@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -92,8 +91,7 @@ func TestDeployRun(t *testing.T) {
 	deployCommand := &DeployCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
 	deployCommand.init()
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name string

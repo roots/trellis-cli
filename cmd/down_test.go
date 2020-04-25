@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -60,8 +59,7 @@ func TestDownRun(t *testing.T) {
 	trellis := trellis.NewTrellis(mockProject)
 	downCommand := &DownCommand{ui, trellis}
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name string
