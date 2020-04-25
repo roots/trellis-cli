@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -65,15 +64,11 @@ func TestVaultViewRun(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	mockProject := &MockProject{true}
 	trellis := trellis.NewTrellis(mockProject)
 	vaultViewCommand := NewVaultViewCommand(ui, trellis)
-
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
 
 	cases := []struct {
 		name string

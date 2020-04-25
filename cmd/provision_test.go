@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -76,8 +75,7 @@ func TestProvisionRun(t *testing.T) {
 	trellis := trellis.NewTrellis(project)
 	provisionCommand := NewProvisionCommand(ui, trellis)
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name string

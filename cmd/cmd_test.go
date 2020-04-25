@@ -53,3 +53,10 @@ func (m *MockCommandExecutor) Exec(argv0 string, argv []string, envv []string) (
 func (m *MockCommandExecutor) LookPath(file string) (string, error) {
 	return file, nil
 }
+
+func MockExec(t *testing.T) func() {
+	t.Helper()
+
+	execCommand = mockExecCommand
+	return func() { execCommand = exec.Command }
+}

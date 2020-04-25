@@ -105,8 +105,7 @@ func TestDotEnvRun(t *testing.T) {
 	trellis := trellis.NewTrellis(project)
 	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name string

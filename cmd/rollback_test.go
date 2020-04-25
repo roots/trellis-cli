@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -90,8 +89,7 @@ func TestRollbackRun(t *testing.T) {
 	trellis := trellis.NewTrellis(project)
 	rollbackCommand := NewRollbackCommand(ui, trellis)
 
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	cases := []struct {
 		name string

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -55,8 +54,7 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 }
 
 func TestVaultDecryptRun(t *testing.T) {
-	execCommand = mockExecCommand
-	defer func() { execCommand = exec.Command }()
+	defer MockExec(t)()
 
 	ui := cli.NewMockUi()
 	project := &trellis.Project{}
