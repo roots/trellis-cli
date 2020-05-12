@@ -56,13 +56,12 @@ func (c *UpCommand) Run(args []string) int {
 		vagrantArgs = append(vagrantArgs, "--no-provision")
 	}
 
-	vagrantUp := execCommand("vagrant", vagrantArgs...)
+	vagrantUp := execCommandWithOutput("vagrant", vagrantArgs, c.UI)
 
 	if !c.withGalaxy {
 		vagrantUp.Env = append(vagrantUp.Env, "SKIP_GALAXY=true")
 	}
 
-	logCmd(vagrantUp, c.UI, true)
 	err := vagrantUp.Run()
 	if err != nil {
 		c.UI.Error(err.Error())

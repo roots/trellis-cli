@@ -68,9 +68,7 @@ func (c *VaultViewCommand) Run(args []string) int {
 	}
 
 	vaultArgs = append(vaultArgs, files...)
-
-	vaultView := execCommand("ansible-vault", vaultArgs...)
-	logCmd(vaultView, c.UI, true)
+	vaultView := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
 	_ = vaultView.Run()
 
 	return 0

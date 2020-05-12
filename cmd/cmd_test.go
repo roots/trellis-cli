@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
 )
 
 type MockProject struct {
@@ -16,12 +18,25 @@ func (p *MockProject) Detect(path string) (projectPath string, ok bool) {
 	return "trellis", p.detected
 }
 
-func mockExecCommand(command string, args ...string) *exec.Cmd {
+func mockExecCommand(command string, args []string, ui cli.Ui) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--", command}
 	cs = append(cs, args...)
 	cmd := exec.Command(os.Args[0], cs...)
+	cmd.Stderr = &UiErrorWriter{ui}
+	cmd.Stdout = &cli.UiWriter{ui}
 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 	return cmd
+}
+
+func MockExec(t *testing.T) func() {
+	t.Helper()
+
+	execCommandWithOutput = mockExecCommand
+	execCommand = mockExecCommand
+	return func() {
+		execCommandWithOutput = CommandExecWithOutput
+		execCommand = CommandExec
+	}
 }
 
 func TestHelperProcess(t *testing.T) {
@@ -37,26 +52,4 @@ type MockCommand struct {
 	cmd  string
 	args string
 	env  []string
-}
-
-type MockCommandExecutor struct {
-	Command *MockCommand
-}
-
-func (m *MockCommandExecutor) Exec(argv0 string, argv []string, envv []string) (err error) {
-	m.Command.cmd = argv0
-	m.Command.args = strings.Join(argv, " ")
-	m.Command.env = envv
-	return nil
-}
-
-func (m *MockCommandExecutor) LookPath(file string) (string, error) {
-	return file, nil
-}
-
-func MockExec(t *testing.T) func() {
-	t.Helper()
-
-	execCommand = mockExecCommand
-	return func() { execCommand = exec.Command }
 }

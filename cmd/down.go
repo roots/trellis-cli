@@ -27,12 +27,9 @@ func (c *DownCommand) Run(args []string) int {
 		return 1
 	}
 
-	vagrantArgs := []string{"halt"}
-
-	vagrantHalt := execCommand("vagrant", vagrantArgs...)
-
-	logCmd(vagrantHalt, c.UI, true)
+	vagrantHalt := execCommandWithOutput("vagrant", []string{"halt"}, c.UI)
 	err := vagrantHalt.Run()
+
 	if err != nil {
 		return 1
 	}

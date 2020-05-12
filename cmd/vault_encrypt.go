@@ -90,8 +90,7 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 
 	vaultArgs = append(vaultArgs, filesToEncrypt...)
 
-	vaultEncrypt := execCommand("ansible-vault", vaultArgs...)
-	logCmd(vaultEncrypt, c.UI, true)
+	vaultEncrypt := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
 	err := vaultEncrypt.Run()
 
 	if err == nil {

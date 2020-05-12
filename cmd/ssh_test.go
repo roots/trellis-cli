@@ -64,10 +64,11 @@ func TestSshRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockCmd := &MockCommand{}
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
-		sshCommand := &SshCommand{ui, trellis, &MockCommandExecutor{mockCmd}}
+		sshCommand := &SshCommand{ui, trellis}
+
+		defer MockExec(t)()
 
 		code := sshCommand.Run(tc.args)
 
@@ -85,49 +86,44 @@ func TestSshRunValidations(t *testing.T) {
 
 func TestSshRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
+	defer MockExec(t)()
+
 	ui := cli.NewMockUi()
+	project := &trellis.Project{}
+	trellis := trellis.NewTrellis(project)
+	sshCommand := &SshCommand{ui, trellis}
 
 	cases := []struct {
-		name    string
-		args    []string
-		runCmd  string
-		runArgs string
-		code    int
+		name string
+		args []string
+		out  string
+		code int
 	}{
 		{
 			"non_development",
 			[]string{"production"},
-			"ssh",
 			"ssh admin@example.com",
 			0,
 		},
 		{
 			"development",
 			[]string{"development"},
-			"ssh",
 			"ssh vagrant@example.test",
 			0,
 		},
 	}
 
 	for _, tc := range cases {
-		mockCmd := &MockCommand{}
-		project := &trellis.Project{}
-		trellis := trellis.NewTrellis(project)
-		sshCommand := &SshCommand{ui, trellis, &MockCommandExecutor{mockCmd}}
-
 		code := sshCommand.Run(tc.args)
 
 		if code != tc.code {
 			t.Errorf("expected code %d to be %d", code, tc.code)
 		}
 
-		if tc.runCmd != mockCmd.cmd {
-			t.Errorf("expected command %q to contain %q", mockCmd.cmd, tc.runCmd)
-		}
+		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if tc.runArgs != mockCmd.args {
-			t.Errorf("expected args %s to be %s", mockCmd.args, tc.runArgs)
+		if !strings.Contains(combined, tc.out) {
+			t.Errorf("expected output %q to contain %q", combined, tc.out)
 		}
 	}
 }
