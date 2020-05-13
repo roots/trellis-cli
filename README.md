@@ -39,18 +39,18 @@ curl -sL https://roots.io/trellis/cli/get | bash -s -- -d
 curl -sL https://roots.io/trellis/cli/get | bash -s -- -b /path/to/my/bin
 ```
 
-## Installation
+## Manual Install
 
 trellis-cli provides binary releases for a variety of OSes. These binary versions can be manually downloaded and installed.
 
 1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) or any [specific version](https://github.com/roots/trellis-cli/releases)
-2. Unpack it (`tar -zxvf trellis_0.3.1_Linux_x86_64.tar.gz`)
-3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.3.1_Darwin_x86_64/trellis /usr/local/bin/trellis`)
+2. Unpack it (`tar -zxvf trellis_0.8.0_Linux_x86_64.tar.gz`)
+3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.8.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
 ### Shell Autocompletions
 
-Homebrew installs trellis-cli' shell completion automatically by default. If shell completions aren't working, or you installed manually not using Homebrew, you'll need to install the completions manually
+Homebrew installs trellis-cli's shell completion automatically by default. If shell completions aren't working, or you installed manually not using Homebrew, you'll need to install the completions manually.
 
 To use the trellis-cli's autocomplete via Homebrew's shell completion:
 
@@ -64,7 +64,7 @@ To use the trellis-cli's autocomplete via Homebrew's shell completion:
     brew reinstall trellis-cli
     ```
 
-To use the trellis-cli's autocomplete via manually install, run:
+To install shell completions manually, run the following:
 
 ```bash
 trellis --autocomplete-install
