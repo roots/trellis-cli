@@ -86,6 +86,9 @@ func main() {
 		"rollback": func() (cli.Command, error) {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
+		"shell-init": func() (cli.Command, error) {
+			return &cmd.ShellInitCommand{ui}, nil
+		},
 		"ssh": func() (cli.Command, error) {
 			return &cmd.SshCommand{ui, trellis}, nil
 		},
@@ -119,7 +122,12 @@ func main() {
 		"valet link": func() (cli.Command, error) {
 			return &cmd.ValetLinkCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"venv hook": func() (cli.Command, error) {
+			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
+		},
 	}
+
+	c.HiddenCommands = []string{"venv", "venv hook"}
 
 	exitStatus, err := c.Run()
 
