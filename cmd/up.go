@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"strings"
+	"os"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -58,8 +59,14 @@ func (c *UpCommand) Run(args []string) int {
 
 	vagrantUp := execCommandWithOutput("vagrant", vagrantArgs, c.UI)
 
+	env := os.Environ()
+	// To allow mockExecCommand injects its environment variables.
+	if vagrantUp.Env != nil {
+		env = vagrantUp.Env
+	}
+
 	if !c.withGalaxy {
-		vagrantUp.Env = append(vagrantUp.Env, "SKIP_GALAXY=true")
+		vagrantUp.Env = append(env, "SKIP_GALAXY=true")
 	}
 
 	err := vagrantUp.Run()
