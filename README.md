@@ -3,9 +3,11 @@
 [![CircleCI](https://circleci.com/gh/roots/trellis-cli.svg?style=svg)](https://circleci.com/gh/roots/trellis-cli)
 ![GitHub release](https://img.shields.io/github/release/roots/trellis-cli)
 
-A command-line interface (CLI) for [Trellis](https://roots.io/trellis/) with autocompletion.
-
-Manage your Trellis projects via the `trellis` command.
+A command-line interface (CLI) to manage [Trellis](https://roots.io/trellis/) projects via the `trellis` command. It includes:
+* Smart autocompletion (based on your defined environments and sites)
+* Automatic Virtualenv integration for easier dependency management
+* Easy [DigitalOcean](https://roots.io/r/digitalocean) droplet creation
+* Better Ansible Vault support for encrypting files
 
 ## Quick Install (macOS and Linux via Homebrew)
 
@@ -44,11 +46,13 @@ curl -sL https://roots.io/trellis/cli/get | bash -s -- -b /path/to/my/bin
 trellis-cli provides binary releases for a variety of OSes. These binary versions can be manually downloaded and installed.
 
 1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) or any [specific version](https://github.com/roots/trellis-cli/releases)
-2. Unpack it (`tar -zxvf trellis_0.8.0_Linux_x86_64.tar.gz`)
-3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.8.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
+2. Unpack it (`tar -zxvf trellis_0.9.0_Linux_x86_64.tar.gz`)
+3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.9.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
-### Shell Autocompletions
+### Shell Integration
+
+#### Autocompletes
 
 Homebrew installs trellis-cli's shell completion automatically by default. If shell completions aren't working, or you installed manually not using Homebrew, you'll need to install the completions manually.
 
@@ -70,7 +74,27 @@ To install shell completions manually, run the following:
 trellis --autocomplete-install
 ```
 
-It should modify your `.bashrc`, `.zshrc` or similar.
+It should modify your `.bash_profile`, `.zshrc` or similar.
+
+#### Virtualenv
+
+trellis-cli uses [Virtualenv](https://virtualenv.pypa.io) to manage dependencies such as Ansible which it automatically activates and uses when running any `trellis` command.
+But there's still a lot of times you may want to run `ansible-playbook` or `pip` manually in your shell. To make this experience seamless, trellis-cli
+offers shell integration which automatically activates the Virtualenv when you enter a Trellis project, and deactivates when you leave it.
+
+![venv integration](https://user-images.githubusercontent.com/295605/84097210-d8df6700-a9d1-11ea-9eaf-fbdbd6632d34.gif)
+
+To enable this integration, add the following to your shell profile:
+
+Bash (`~/.bash_profile`):
+```bash
+eval "$(trellis-cli shell-init bash)"
+```
+
+Zsh (`~/.zshrc`):
+```bash
+eval "$(trellis-cli shell-init zsh)"
+```
 
 ## Usage
 
