@@ -117,6 +117,12 @@ func TestDeployRun(t *testing.T) {
 			"ansible-playbook deploy.yml -e env=development site=example.com k=v foo=bar",
 			0,
 		},
+		{
+			"with_branch",
+			[]string{"-branch", "feature-123", "development"},
+			"ansible-playbook deploy.yml -e env=development site=example.com branch=feature-123",
+			0,
+		},
 	}
 
 	for _, tc := range cases {
