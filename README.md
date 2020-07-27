@@ -50,9 +50,9 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.9.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
-### Shell Integration
+## Shell Integration
 
-#### Autocompletes
+### Autocompletes
 
 Homebrew installs trellis-cli's shell completion automatically by default. If shell completions aren't working, or you installed manually not using Homebrew, you'll need to install the completions manually.
 
@@ -76,7 +76,7 @@ trellis --autocomplete-install
 
 It should modify your `.bash_profile`, `.zshrc` or similar.
 
-#### Virtualenv
+### Virtualenv
 
 trellis-cli uses [Virtualenv](https://virtualenv.pypa.io) to manage dependencies such as Ansible which it automatically activates and uses when running any `trellis` command.
 But there's still a lot of times you may want to run `ansible-playbook` or `pip` manually in your shell. To make this experience seamless, trellis-cli
@@ -88,12 +88,12 @@ To enable this integration, add the following to your shell profile:
 
 Bash (`~/.bash_profile`):
 ```bash
-eval "$(trellis-cli shell-init bash)"
+eval "$(trellis shell-init bash)"
 ```
 
 Zsh (`~/.zshrc`):
 ```bash
-eval "$(trellis-cli shell-init zsh)"
+eval "$(trellis shell-init zsh)"
 ```
 
 ## Usage
