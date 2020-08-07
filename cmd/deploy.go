@@ -20,6 +20,7 @@ func NewDeployCommand(ui cli.Ui, trellis *trellis.Trellis) *DeployCommand {
 type DeployCommand struct {
 	UI        cli.Ui
 	flags     *flag.FlagSet
+	branch    string
 	extraVars string
 	Trellis   *trellis.Trellis
 	playbook  PlaybookRunner
@@ -28,6 +29,7 @@ type DeployCommand struct {
 func (c *DeployCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.StringVar(&c.branch, "branch", "", "Optional git branch to deploy which overrides the branch set in your site config (default: master)")
 	c.flags.StringVar(&c.extraVars, "extra-vars", "", "Additional variables which are passed through to Ansible as 'extra-vars'")
 }
 
@@ -70,6 +72,10 @@ func (c *DeployCommand) Run(args []string) int {
 		fmt.Sprintf("site=%s", siteName),
 	}
 
+	if c.branch != "" {
+		vars = append(vars, fmt.Sprintf("branch=%s", c.branch))
+	}
+
 	if c.extraVars != "" {
 		vars = append(vars, c.extraVars)
 	}
@@ -101,11 +107,16 @@ Deploy a site to production:
 
   $ trellis deploy production example.com
 
+Deploy a site to staging with a dfferent git branch:
+
+  $ trellis deploy --branch=feature-123 production example.com
+
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
   SITE        Name of the site (ie: example.com)
 
 Options:
+      --branch      Optional git branch to deploy which overrides the branch set in your site config (default: master)
       --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
   -h, --help        show this help
 `
@@ -119,6 +130,7 @@ func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *DeployCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
+		"--branch": complete.PredictNothing,
 		"--extra-vars": complete.PredictNothing,
 	}
 }
