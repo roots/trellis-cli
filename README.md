@@ -113,7 +113,6 @@ Supported commands so far:
 | `droplet` | Commands for DigitalOcean Droplets |
 | `exec` | Exec runs a command in the Trellis virtualenv |
 | `galaxy` | Commands for Ansible Galaxy |
-| `exec` | Exec runs a command in the Trellis virtualenv |
 | `info` | Displays information about this Trellis project |
 | `init` | Initializes an existing Trellis project |
 | `new` | Creates a new Trellis project |
