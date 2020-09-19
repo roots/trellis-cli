@@ -82,7 +82,7 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 		return 0
 	}
 
-	vaultArgs = append(vaultArgs, files...)
+	vaultArgs = append(vaultArgs, filesToDecrypt...)
 
 	vaultDecrypt := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
 	err := vaultDecrypt.Run()
