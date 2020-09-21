@@ -69,7 +69,7 @@ func TestIntegrationAlias(t *testing.T) {
 		t.Error("TEST_BINARY not supplied")
 	}
 	if _, err := os.Stat(bin); os.IsNotExist(err) {
-		t.Error(bin + "not exist")
+		t.Error(bin + " not exist")
 	}
 
 	dummy := os.Getenv("TEST_DUMMY")
