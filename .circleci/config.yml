@@ -1,20 +1,20 @@
 version: 2.1
 
+orbs:
+  go: circleci/go@1
+
 jobs:
   test:
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: '1.15'
     steps:
       - run: go version
       - checkout
-      - restore_cache:
-          keys:
-            - go-mod-v1-{{ checksum "go.sum" }}
-      - run: go test -v -short ./...
-      - save_cache:
-          key: go-mod-v1-{{ checksum "go.sum" }}
-          paths:
-            - /go/pkg/mod
+      - go/mod-download-cached
+      - go/test:
+          short: true
+          verbose: true
 
   integration-test:
     docker:
@@ -39,16 +39,18 @@ jobs:
           path: /test/trellis-cli
 
   release:
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: '1.15'
     steps:
       - run: go version
       - checkout
       - run: curl -sL https://git.io/goreleaser | bash
 
   release-test:
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: '1.15'
     steps:
       - run: go version
       - checkout
