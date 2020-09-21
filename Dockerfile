@@ -18,7 +18,7 @@ RUN apt-get -q update && \
 # Ansible
 # https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#latest-releases-via-apt-debian
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367 && \
-    echo "deb http://ppa.launchpad.net/ansible/ansible-2.7/ubuntu trusty main" | tee -a /etc/apt/sources.list && \
+    echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" | tee -a /etc/apt/sources.list && \
     apt-get -q update && \
     apt-get install -q -y --no-install-recommends ansible && \
     apt-get clean && apt-get -y autoremove && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
