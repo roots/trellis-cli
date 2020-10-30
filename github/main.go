@@ -14,18 +14,24 @@ import (
 	"github.com/mholt/archiver"
 )
 
+var BaseURL = "https://api.github.com"
+
 type Release struct {
 	Version string `json:"tag_name"`
 	ZipUrl  string `json:"zipball_url"`
+	URL     string `json:"html_url"`
 }
 
 func DownloadLatestRelease(repo string, path string, dest string) string {
-	release := FetchLatestRelease(repo)
+	release, err := FetchLatestRelease(repo, http.DefaultClient)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	os.Chdir(path)
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
-	err := DownloadFile(archivePath, release.ZipUrl)
+	err = DownloadFile(archivePath, release.ZipUrl)
 	defer os.Remove(archivePath)
 
 	if err != nil {
@@ -55,12 +61,12 @@ func DownloadLatestRelease(repo string, path string, dest string) string {
 	return release.Version
 }
 
-func FetchLatestRelease(repo string) Release {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	resp, err := http.Get(url)
+func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
+	url := fmt.Sprintf("%s/repos/%s/releases/latest", BaseURL, repo)
+	resp, err := client.Get(url)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -68,16 +74,16 @@ func FetchLatestRelease(repo string) Release {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	release := Release{}
+	release := &Release{}
 
-	if err = json.Unmarshal(body, &release); err != nil {
-		log.Fatal(err)
+	if err = json.Unmarshal(body, release); err != nil {
+		return nil, err
 	}
 
-	return release
+	return release, nil
 }
 
 func DownloadFile(filepath string, url string) error {
