@@ -37,6 +37,15 @@ func CommandExecWithOutput(command string, args []string, ui cli.Ui) *exec.Cmd {
 	return cmd
 }
 
+func CommandExecWithStderrOnly(command string, args []string, ui cli.Ui) *exec.Cmd {
+	cmd := exec.Command(command, args...)
+	cmd.Stderr = os.Stderr
+
+	ui.Info(fmt.Sprintf("Running command => %s", strings.Join(cmd.Args, " ")))
+
+	return cmd
+}
+
 func CommandExec(command string, args []string, ui cli.Ui) *exec.Cmd {
 	cmd := exec.Command(command, args...)
 	cmd.Stdin = os.Stdin
