@@ -1,16 +1,42 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"time"
 	"trellis-cli/cmd"
+	"trellis-cli/config"
+	"trellis-cli/github"
 	"trellis-cli/trellis"
+	"trellis-cli/update"
 
+	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 )
 
+const version = "0.9.0"
+
+var updaterRepo = ""
+
 func main() {
-	c := cli.NewCLI("trellis", "0.9.0")
+	cacheDir, _ := config.Scope.CacheDir()
+
+	updateNotifier := &update.Notifier{
+		CacheDir: cacheDir,
+		Client:   &http.Client{Timeout: time.Second * 5},
+		Repo:     updaterRepo,
+		Version:  version,
+	}
+
+	updateMessageChan := make(chan *github.Release)
+	go func() {
+		release, _ := updateNotifier.CheckForUpdate()
+		updateMessageChan <- release
+	}()
+
+	c := cli.NewCLI("trellis", version)
 	c.Args = os.Args[1:]
 
 	ui := &cli.ColoredUi{
@@ -133,6 +159,19 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
+	}
+
+	newRelease := <-updateMessageChan
+	if newRelease != nil {
+		msg := fmt.Sprintf(
+			"\n%s %s → %s\n%s",
+			color.YellowString("A new release of trellis-cli is available:"),
+			color.CyanString(version),
+			color.CyanString(newRelease.Version),
+			color.YellowString(newRelease.URL),
+		)
+
+		ui.Info(msg)
 	}
 
 	os.Exit(exitStatus)
