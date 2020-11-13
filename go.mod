@@ -8,6 +8,7 @@ require (
 	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
+	github.com/google/go-cmp v0.5.3
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/hashicorp/go-version v1.2.1
 	github.com/manifoldco/promptui v0.3.3-0.20190214151314-7150aa4d998c

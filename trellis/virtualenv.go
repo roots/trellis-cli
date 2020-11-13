@@ -105,7 +105,7 @@ func (v *Virtualenv) Install() string {
 		}
 	}
 
-	return github.DownloadLatestRelease("pypa/virtualenv", os.TempDir(), localPath)
+	return github.DownloadRelease("pypa/virtualenv", "latest", os.TempDir(), localPath)
 }
 
 func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
