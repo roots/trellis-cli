@@ -26,6 +26,7 @@ type NewCommand struct {
 	name           string
 	host           string
 	skipVirtualenv bool
+	trellisVersion string
 	vaultPass      string
 }
 
@@ -41,6 +42,7 @@ func (c *NewCommand) init() {
 	c.flags.BoolVar(&c.force, "force", false, "Forces the creation of the project even if the target path is not empty")
 	c.flags.StringVar(&c.name, "name", "", "Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com")
 	c.flags.StringVar(&c.host, "host", "", "Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com")
+	c.flags.StringVar(&c.trellisVersion, "trellis-version", "latest", "Version of Trellis to create the project with (default: latest).")
 	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
 	c.flags.BoolVar(&c.skipVirtualenv, "skip-virtualenv", false, "Skip creating a new virtual environment for this project")
 }
@@ -107,11 +109,9 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
-	fmt.Println("\nFetching latest versions of Trellis and Bedrock...")
-
 	trellisPath := filepath.Join(path, "trellis")
-	trellisVersion := github.DownloadLatestRelease("roots/trellis", path, trellisPath)
-	bedrockVersion := github.DownloadLatestRelease("roots/bedrock", path, filepath.Join(path, "site"))
+	trellisVersion := github.DownloadRelease("roots/trellis", c.trellisVersion, path, trellisPath)
+	bedrockVersion := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
 
 	os.Chdir(path)
 
@@ -180,15 +180,23 @@ Create a new project in the current directory:
 
 Create a new project in the target path:
 
-  $ trellis new ~/dev/example.com
+  $ trellis new ~/projects/example.com
 
 Force create a new project in a non-empty target path:
 
-  $ trellis new --force ~/dev/example.com
+  $ trellis new --force ~/projects/example.com
 
 Specify name and host to bypass the prompts:
 
-  $ trellis new --name example.com --host www.example.com ~/dev/foo
+  $ trellis new --name example.com --host www.example.com ~/projects/foo
+
+Create a new project with the dev version of Trellis:
+
+  $ trellis new --trellis-version dev ~/projects/example.com
+
+Create a new project with a specific version of Trellis:
+
+  $ trellis new --trellis-version 1.7.0 ~/projects/example.com
 
 Arguments:
   PATH  Path to create new project in
@@ -198,6 +206,7 @@ Options:
       --name             Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
       --host             Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
       --skip-virtualenv  (default: false) Skip creating a new virtual environment for this project
+      --trellis-version  (default: latest) Version of Trellis to start the project with. Options: "latest", "dev", or any version (such as "1.0.0")
       --vault-pass       (default: .vault_pass) Path for the generated Vault pass file
   -h, --help             show this help
 `

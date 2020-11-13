@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"trellis-cli/github"
 )
 
@@ -102,7 +103,11 @@ latest_release:
   url: https://github.com/roots/trellis-cli/releases/tag/v1.1
 `, now.Format(time.RFC3339)),
 			"",
-			&github.Release{"v1.1", "zipurl", "url"},
+			&github.Release{
+				Version: "v1.1",
+				URL:     "https://github.com/roots/trellis-cli/releases/tag/v1.1",
+				ZipUrl:  "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1",
+			},
 		},
 		{
 			"state_cache_older_version",
@@ -145,7 +150,11 @@ latest_release:
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.1",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1"
 }`),
-			&github.Release{"v1.1", "zipurl", "url"},
+			&github.Release{
+				Version: "v1.1",
+				URL:     "https://github.com/roots/trellis-cli/releases/tag/v1.1",
+				ZipUrl:  "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1",
+			},
 		},
 		{
 			"state_cache_sameversion_older_than_24_hours",
@@ -173,7 +182,11 @@ latest_release:
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.1",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1"
 }`),
-			&github.Release{"v1.1", "zipurl", "url"},
+			&github.Release{
+				Version: "v1.1",
+				URL:     "https://github.com/roots/trellis-cli/releases/tag/v1.1",
+				ZipUrl:  "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1",
+			},
 		},
 		{
 			"no_cache_same_version",
@@ -225,27 +238,11 @@ latest_release:
 			Client:     client,
 		}
 
-		release, err := updateNotifier.CheckForUpdate()
+		release, _ := updateNotifier.CheckForUpdate()
 		os.RemoveAll(cacheDir)
 
-		if err != nil {
-			t.Errorf("%s => expected no error, but got %q", tc.name, err)
-		}
-
-		if tc.latestRelease != nil {
-			if release == nil {
-				t.Errorf("%s => expected release %s but got nil", tc.name, tc.latestRelease.Version)
-			}
-
-			if release != nil && release.Version != tc.latestRelease.Version {
-				t.Errorf("%s => expected release %s but got %s", tc.name, tc.latestRelease.Version, release.Version)
-			}
-		}
-
-		if tc.latestRelease == nil {
-			if release != nil {
-				t.Errorf("%s => expected no release but got %s", tc.name, release.Version)
-			}
+		if !cmp.Equal(tc.latestRelease, release) {
+			t.Errorf("expected release %s but got %s", tc.latestRelease, release)
 		}
 	}
 }

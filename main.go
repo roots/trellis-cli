@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"time"
 	"trellis-cli/cmd"
 	"trellis-cli/config"
 	"trellis-cli/github"
@@ -25,7 +23,7 @@ func main() {
 
 	updateNotifier := &update.Notifier{
 		CacheDir: cacheDir,
-		Client:   &http.Client{Timeout: time.Second * 5},
+		Client:   github.Client,
 		Repo:     updaterRepo,
 		Version:  version,
 	}
