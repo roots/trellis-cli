@@ -64,7 +64,7 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
+	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
