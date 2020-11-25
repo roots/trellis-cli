@@ -14,7 +14,7 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-const version = "0.9.1"
+const version = "0.9.2"
 
 var updaterRepo = ""
 
