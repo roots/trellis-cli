@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
 	"trellis-cli/cmd"
 	"trellis-cli/config"
 	"trellis-cli/github"
+	"trellis-cli/plugin"
 	"trellis-cli/trellis"
 	"trellis-cli/update"
 
@@ -152,6 +155,11 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
+
+	if shouldSkipPlugins, _ := strconv.ParseBool(os.Getenv("TRELLIS_NO_PLUGINS")); !shouldSkipPlugins {
+		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
+		plugin.Register(c, pluginPaths, []string{"trellis"})
+	}
 
 	exitStatus, err := c.Run()
 
