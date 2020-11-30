@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os/exec"
+	"github.com/fatih/color"
 	"strings"
 	"time"
 
@@ -39,10 +39,10 @@ func (c *InitCommand) Run(args []string) int {
 		c.UI.Info("virtualenv not found")
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " Installing virtualenv..."
-		s.FinalMSG = "✓ virtualenv installed\n"
 		s.Start()
 		c.Trellis.Virtualenv.Install()
 		s.Stop()
+		c.UI.Info(color.GreenString("✓ virtualenv installed"))
 	}
 
 	c.UI.Info(fmt.Sprintf("Creating virtualenv in %s", c.Trellis.Virtualenv.Path))
@@ -53,24 +53,22 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info("✓ Virtualenv created\n")
+	c.UI.Info(color.GreenString("✓ Virtualenv created"))
 
-	pip := exec.Command("pip", "install", "-r", "requirements.txt")
+	pip := CommandExecWithStderrOnly("pip", []string{"install", "-r", "requirements.txt"}, c.UI)
 
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Suffix = " Installing pip dependencies (pip install -r requirements.txt) ..."
-	s.FinalMSG = "✓ Dependencies installed\n"
 	s.Start()
 
 	err = pip.Run()
+	s.Stop()
 
 	if err != nil {
-		s.Stop()
-		c.UI.Error(fmt.Sprintf("Error installing pip requirements: %s", err))
 		return 1
 	}
 
-	s.Stop()
+	c.UI.Info(color.GreenString("✓ Dependencies installed"))
 
 	return 0
 }
