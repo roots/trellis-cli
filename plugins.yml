@@ -1,0 +1,13 @@
+# Just for testing
+plugins:
+- command: git
+  bin: git
+  updated_at: 2020-11-30T03:54:29.11275Z
+  synopsis_text: synopsissssss git
+  help_text: helppppppp git
+- command: echo
+  bin: echo
+  updated_at: 2020-11-30T04:08:36.224342Z
+  synopsis_text: synopsissssss echo
+  help_text: helppppp echo
+

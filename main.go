@@ -7,6 +7,7 @@ import (
 	"trellis-cli/cmd"
 	"trellis-cli/config"
 	"trellis-cli/github"
+	"trellis-cli/plugin"
 	"trellis-cli/trellis"
 	"trellis-cli/update"
 
@@ -149,6 +150,27 @@ func main() {
 		"venv hook": func() (cli.Command, error) {
 			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
 		},
+		// TODO: Add `plugin link` command
+		// TODO: Add `plugin unlink` command
+		// TODO: Add `plugin list` command
+	}
+
+	// Plugins
+	// Plugin Commands
+	// TODO: To be refactored.
+	// TODO: Handle errors.
+	// TODO: Set file path.
+	// TODO: Not to hijack `--help`
+	// TODO: What to do with `--version`
+	plugins, _ := plugin.NewPlugins("./plugins.yml")
+	for _, thePlugin := range plugins.Plugins {
+		theCommand := &cmd.PassthroughCommand{
+			Plugin: thePlugin,
+			UI: ui,
+		}
+		c.Commands[thePlugin.Command] = func() (cli.Command, error) {
+			return theCommand, nil
+		}
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
