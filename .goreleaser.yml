@@ -7,6 +7,7 @@ builds:
     - CGO_ENABLED=0
   ldflags:
     - -X main.updaterRepo=roots/trellis-cli
+    - -X main.version={{ .Version }}
   goos:
     - linux
     - darwin
