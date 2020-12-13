@@ -20,8 +20,8 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/posener/complete"
 	"golang.org/x/crypto/ssh"
-	"trellis-cli/digitalocean"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/digitalocean"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 var client *digitalocean.Client

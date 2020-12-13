@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 const dumpDbCredentialsYml = `

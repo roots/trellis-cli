@@ -13,8 +13,8 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
-	"trellis-cli/github"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/github"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type NewCommand struct {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 func NewRollbackCommand(ui cli.Ui, trellis *trellis.Trellis) *RollbackCommand {

@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"trellis-cli/github"
+	"github.com/roots/trellis-cli/github"
 )
 
 const VirtualenvDir string = "virtualenv"

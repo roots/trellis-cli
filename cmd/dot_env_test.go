@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 func TestDotEnvArgumentValidations(t *testing.T) {
