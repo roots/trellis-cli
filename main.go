@@ -17,8 +17,8 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-const version = "0.9.2"
-
+// To be replaced by goreleaser build flags.
+var version = "canary"
 var updaterRepo = ""
 
 func main() {
