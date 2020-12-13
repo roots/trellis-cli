@@ -6,7 +6,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type SshCommand struct {

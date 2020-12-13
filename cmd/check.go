@@ -6,7 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type CheckCommand struct {

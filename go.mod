@@ -1,41 +1,44 @@
-module trellis-cli
+module github.com/roots/trellis-cli
+
+go 1.15
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/alecthomas/units v0.0.0-20190910110746-680d30ca3117 // indirect
-	github.com/briandowns/spinner v0.0.0-20190126160308-b298438e1f0d
-	github.com/digitalocean/godo v1.7.3
-	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
-	github.com/fatih/color v1.7.0
-	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/google/go-cmp v0.5.3
-	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/alessio/shellescape v1.4.1 // indirect
+	github.com/armon/go-radix v1.0.0 // indirect
+	github.com/briandowns/spinner v1.12.0
+	github.com/digitalocean/godo v1.54.0
+	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/fatih/color v1.10.0
+	github.com/frankban/quicktest v1.11.2 // indirect
+	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/golang/snappy v0.0.2 // indirect
+	github.com/google/go-cmp v0.5.4
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/hashicorp/go-version v1.2.1
-	github.com/manifoldco/promptui v0.3.3-0.20190214151314-7150aa4d998c
-	github.com/mattn/go-isatty v0.0.4
-	github.com/mcuadros/go-version v0.0.0-20180611085657-6d5863ca60fa
+	github.com/lunixbochs/vtclean v1.0.0 // indirect
+	github.com/manifoldco/promptui v0.8.0
+	github.com/mattn/go-isatty v0.0.12
+	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/cli v1.1.2
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/muesli/go-app-paths v0.2.1
-	github.com/nicksnyder/go-i18n v1.10.1 // indirect
-	github.com/nwaples/rardecode v1.0.0 // indirect
-	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
-	github.com/posener/complete v1.1.1
-	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
-	github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9 // indirect
-	github.com/ulikunitz/xz v0.5.5 // indirect
-	github.com/weppos/publicsuffix-go v0.4.0
+	github.com/nwaples/rardecode v1.1.0 // indirect
+	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
+	github.com/posener/complete v1.2.3
+	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/ulikunitz/xz v0.5.8 // indirect
+	github.com/weppos/publicsuffix-go v0.13.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
-	golang.org/x/oauth2 v0.0.0-20190130055435-99b60b757ec1
-	golang.org/x/tools v0.0.0-20201028153306-37f0764111ff // indirect
-	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
+	golang.org/x/crypto v0.0.0-20201208171446-5f87f3452ae9
+	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11 // indirect
+	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
+	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f // indirect
+	golang.org/x/text v0.3.4 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/ini.v1 v1.41.0
-	gopkg.in/yaml.v2 v2.3.0
-	launchpad.net/gocheck v0.0.0-20140225173054-000000000087 // indirect
+	gopkg.in/ini.v1 v1.62.0
+	gopkg.in/yaml.v2 v2.4.0
 )
-
-go 1.13

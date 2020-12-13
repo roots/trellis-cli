@@ -8,7 +8,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type VaultDecryptCommand struct {

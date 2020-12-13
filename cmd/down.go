@@ -3,7 +3,7 @@ package cmd
 import (
 	"strings"
 
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 
 	"github.com/mitchellh/cli"
 )

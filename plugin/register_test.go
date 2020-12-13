@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"trellis-cli/cmd"
+	"github.com/roots/trellis-cli/cmd"
 )
 
 const spyCommand = `#!/usr/bin/env bash

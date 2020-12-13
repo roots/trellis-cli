@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"trellis-cli/github"
+	"github.com/roots/trellis-cli/github"
 
 	"github.com/hashicorp/go-version"
 	"github.com/mattn/go-isatty"

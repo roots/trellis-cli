@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"trellis-cli/github"
+	"github.com/roots/trellis-cli/github"
 )
 
 type Env struct {

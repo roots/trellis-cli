@@ -4,7 +4,7 @@ import (
 	"github.com/mitchellh/cli"
 	"reflect"
 	"strings"
-	"trellis-cli/cmd"
+	"github.com/roots/trellis-cli/cmd"
 )
 
 func Register(c *cli.CLI, searchPaths []string, validPluginFilenamePrefixes []string) {

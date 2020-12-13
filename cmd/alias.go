@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type AliasCommand struct {

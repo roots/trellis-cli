@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"trellis-cli/trellis"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 func TestDBOpenArgumentValidations(t *testing.T) {

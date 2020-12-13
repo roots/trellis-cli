@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"trellis-cli/cmd"
+	"github.com/roots/trellis-cli/cmd"
 )
 
 func TestIntegrationForceNoPlugin(t *testing.T) {
