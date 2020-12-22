@@ -98,11 +98,6 @@ See https://roots.io/trellis/docs/remote-server-setup/#provision for more detail
 Provision the production environment:
 
   $ trellis provision production
-  
-Options:
-      --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
-      --tags        (multiple) only run roles and tasks tagged with these values
-  -h, --help        show this help
 
 Multiple args within quotes, separated by space:
 
@@ -118,6 +113,11 @@ Provision and provide extra vars to Ansible:
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
+  
+Options:
+      --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
+      --tags        (multiple) only run roles and tasks tagged with these values
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)
