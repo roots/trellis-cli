@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,35 +13,11 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-const dumpDbCredentialsYml = `
----
-- name: 'Trellis CLI: Dump database credentials'
-  hosts: web:&{{ env }}
-  remote_user: "{{ web_user }}"
-  gather_facts: false
-  connection: local
-  tasks:
-    - name: Dump database credentials
-      template:
-        src: db_credentials.json.j2
-        dest: "{{ dest }}"
-        mode: '0600'
-      with_dict: "{{ wordpress_sites }}"
-      when: item.key == site
-`
+//go:embed files/playbooks/db_credentials.yml
+var dumpDbCredentialsYml string
 
-const dbCredentialsJsonJ2 = `
-{
-    "web_user": "{{ web_user }}",
-    "ansible_host": "{{ ansible_host }}",
-    "ansible_port": {{ ansible_port | default(22) }},
-    "db_user": "{{ site_env.db_user }}",
-    "db_password": "{{ site_env.db_password }}",
-    "db_host": "{{ site_env.db_host }}",
-    "db_name": "{{ site_env.db_name }}",
-    "wp_env": "{{ site_env.wp_env }}"
-}
-`
+//go:embed files/db_credentials_template.yml
+var dbCredentialsJsonJ2 string
 
 func NewDBOpenCommand(ui cli.Ui, trellis *trellis.Trellis) *DBOpenCommand {
 	playbook := &AdHocPlaybook{

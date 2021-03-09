@@ -1,6 +1,6 @@
 module github.com/roots/trellis-cli
 
-go 1.15
+go 1.16
 
 require (
 	github.com/alessio/shellescape v1.4.1 // indirect

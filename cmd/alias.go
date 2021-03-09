@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"github.com/fatih/color"
@@ -23,25 +24,8 @@ type AliasCommand struct {
 	aliasCopyPlaybook PlaybookRunner
 }
 
-const aliasYml = `
----
-- hosts: web:&{{ env }}
-  connection: local
-  gather_facts: false
-  tasks:
-    - file:
-        path: "{{ trellis_alias_temp_dir }}"
-        state: directory
-        mode: '0755'
-      with_dict: "{{ wordpress_sites }}"
-      run_once: true
-    - template:
-        src: "{{ trellis_alias_j2 }}"
-        dest: "{{ trellis_alias_temp_dir }}/{{ env }}.yml.part"
-        mode: '0644'
-      with_dict: "{{ wordpress_sites }}"
-      run_once: true
-`
+//go:embed files/playbooks/alias.yml
+var aliasYml string
 
 const aliasYmlJ2 = `
 @{{ env }}:
@@ -49,21 +33,8 @@ const aliasYmlJ2 = `
   path: "{{ project_root | default(www_root + '/' + item.key) | regex_replace('^~\/','') }}/{{ item.current_path | default('current') }}/web/wp"
 `
 
-const aliasCopyYml = `
----
-- hosts: web:&{{ env }}
-  connection: local
-  gather_facts: false
-  tasks:
-    - copy:
-        src: "{{ trellis_alias_combined }}"
-        dest: "{{ item.value.local_path }}/wp-cli.trellis-alias.yml"
-        mode: '0644'
-        force: yes
-        decrypt: no
-      with_dict: "{{ wordpress_sites }}"
-      run_once: true
-`
+//go:embed files/playbooks/alias_copy.yml
+var aliasCopyYml string
 
 func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
 	aliasPlaybook := &AdHocPlaybook{
