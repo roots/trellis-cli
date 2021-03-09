@@ -7,7 +7,7 @@ jobs:
   test:
     executor:
       name: go/default
-      tag: '1.15'
+      tag: '1.16'
     steps:
       - run: go version
       - checkout
@@ -41,7 +41,7 @@ jobs:
   release:
     executor:
       name: go/default
-      tag: '1.15'
+      tag: '1.16'
     steps:
       - run: go version
       - checkout
@@ -50,7 +50,7 @@ jobs:
   release-test:
     executor:
       name: go/default
-      tag: '1.15'
+      tag: '1.16'
     steps:
       - run: go version
       - checkout
