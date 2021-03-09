@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	_ "embed"
 	"fmt"
 	"github.com/mitchellh/cli"
 	"io/ioutil"
@@ -13,46 +14,8 @@ type DBOpenerSequelPro struct {
 	ui cli.Ui
 }
 
-const sequelProSpfTemplate = `
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>ContentFilters</key>
-  <dict/>
-  <key>auto_connect</key>
-  <true/>
-  <key>data</key>
-  <dict>
-    <key>connection</key>
-    <dict>
-      <key>database</key>
-      <string>{{.DBName}}</string>
-      <key>host</key>
-      <string>{{.DBHost}}</string>
-      <key>user</key>
-      <string>{{.DBUser}}</string>
-      <key>password</key>
-      <string>{{.DBPassword}}</string>
-      <key>ssh_host</key>
-      <string>{{.SSHHost}}</string>
-      <key>ssh_port</key>
-      <string>{{.SSHPort}}</string>
-      <key>ssh_user</key>
-      <string>{{.SSHUser}}</string>
-      <key>type</key>
-      <string>SPSSHTunnelConnection</string>
-    </dict>
-  </dict>
-  <key>format</key>
-  <string>connection</string>
-  <key>queryFavorites</key>
-  <array/>
-  <key>queryHistory</key>
-  <array/>
-</dict>
-</plist>
-`
+//go:embed files/sequel_pro_spf_template.xml
+var sequelProSpfTemplate string
 
 func (o *DBOpenerSequelPro) Open(c DBCredentials) (err error) {
 	sequelProSpf, sequelProSpfErr := ioutil.TempFile("", "*.spf")
