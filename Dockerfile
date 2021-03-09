@@ -1,6 +1,6 @@
 # This docker image is for integration testing only.
 
-FROM golang:1.15-buster
+FROM golang:1.16-buster
 
 ARG DEBIAN_FRONTEND=noninteractive
 
