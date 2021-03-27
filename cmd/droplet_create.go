@@ -19,9 +19,9 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
 	"github.com/posener/complete"
-	"golang.org/x/crypto/ssh"
 	"github.com/roots/trellis-cli/digitalocean"
 	"github.com/roots/trellis-cli/trellis"
+	"golang.org/x/crypto/ssh"
 )
 
 var client *digitalocean.Client
@@ -38,6 +38,7 @@ type DropletCreateCommand struct {
 	flags         *flag.FlagSet
 	sshKey        string
 	region        string
+	image         string
 	size          string
 	skipProvision bool
 	playbook      PlaybookRunner
@@ -48,6 +49,7 @@ func (c *DropletCreateCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.StringVar(&c.sshKey, "ssh-key", "~/.ssh/id_rsa.pub", "Path to SSH public key to automatically add to new server")
 	c.flags.StringVar(&c.region, "region", "", "Region to create the server in")
+	c.flags.StringVar(&c.image, "image", "ubuntu-20-04-x64", "Server image")
 	c.flags.StringVar(&c.size, "size", "", "Server size/type to create")
 	c.flags.BoolVar(&c.skipProvision, "skip-provision", false, "Create the server but skip provisioning")
 }
@@ -139,7 +141,7 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	droplet, err := createDroplet(c.UI, c.region, c.size, publicKey, name, environment)
+	droplet, err := createDroplet(c.UI, c.region, c.size, c.image, publicKey, name, environment)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error creating server: %s", err))
 		return 1
@@ -211,8 +213,8 @@ func getAccessToken(ui cli.Ui) (accessToken string, err error) {
 	return accessToken, nil
 }
 
-func createDroplet(ui cli.Ui, region string, size string, publicKey ssh.PublicKey, name string, env string) (droplet *godo.Droplet, err error) {
-	droplet, monitorUri, err := client.CreateDroplet(region, size, publicKey, name, env)
+func createDroplet(ui cli.Ui, region string, size string, image string, publicKey ssh.PublicKey, name string, env string) (droplet *godo.Droplet, err error) {
+	droplet, monitorUri, err := client.CreateDroplet(region, size, image, publicKey, name, env)
 	if err != nil {
 		return nil, err
 	}
@@ -396,6 +398,10 @@ Create a 1gb server in the nyc3 region:
 
   $ trellis droplet create --region=nyc3 --size=s-1vcpu-1gb production
 
+Create a 1gb server with a specific Ubuntu image:
+
+  $ trellis droplet create --region=nyc3 --image=ubuntu-18-04-x64 --size=s-1vcpu-1gb production
+
 Create a server but skip provisioning:
 
   $ trellis droplet create --skip-provision production
@@ -405,6 +411,7 @@ Arguments:
 
 Options:
       --region          Region to create the server in
+      --image           (default: ubuntu-20-04-x64) Server image (ie: Linux distribution)
       --size            Server size/type
       --skip-provision  Skip provision after server is created
       --ssh-key         (default: ~/.ssh/id_rsa.pub) path to SSH public key to be added on the server

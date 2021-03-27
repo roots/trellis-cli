@@ -24,13 +24,13 @@ func NewClient(accessToken string) *Client {
 	return &Client{client}
 }
 
-func (do *Client) CreateDroplet(region string, size string, publicKey ssh.PublicKey, name string, env string) (newDroplet *godo.Droplet, monitorUri string, err error) {
+func (do *Client) CreateDroplet(region string, size string, image string, publicKey ssh.PublicKey, name string, env string) (newDroplet *godo.Droplet, monitorUri string, err error) {
 	createRequest := &godo.DropletCreateRequest{
 		Name:   name,
 		Region: region,
 		Size:   size,
 		Image: godo.DropletCreateImage{
-			Slug: "ubuntu-18-04-x64",
+			Slug: image,
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{Fingerprint: ssh.FingerprintLegacyMD5(publicKey)},
