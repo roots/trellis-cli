@@ -32,7 +32,7 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
-	github.com/weppos/publicsuffix-go v0.13.0
+	github.com/weppos/publicsuffix-go v0.15.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
