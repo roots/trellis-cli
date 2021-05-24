@@ -50,6 +50,15 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.9.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
+## Windows Install
+For windows you also need to setup environment variables to perfectly work with windows terminal
+
+1. Open system properties
+2. Open environment variables
+3. Under system variables add new variable, `TRELLIS`, pointing to the location of the `trellis.exe` file, like `C:\trellis_0.9.2`
+4. Edit path from system variables and add new named `%TRELLIS%`
+5. Save the changes
+
 ## Shell Integration
 
 ### Autocompletes
