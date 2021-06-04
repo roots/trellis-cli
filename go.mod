@@ -9,7 +9,7 @@ require (
 	github.com/briandowns/spinner v1.12.0
 	github.com/digitalocean/godo v1.61.0
 	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/fatih/color v1.10.0
+	github.com/fatih/color v1.12.0
 	github.com/frankban/quicktest v1.11.2 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
