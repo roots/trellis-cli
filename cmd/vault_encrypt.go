@@ -117,16 +117,21 @@ Encrypt production vault files:
 
   $ trellis vault encrypt production
 
-Encrypt specified files for production environment:
+Encrypt specified files:
 
-  $ trellis vault encrypt --files=group_vars/production/vault.yml production
+  $ trellis vault encrypt --files=group_vars/production/vault.yml
+  $ trellis vault encrypt --files=group_vars/aaa/vault.yml,group_vars/bbb/vault.yml
+
+Encrypt production vault files and specified files:
+
+  $ trellis vault encrypt --files=group_vars/aaa/vault.yml,group_vars/bbb/vault.yml production
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
       --files  (multiple) Files to encrypt
-               (default: group_vars/all/vault.yml group_vars/<ENVIRONMENT>/vault.yml)
+               (default: group_vars/all/vault.yml,group_vars/<ENVIRONMENT>/vault.yml)
   -h, --help   show this help
 `
 
