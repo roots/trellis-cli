@@ -7,7 +7,7 @@ require (
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/briandowns/spinner v1.15.0
-	github.com/digitalocean/godo v1.62.0
+	github.com/digitalocean/godo v1.63.0
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/fatih/color v1.12.0
 	github.com/frankban/quicktest v1.11.2 // indirect
