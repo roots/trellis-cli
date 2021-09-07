@@ -44,6 +44,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
-	gopkg.in/ini.v1 v1.62.1
+	gopkg.in/ini.v1 v1.63.0
 	gopkg.in/yaml.v2 v2.4.0
 )
