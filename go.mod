@@ -33,7 +33,6 @@ require (
 	github.com/nwaples/rardecode v1.1.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/posener/complete v1.2.3
-	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/weppos/publicsuffix-go v0.15.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
@@ -43,6 +42,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
-	gopkg.in/ini.v1 v1.63.0
+	gopkg.in/ini.v1 v1.63.2
 	gopkg.in/yaml.v2 v2.4.0
 )
