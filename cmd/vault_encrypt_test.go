@@ -9,8 +9,6 @@ import (
 )
 
 func TestVaultEncryptRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -37,6 +35,7 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
+    ui := cli.NewMockUi()
 		vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
 
 		code := vaultEncryptCommand.Run(tc.args)
@@ -56,10 +55,8 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 func TestVaultEncryptRun(t *testing.T) {
 	defer MockExec(t)()
 
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellisProject := trellis.NewTrellis(project)
-	vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
@@ -74,32 +71,46 @@ func TestVaultEncryptRun(t *testing.T) {
 		code int
 	}{
 		{
+			"environment_with_files",
+			[]string{"--files=foo", "production"},
+      "Error: the files option can't be used together with the ENVIRONMENT argument",
+			1,
+		},
+		{
 			"default",
+			[]string{},
+			"ansible-vault encrypt group_vars/all/vault.yml group_vars/development/vault.yml group_vars/production/vault.yml",
+			0,
+		},
+		{
+			"environment_only",
 			[]string{"production"},
 			"ansible-vault encrypt group_vars/all/vault.yml group_vars/production/vault.yml",
 			0,
 		},
 		{
 			"files_flag_single_file",
-			[]string{"--files=group_vars/production/vault.yml", "production"},
+			[]string{"--files=group_vars/production/vault.yml"},
 			"ansible-vault encrypt group_vars/production/vault.yml",
 			0,
 		},
 		{
 			"files_flag_multiple_file",
-			[]string{"--files=group_vars/production/vault.yml,group_vars/development/vault.yml", "production"},
+			[]string{"--files=group_vars/production/vault.yml,group_vars/development/vault.yml"},
 			"ansible-vault encrypt group_vars/production/vault.yml group_vars/development/vault.yml",
 			0,
 		},
 		{
 			"already_encrypted_file",
-			[]string{"--files=group_vars/production/encrypted.yml", "production"},
+			[]string{"--files=group_vars/production/encrypted.yml"},
 			"All files already encrypted",
 			0,
 		},
 	}
 
 	for _, tc := range cases {
+    ui := cli.NewMockUi()
+    vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
 		code := vaultEncryptCommand.Run(tc.args)
 
 		if code != tc.code {
