@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -42,7 +43,7 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
@@ -50,23 +51,41 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 		return 1
 	}
 
-	environment := args[0]
-
-	environmentErr := c.Trellis.ValidateEnvironment(environment)
-	if environmentErr != nil {
-		c.UI.Error(environmentErr.Error())
-		return 1
-	}
-
 	var files []string
+  var environment string
 
-	vaultArgs := []string{"encrypt"}
+  if len(args) == 1 {
+    environment = args[0]
+  }
 
-	if len(c.files) == 0 {
-		files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
-	} else {
-		files = strings.Split(c.files, ",")
-	}
+  if environment != "" {
+    environmentErr := c.Trellis.ValidateEnvironment(environment)
+    if environmentErr != nil {
+      c.UI.Error(environmentErr.Error())
+      return 1
+    }
+
+    if len(c.files) > 0 {
+      c.UI.Error("Error: the files option can't be used together with the ENVIRONMENT argument\n")
+      c.UI.Output(c.Help())
+      return 1
+    }
+
+    files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
+  } else {
+    if len(c.files) == 0 {
+      matches, err := filepath.Glob("group_vars/*/vault.yml")
+
+      if err != nil {
+        c.UI.Error(err.Error())
+        return 1
+      }
+
+      files = matches
+    } else {
+      files = strings.Split(c.files, ",")
+    }
+  }
 
 	var filesToEncrypt []string
 
@@ -88,6 +107,7 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 		return 0
 	}
 
+	vaultArgs := []string{"encrypt"}
 	vaultArgs = append(vaultArgs, filesToEncrypt...)
 
 	vaultEncrypt := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
@@ -106,28 +126,31 @@ func (c *VaultEncryptCommand) Synopsis() string {
 
 func (c *VaultEncryptCommand) Help() string {
 	helpText := `
-Usage: trellis vault encrypt [options] ENVIRONMENT
+Usage: trellis vault encrypt [options] [ENVIRONMENT]
 
-Encrypts files with Ansible Vault for the specified environment
+Encrypts files with Ansible Vault.
+This command is idempotent and won't try to encrypt already encrypted Vault files.
 
 Trellis docs: https://roots.io/trellis/docs/vault/
 Ansible Vault docs: https://docs.ansible.com/ansible/latest/user_guide/vault.html
+
+Encrypt all vault files:
+
+  $ trellis vault encrypt
 
 Encrypt production vault files:
 
   $ trellis vault encrypt production
 
-Encrypt specified files:
+Note: when using the ENVIRONMENT argument, 'group_vars/all/vault.yml' is also included.
+
+Encrypt specified files only (multiple files are comma separated):
 
   $ trellis vault encrypt --files=group_vars/production/vault.yml
   $ trellis vault encrypt --files=group_vars/aaa/vault.yml,group_vars/bbb/vault.yml
 
-Encrypt production vault files and specified files:
-
-  $ trellis vault encrypt --files=group_vars/aaa/vault.yml,group_vars/bbb/vault.yml production
-
 Arguments:
-  ENVIRONMENT Name of environment (ie: production)
+  [ENVIRONMENT] Name of environment (ie: production)
 
 Options:
       --files  (multiple) Files to encrypt
