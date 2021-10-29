@@ -46,8 +46,8 @@ curl -sL https://roots.io/trellis/cli/get | bash -s -- -b /path/to/my/bin
 trellis-cli provides binary releases for a variety of OSes. These binary versions can be manually downloaded and installed.
 
 1. Download the [latest release](https://github.com/roots/trellis-cli/releases/latest) or any [specific version](https://github.com/roots/trellis-cli/releases)
-2. Unpack it (`tar -zxvf trellis_0.9.0_Linux_x86_64.tar.gz`)
-3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_0.9.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
+2. Unpack it (`tar -zxvf trellis_1.0.0_Linux_x86_64.tar.gz`)
+3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_1.0.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
 ## Windows Install
@@ -55,7 +55,7 @@ For windows you also need to setup environment variables to perfectly work with 
 
 1. Open system properties
 2. Open environment variables
-3. Under system variables add new variable, `TRELLIS`, pointing to the location of the `trellis.exe` file, like `C:\trellis_0.9.2`
+3. Under system variables add new variable, `TRELLIS`, pointing to the location of the `trellis.exe` file, like `C:\trellis_1.0.0`
 4. Edit path from system variables and add new named `%TRELLIS%`
 5. Save the changes
 
