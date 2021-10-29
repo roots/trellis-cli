@@ -1,7 +1,7 @@
 # trellis-cli
 
-[![CircleCI](https://circleci.com/gh/roots/trellis-cli.svg?style=svg)](https://circleci.com/gh/roots/trellis-cli)
-![GitHub release](https://img.shields.io/github/release/roots/trellis-cli)
+[![Build status](https://img.shields.io/github/workflow/status/roots/trellis-cli/ci?style=flat-square)](https://github.com/roots/trellis-cli/actions)
+![GitHub release](https://img.shields.io/github/release/roots/trellis-cli?style=flat-square)
 
 A command-line interface (CLI) to manage [Trellis](https://roots.io/trellis/) projects via the `trellis` command. It includes:
 * Smart autocompletion (based on your defined environments and sites)
