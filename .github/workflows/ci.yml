@@ -39,9 +39,11 @@ jobs:
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
-          distribution: goreleaser
-          version: latest
-          args: check
+          install-only: true
+      - name: Check release (dry-run)
+        run: |
+          goreleaser check
+          goreleaser release --snapshot --skip-publish --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
