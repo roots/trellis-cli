@@ -2,9 +2,9 @@ package plugin
 
 import (
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/cmd"
 	"reflect"
 	"strings"
-	"github.com/roots/trellis-cli/cmd"
 )
 
 func Register(c *cli.CLI, searchPaths []string, validPluginFilenamePrefixes []string) {

@@ -35,7 +35,7 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
-    ui := cli.NewMockUi()
+		ui := cli.NewMockUi()
 		vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
 
 		code := vaultEncryptCommand.Run(tc.args)
@@ -73,7 +73,7 @@ func TestVaultEncryptRun(t *testing.T) {
 		{
 			"environment_with_files",
 			[]string{"--files=foo", "production"},
-      "Error: the files option can't be used together with the ENVIRONMENT argument",
+			"Error: the files option can't be used together with the ENVIRONMENT argument",
 			1,
 		},
 		{
@@ -109,8 +109,8 @@ func TestVaultEncryptRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-    ui := cli.NewMockUi()
-    vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
+		ui := cli.NewMockUi()
+		vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
 		code := vaultEncryptCommand.Run(tc.args)
 
 		if code != tc.code {

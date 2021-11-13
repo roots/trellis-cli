@@ -7,8 +7,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"gopkg.in/alessio/shellescape.v1"
 	"github.com/roots/trellis-cli/trellis"
+	"gopkg.in/alessio/shellescape.v1"
 )
 
 type VenvHookCommand struct {

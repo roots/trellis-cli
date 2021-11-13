@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/cmd"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,7 +11,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"github.com/roots/trellis-cli/cmd"
 )
 
 const spyCommand = `#!/usr/bin/env bash

@@ -7,12 +7,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/trellis"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/roots/trellis-cli/trellis"
 )
 
 type AliasCommand struct {

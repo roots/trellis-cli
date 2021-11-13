@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/trellis"
 	"io/ioutil"
 	"os"
 	"strings"
-	"github.com/roots/trellis-cli/trellis"
 )
 
 //go:embed files/playbooks/db_credentials.yml

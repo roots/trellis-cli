@@ -52,40 +52,40 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 	}
 
 	var files []string
-  var environment string
+	var environment string
 
-  if len(args) == 1 {
-    environment = args[0]
-  }
+	if len(args) == 1 {
+		environment = args[0]
+	}
 
-  if environment != "" {
-    environmentErr := c.Trellis.ValidateEnvironment(environment)
-    if environmentErr != nil {
-      c.UI.Error(environmentErr.Error())
-      return 1
-    }
+	if environment != "" {
+		environmentErr := c.Trellis.ValidateEnvironment(environment)
+		if environmentErr != nil {
+			c.UI.Error(environmentErr.Error())
+			return 1
+		}
 
-    if len(c.files) > 0 {
-      c.UI.Error("Error: the files option can't be used together with the ENVIRONMENT argument\n")
-      c.UI.Output(c.Help())
-      return 1
-    }
+		if len(c.files) > 0 {
+			c.UI.Error("Error: the files option can't be used together with the ENVIRONMENT argument\n")
+			c.UI.Output(c.Help())
+			return 1
+		}
 
-    files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
-  } else {
-    if len(c.files) == 0 {
-      matches, err := filepath.Glob("group_vars/*/vault.yml")
+		files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
+	} else {
+		if len(c.files) == 0 {
+			matches, err := filepath.Glob("group_vars/*/vault.yml")
 
-      if err != nil {
-        c.UI.Error(err.Error())
-        return 1
-      }
+			if err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
 
-      files = matches
-    } else {
-      files = strings.Split(c.files, ",")
-    }
-  }
+			files = matches
+		} else {
+			files = strings.Split(c.files, ",")
+		}
+	}
 
 	var filesToEncrypt []string
 

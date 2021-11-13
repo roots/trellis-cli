@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/trellis"
 	"os"
 	"strings"
 	"testing"
-	"github.com/roots/trellis-cli/trellis"
 )
 
 func TestDBOpenArgumentValidations(t *testing.T) {

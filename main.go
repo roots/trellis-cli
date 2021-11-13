@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-	"strconv"
 	"github.com/roots/trellis-cli/cmd"
 	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/plugin"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/roots/trellis-cli/update"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"

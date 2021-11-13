@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/cmd"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"github.com/roots/trellis-cli/cmd"
 )
 
 func TestIntegrationForceNoPlugin(t *testing.T) {

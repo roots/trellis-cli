@@ -1,12 +1,12 @@
 package update
 
 import (
+	"github.com/roots/trellis-cli/github"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
-	"github.com/roots/trellis-cli/github"
 
 	"github.com/hashicorp/go-version"
 	"github.com/mattn/go-isatty"

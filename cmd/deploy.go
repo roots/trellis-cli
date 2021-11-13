@@ -130,7 +130,7 @@ func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *DeployCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--branch": complete.PredictNothing,
+		"--branch":     complete.PredictNothing,
 		"--extra-vars": complete.PredictNothing,
 	}
 }

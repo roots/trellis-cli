@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"flag"
-	"strings"
 	"os"
+	"strings"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"

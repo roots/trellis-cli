@@ -12,9 +12,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
-	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/trellis"
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 )
 
 type NewCommand struct {

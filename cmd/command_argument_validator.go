@@ -12,7 +12,7 @@ func (c *CommandArgumentValidator) validate(args []string) (err error) {
 	totalArgs := c.required + c.optional
 
 	expectedCount := fmt.Sprintf("exactly %d", c.required)
-	if (c.optional > 0) {
+	if c.optional > 0 {
 		expectedCount = fmt.Sprintf("between %d and %d", c.required, totalArgs)
 	}
 
