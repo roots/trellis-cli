@@ -151,6 +151,15 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	spinner.Stop()
+
+	err = c.Trellis.Virtualenv.UpdateBinShebangs("ansible*")
+	if err != nil {
+		c.UI.Error("Error while initializing project in a directory path that contains spaces.")
+		c.UI.Error("Python's virtualenv does not properly handle paths with spaces in them. trellis-cli attempted to automatically fix the bin scripts as a workaround but encountered an error:")
+		c.UI.Error(err.Error())
+		c.UI.Error("As an alternative, you can re-create this project in a path without spaces.")
+		c.UI.Error("Or you can open an issue to let us know: https://github.com/roots/trellis-cli")
+	}
 	return 0
 }
 

@@ -250,6 +250,145 @@ func TestInstalledVirtualenv(t *testing.T) {
 	}
 }
 
+func TestReplaceShebang(t *testing.T) {
+	venv := NewVirtualenv("/trellis")
+
+	cases := []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{
+			"no_match",
+			`#!/trellis/python
+next line
+`,
+			`#!/trellis/python
+next line
+`,
+		},
+		{
+			"first_line_match",
+			`#!/trellis/virtualenv/bin/python
+next line
+`,
+			`#!/bin/sh
+'''exec' "/trellis/virtualenv/bin/python" "$0" "$@"
+' '''
+next line
+`,
+		},
+		{
+			"other_line_match",
+			`first line
+#!/trellis/virtualenv/bin/python
+next line
+`,
+			`first line
+#!/trellis/virtualenv/bin/python
+next line
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := strings.NewReader(tc.input)
+			var b bytes.Buffer
+
+			venv.replaceShebang(r, &b)
+
+			if b.String() != tc.output {
+				t.Errorf("%s\n expected output: %s\ngot: %s", tc.name, tc.output, b.String())
+			}
+		})
+	}
+}
+
+func TestUpdateBinShebangsNoSpaces(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "shebangs-nospaces-")
+	defer os.RemoveAll(dir)
+
+	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
+
+	venv := NewVirtualenv(dir)
+	content := `#!/trellis/virtualenv/bin/python\n`
+	path := filepath.Join(venv.BinPath, "foo")
+
+	if err := os.WriteFile(path, []byte(content), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	venv.UpdateBinShebangs("foo*")
+
+	output, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(output) != content {
+		t.Errorf("expected output: %s\ngot: %s", output, content)
+	}
+}
+
+func TestUpdateBinShebangsWithSpaces(t *testing.T) {
+	t.SkipNow()
+	dir, _ := ioutil.TempDir("", "shebangs with spaces-")
+	defer os.RemoveAll(dir)
+
+	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
+
+	venv := NewVirtualenv(dir)
+
+	cases := []struct {
+		name         string
+		filename     string
+		contents     string
+		expectChange bool
+	}{
+		{
+			name:         "match",
+			filename:     filepath.Join(venv.BinPath, "foo"),
+			contents:     fmt.Sprintf("#!%s/python\nnext line", venv.BinPath),
+			expectChange: true,
+		},
+		{
+			name:         "no_matching_shebang",
+			filename:     filepath.Join(venv.BinPath, "foo-bar"),
+			contents:     "#!/not a match/python",
+			expectChange: false,
+		},
+		{
+			name:         "no_glob_match",
+			filename:     filepath.Join(venv.BinPath, "ansible"),
+			contents:     fmt.Sprintf("#!%s/python\nnext line", venv.BinPath),
+			expectChange: false,
+		},
+	}
+
+	for _, tc := range cases {
+		if err := os.WriteFile(tc.filename, []byte(tc.contents), os.ModePerm); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	venv.UpdateBinShebangs("foo*")
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := os.ReadFile(tc.filename)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(output) == tc.contents && tc.expectChange {
+				t.Errorf("%s\n expected output: %s\ngot: %s", tc.name, tc.contents, output)
+			}
+		})
+	}
+}
+
 func testCreateFile(t *testing.T, path string) func() {
 	file, err := os.Create(path)
 

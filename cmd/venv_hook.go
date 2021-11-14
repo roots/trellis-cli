@@ -22,9 +22,9 @@ func (c *VenvHookCommand) Run(args []string) int {
 	if c.Trellis.ActivateProject() {
 		if !ok {
 			fmt.Fprintf(color.Error, "[trellis] \x1b[1;32mactivated env\x1b[0m\n")
-			c.UI.Output(fmt.Sprintf("export %s=%s", trellis.VenvEnvName, shellescape.Quote(c.Trellis.Virtualenv.Path)))
-			c.UI.Output(fmt.Sprintf("export %s=%s", trellis.OldPathEnvName, shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
-			c.UI.Output(fmt.Sprintf("export %s=%s:%s", trellis.PathEnvName, c.Trellis.Virtualenv.BinPath, shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
+			c.UI.Output(fmt.Sprintf("export %s=\"%s\"", trellis.VenvEnvName, shellescape.Quote(c.Trellis.Virtualenv.Path)))
+			c.UI.Output(fmt.Sprintf("export %s=\"%s\"", trellis.OldPathEnvName, shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
+			c.UI.Output(fmt.Sprintf("export %s=\"%s\":\"%s\"", trellis.PathEnvName, shellescape.Quote(c.Trellis.Virtualenv.BinPath), shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
 		}
 	} else {
 		if ok {
