@@ -86,19 +86,25 @@ func TestProvisionRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development"},
-			"ansible-playbook server.yml -e env=development",
+			"ansible-playbook dev.yml -e env=development",
+			0,
+		},
+		{
+			"non_development",
+			[]string{"production"},
+			"ansible-playbook server.yml -e env=production",
 			0,
 		},
 		{
 			"with_tags",
 			[]string{"-tags", "users", "development"},
-			"ansible-playbook server.yml -e env=development --tags users",
+			"ansible-playbook dev.yml -e env=development --tags users",
 			0,
 		},
 		{
 			"with_extra_vars",
 			[]string{"-extra-vars", "k=v foo=bar", "development"},
-			"ansible-playbook server.yml -e env=development k=v foo=bar",
+			"ansible-playbook dev.yml -e env=development k=v foo=bar",
 			0,
 		},
 	}

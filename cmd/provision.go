@@ -2,12 +2,16 @@ package cmd
 
 import (
 	"flag"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/trellis"
 )
+
+const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
 	c := &ProvisionCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
@@ -74,7 +78,17 @@ func (c *ProvisionCommand) Run(args []string) int {
 		playbookArgs = append(playbookArgs, "--tags", c.tags)
 	}
 
-	if err := c.playbook.Run("server.yml", playbookArgs); err != nil {
+	var playbookFile string = "server.yml"
+
+	if environment == "development" {
+		playbookFile = "dev.yml"
+
+		if _, err := os.Stat(filepath.Join(c.Trellis.Path, VagrantInventoryFilePath)); err == nil {
+			playbookArgs = append(playbookArgs, "--inventory-file", VagrantInventoryFilePath)
+		}
+	}
+
+	if err := c.playbook.Run(playbookFile, playbookArgs); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
