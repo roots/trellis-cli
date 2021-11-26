@@ -15,8 +15,8 @@ func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
 	switch app {
 	case "tableplus":
 		return &DBOpenerTableplus{}, nil
-	case "sequel-pro":
-		return &DBOpenerSequelPro{ui: ui}, nil
+	case "sequel-ace":
+		return &DBOpenerSequelAce{ui: ui}, nil
 	}
 
 	return nil, fmt.Errorf("%s is not supported", app)
@@ -25,6 +25,6 @@ func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
 func (f *DBOpenerFactory) GetSupportedApps() []string {
 	return []string{
 		"tableplus",
-		"sequel-pro",
+		"sequel-ace",
 	}
 }

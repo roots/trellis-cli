@@ -28,8 +28,8 @@ func TestMake(t *testing.T) {
 		expected DBOpener
 	}{
 		{
-			"sequel-pro",
-			&DBOpenerSequelPro{},
+			"sequel-ace",
+			&DBOpenerSequelAce{},
 		},
 		{
 			"tableplus",
