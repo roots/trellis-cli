@@ -18,7 +18,7 @@ func (f *DBOpenerFactory) Make(app string, ui cli.Ui) (o DBOpener, err error) {
 	case "sequel-ace":
 		return &DBOpenerSequelAce{ui: ui}, nil
 	case "sequel-pro":
-		return nil, fmt.Errorf("Sequel Pro is replaced by Sequel Ace. Check the docs for more info.")
+		return nil, fmt.Errorf("Sequel Pro is replaced by Sequel Ace. Check the docs for more info: https://roots.io/docs/trellis/master/database-access.")
     }
 
 	return nil, fmt.Errorf("%s is not supported", app)
