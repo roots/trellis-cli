@@ -390,7 +390,7 @@ Link: https://cloud.digitalocean.com/account/api/tokens/new
 If the DIGITALOCEAN_ACCESS_TOKEN environment variable is not set, the command
 will prompt for one.
 
-Create a production server:
+Create a production server (region and size will be prompted):
 
   $ trellis droplet create production
 
