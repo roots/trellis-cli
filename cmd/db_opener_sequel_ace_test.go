@@ -22,11 +22,11 @@ func TestOpen(t *testing.T) {
 	}
 
 	ui := cli.NewMockUi()
-	sequelPro := &DBOpenerSequelPro{
+	sequelAce := &DBOpenerSequelAce{
 		ui: ui,
 	}
 
-	sequelPro.Open(dbCredentials)
+	sequelAce.Open(dbCredentials)
 
 	actualCombined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 	actualCombined = strings.TrimSpace(actualCombined)
