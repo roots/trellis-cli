@@ -16,6 +16,15 @@ type CheckCommand struct {
 
 var Requirements = []trellis.Requirement{
 	{
+		Name:              "Python",
+		Command:           "python",
+		Url:               "https://www.python.org/",
+		VersionConstraint: ">= 2.7.0",
+		ExtractVersion: func(output string) string {
+			return strings.Replace(output, "Python ", "", 1)
+		},
+	},
+	{
 		Name:              "Vagrant",
 		Command:           "vagrant",
 		Url:               "https://www.vagrantup.com/downloads.html",
