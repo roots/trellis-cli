@@ -105,7 +105,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	// Prepare JSON file for db credentials
 	dbCredentialsJson, dbCredentialsErr := ioutil.TempFile("", "*.json")
 	if dbCredentialsErr != nil {
-		c.UI.Error(fmt.Sprintf("Error createing temporary db credentials JSON file: %s", dbCredentialsErr))
+		c.UI.Error(fmt.Sprintf("Error creating temporary db credentials JSON file: %s", dbCredentialsErr))
 	}
 	defer os.Remove(dbCredentialsJson.Name())
 
