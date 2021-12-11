@@ -14,7 +14,7 @@ type UpCommand struct {
 	UI          cli.Ui
 	Trellis     *trellis.Trellis
 	flags       *flag.FlagSet
-	withGalaxy  bool
+	noGalaxy    bool
 	noProvision bool
 }
 
@@ -27,7 +27,7 @@ func NewUpCommand(ui cli.Ui, trellis *trellis.Trellis) *UpCommand {
 func (c *UpCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.BoolVar(&c.withGalaxy, "with-galaxy", false, "Run Ansible Galaxy install")
+	c.flags.BoolVar(&c.noGalaxy, "no-galaxy", false, "Skip Ansible Galaxy install")
 	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skip provisioning")
 }
 
@@ -51,6 +51,11 @@ func (c *UpCommand) Run(args []string) int {
 		return 1
 	}
 
+	if !c.noGalaxy {
+		galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.Trellis}
+		galaxyInstallCommand.Run([]string{})
+	}
+
 	vagrantArgs := []string{"up"}
 
 	if c.noProvision {
@@ -65,9 +70,7 @@ func (c *UpCommand) Run(args []string) int {
 		env = vagrantUp.Env
 	}
 
-	if !c.withGalaxy {
-		vagrantUp.Env = append(env, "SKIP_GALAXY=true")
-	}
+	vagrantUp.Env = append(env, "SKIP_GALAXY=true")
 
 	err := vagrantUp.Run()
 	if err != nil {
@@ -96,13 +99,13 @@ Start VM without provisioning:
 
   $ trellis up --no-provision
 
-Start VM and auto-run Galaxy install:
+Start VM and skip Galaxy install:
 
-  $ trellis up --with-galaxy
+  $ trellis up --no-galaxy
 
 Options:
       --no-provision (default: false) Skip provisioning
-      --with-galaxy  (default: false) Run Ansible Galaxy install
+      --no-galaxy    (default: false) Skip Ansible Galaxy install
   -h, --help         show this help
 `
 
@@ -116,6 +119,6 @@ func (c *UpCommand) AutocompleteArgs() complete.Predictor {
 func (c *UpCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--no-provision": complete.PredictNothing,
-		"--with-galaxy":  complete.PredictNothing,
+		"--no-galaxy":    complete.PredictNothing,
 	}
 }
