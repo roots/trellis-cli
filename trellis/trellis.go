@@ -3,6 +3,7 @@ package trellis
 import (
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -105,6 +106,18 @@ func (t *Trellis) LoadProject() error {
 	if os.Getenv("TRELLIS_VENV") != "false" {
 		if t.Virtualenv.Initialized() {
 			t.Virtualenv.Activate()
+		} else {
+			color.Yellow(`
+WARNING: no virtualenv found for this project. Trellis may not work as expected.
+To ensure you have the required dependencies, initialize the project with the following command:
+
+$ trellis init
+
+`)
+
+			color.Yellow(`To disable this automated check, set the TRELLIS_VENV environment variable to 'false': export TRELLIS_VENV=false
+
+`)
 		}
 	}
 
