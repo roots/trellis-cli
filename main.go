@@ -42,6 +42,7 @@ func main() {
 
 	ui := &cli.ColoredUi{
 		ErrorColor: cli.UiColorRed,
+		WarnColor:  cli.UiColor{Code: int(color.FgYellow), Bold: false},
 		Ui: &cli.BasicUi{
 			Reader:      os.Stdin,
 			Writer:      os.Stdout,

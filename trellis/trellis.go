@@ -3,7 +3,7 @@ package trellis
 import (
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
+	"github.com/mitchellh/cli"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -17,15 +17,17 @@ import (
 const ConfigDir string = ".trellis"
 
 type Trellis struct {
-	detector     Detector
-	Environments map[string]*Config
-	ConfigPath   string
-	Path         string
-	Virtualenv   *Virtualenv
+	detector        Detector
+	Environments    map[string]*Config
+	ConfigPath      string
+	Path            string
+	Virtualenv      *Virtualenv
+	VenvInitialized bool
+	venvWarned      bool
 }
 
 func NewTrellis(d Detector) *Trellis {
-	return &Trellis{detector: d}
+	return &Trellis{detector: d, VenvInitialized: false, venvWarned: false}
 }
 
 /*
@@ -43,6 +45,22 @@ func (t *Trellis) CreateConfigDir() error {
 	}
 
 	return nil
+}
+
+func (t *Trellis) CheckVirtualenv(ui cli.Ui) {
+	if !t.venvWarned && !t.VenvInitialized {
+		ui.Warn(fmt.Sprintf(`
+WARNING: no virtualenv found for this project. Trellis may not work as expected.
+To ensure you have the required dependencies, initialize the project with the following command:
+
+$ trellis init
+
+To disable this automated check, set the %s environment variable to 'false': export %s=false
+
+  `, TrellisVenvEnvName, TrellisVenvEnvName))
+	}
+
+	t.venvWarned = true
 }
 
 /*
@@ -103,21 +121,10 @@ func (t *Trellis) LoadProject() error {
 
 	os.Chdir(t.Path)
 
-	if os.Getenv("TRELLIS_VENV") != "false" {
+	if os.Getenv(TrellisVenvEnvName) != "false" {
 		if t.Virtualenv.Initialized() {
+			t.VenvInitialized = true
 			t.Virtualenv.Activate()
-		} else {
-			color.Yellow(`
-WARNING: no virtualenv found for this project. Trellis may not work as expected.
-To ensure you have the required dependencies, initialize the project with the following command:
-
-$ trellis init
-
-`)
-
-			color.Yellow(`To disable this automated check, set the TRELLIS_VENV environment variable to 'false': export TRELLIS_VENV=false
-
-`)
 		}
 	}
 

@@ -37,6 +37,8 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Trellis.CheckVirtualenv(c.UI)
+
 	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {

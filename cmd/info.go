@@ -19,6 +19,8 @@ func (c *InfoCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Trellis.CheckVirtualenv(c.UI)
+
 	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
