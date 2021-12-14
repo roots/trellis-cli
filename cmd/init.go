@@ -56,6 +56,7 @@ func (c *InitCommand) Run(args []string) int {
 			return 1
 		}
 
+		c.Trellis.VenvInitialized = true
 		c.UI.Info(color.GreenString("✓ virtualenv created"))
 	}
 
