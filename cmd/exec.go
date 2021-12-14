@@ -22,6 +22,8 @@ func (c *ExecCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Trellis.CheckVirtualenv(c.UI)
+
 	var command string
 	var cmdArgs []string
 

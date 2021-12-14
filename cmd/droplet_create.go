@@ -60,6 +60,8 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Trellis.CheckVirtualenv(c.UI)
+
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}

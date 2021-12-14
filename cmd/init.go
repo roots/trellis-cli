@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/fatih/color"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -39,37 +41,41 @@ func (c *InitCommand) Run(args []string) int {
 		c.UI.Info("virtualenv not found")
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " Installing virtualenv..."
+		s.FinalMSG = color.GreenString("\n✓ virtualenv installed")
 		s.Start()
 		c.Trellis.Virtualenv.Install()
 		s.Stop()
-		c.UI.Info(color.GreenString("✓ virtualenv installed"))
 	}
 
-	c.UI.Info(fmt.Sprintf("Creating virtualenv in %s", c.Trellis.Virtualenv.Path))
+	if !c.Trellis.Virtualenv.Initialized() {
+		c.UI.Info(fmt.Sprintf("Creating virtualenv in %s", c.Trellis.Virtualenv.Path))
 
-	err := c.Trellis.Virtualenv.Create()
-	if err != nil {
-		c.UI.Error(fmt.Sprintf("Error creating virtualenv: %s", err))
-		return 1
+		err := c.Trellis.Virtualenv.Create()
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error creating virtualenv: %s", err))
+			return 1
+		}
+
+		c.UI.Info(color.GreenString("✓ virtualenv created"))
 	}
-
-	c.UI.Info(color.GreenString("✓ Virtualenv created"))
-
-	pip := CommandExecWithStderrOnly("pip", []string{"install", "-r", "requirements.txt"}, c.UI)
 
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Suffix = " Installing pip dependencies (pip install -r requirements.txt) ..."
+	s.Suffix = " Installing dependencies => pip install -r requirements.txt (this can take a minute...)"
+	s.FinalMSG = "\n"
 	s.Start()
-
-	err = pip.Run()
+	pipCmd := exec.Command("pip", "install", "-r", "requirements.txt")
+	errorOutput := &bytes.Buffer{}
+	pipCmd.Stderr = errorOutput
+	err := pipCmd.Run()
 	s.Stop()
 
 	if err != nil {
+		c.UI.Error("✘ Error installing dependencies\n")
+		c.UI.Error(errorOutput.String())
 		return 1
 	}
 
 	c.UI.Info(color.GreenString("✓ Dependencies installed"))
-
 	return 0
 }
 

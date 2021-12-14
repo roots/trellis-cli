@@ -10,10 +10,11 @@ import (
 	"github.com/roots/trellis-cli/github"
 )
 
-const VirtualenvDir string = "virtualenv"
+const TrellisVenvEnvName string = "TRELLIS_VENV"
 const VenvEnvName string = "VIRTUAL_ENV"
 const PathEnvName string = "PATH"
 const OldPathEnvName string = "PRE_TRELLIS_PATH"
+const VirtualenvDir string = "virtualenv"
 
 type Virtualenv struct {
 	Path    string
