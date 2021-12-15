@@ -19,9 +19,9 @@ func (t *Trellis) PredictSite() complete.PredictFunc {
 		}
 
 		switch len(args.Completed) {
-		case 1:
+		case 0:
 			return t.EnvironmentNames()
-		case 2:
+		case 1:
 			return t.SiteNamesFromEnvironment(args.LastCompleted)
 		default:
 			return []string{}
@@ -36,7 +36,7 @@ func (t *Trellis) PredictEnvironment() complete.PredictFunc {
 		}
 
 		switch len(args.Completed) {
-		case 1:
+		case 0:
 			return t.EnvironmentNames()
 		default:
 			return []string{}

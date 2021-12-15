@@ -1,13 +1,26 @@
 package trellis
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
-func TestPredictEnvironment(t *testing.T) {
+// Tests based on
+// https://github.com/mitchellh/cli/blob/5454ffe87bc5c6d8b6b21c825617755e18a07828/cli_test.go#L1125-L1225
+
+// envComplete is the env var that the complete library sets to specify
+// it should be calculating an auto-completion.
+const envComplete = "COMP_LINE"
+
+func TestCompletionFunctions(t *testing.T) {
 	project := &Project{}
 	trellis := NewTrellis(project)
 
@@ -18,93 +31,114 @@ func TestPredictEnvironment(t *testing.T) {
 	}
 
 	cases := []struct {
-		name      string
-		completed []string
-		want      []string
+		Predictor complete.Predictor
+		Completed []string
+		Last      string
+		Expected  []string
 	}{
-		{
-			name:      "No args completed",
-			completed: []string{},
-			want:      []string{},
-		},
-		{
-			name:      "Command supplied",
-			completed: []string{"command"},
-			want:      []string{"development", "production", "valet-link"},
-		},
-		{
-			name:      "Command and env supplied",
-			completed: []string{"command", "development"},
-			want:      []string{},
-		},
+		{trellis.AutocompleteEnvironment(), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
+		{trellis.AutocompleteEnvironment(), []string{"deploy"}, "d", []string{"development"}},
+		{trellis.AutocompleteEnvironment(), []string{"deploy", "production"}, "", nil},
+		{trellis.AutocompleteSite(), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
+		{trellis.AutocompleteSite(), []string{"deploy"}, "d", []string{"development"}},
+		{trellis.AutocompleteSite(), []string{"deploy", "production"}, "", []string{"example.com"}},
 	}
 
 	for _, tc := range cases {
-		matches := trellis.PredictEnvironment().Predict(
-			complete.Args{Completed: tc.completed},
-		)
+		t.Run(tc.Last, func(t *testing.T) {
+			command := new(cli.MockCommandAutocomplete)
+			command.AutocompleteArgsValue = tc.Predictor
 
-		got := strings.Join(matches, ",")
-		want := strings.Join(tc.want, ",")
+			cli := &cli.CLI{
+				Commands: map[string]cli.CommandFactory{
+					"deploy": func() (cli.Command, error) { return command, nil },
+				},
+				Autocomplete: true,
+			}
 
-		if got != want {
-			t.Errorf("failed %s\ngot = %s\nwant: %s", t.Name(), got, want)
-		}
+			// Setup the autocomplete line
+			var input bytes.Buffer
+			input.WriteString("cli ")
+			if len(tc.Completed) > 0 {
+				input.WriteString(strings.Join(tc.Completed, " "))
+				input.WriteString(" ")
+			}
+			input.WriteString(tc.Last)
+			defer testAutocomplete(t, input.String())()
+
+			// Setup the output so that we can read it. We don't need to
+			// reset os.Stdout because testAutocomplete will do that for us.
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+			defer r.Close() // Only defer reader since writer is closed below
+			os.Stdout = w
+
+			// Run
+			exitCode, err := cli.Run()
+			w.Close()
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			if exitCode != 0 {
+				t.Fatalf("bad: %d", exitCode)
+			}
+
+			// Copy the output and get the autocompletions. We trim the last
+			// element if we have one since we usually output a final newline
+			// which results in a blank.
+			var outBuf bytes.Buffer
+			io.Copy(&outBuf, r)
+			actual := strings.Split(outBuf.String(), "\n")
+			if len(actual) > 0 {
+				actual = actual[:len(actual)-1]
+			}
+			if len(actual) == 0 {
+				// If we have no elements left, make the value nil since
+				// this is what we use in tests.
+				actual = nil
+			}
+
+			sort.Strings(actual)
+			sort.Strings(tc.Expected)
+
+			if !reflect.DeepEqual(actual, tc.Expected) {
+				t.Fatalf("bad:\n\n%#v\n\n%#v", actual, tc.Expected)
+			}
+		})
 	}
 }
 
-func TestPredictSite(t *testing.T) {
-	project := &Project{}
-	trellis := NewTrellis(project)
+// testAutocomplete sets up the environment to behave like a <tab> was
+// pressed in a shell to autocomplete a command.
+func testAutocomplete(t *testing.T, input string) func() {
+	// This env var is used to trigger autocomplete
+	os.Setenv(envComplete, input)
 
-	defer TestChdir(t, "testdata/trellis")()
+	// Change stdout/stderr since the autocompleter writes directly to them.
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
 
-	if err := trellis.LoadProject(); err != nil {
-		t.Fatalf(err.Error())
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("err: %s", err)
 	}
 
-	cases := []struct {
-		name          string
-		completed     []string
-		lastCompleted string
-		want          []string
-	}{
-		{
-			name:          "No args completed",
-			completed:     []string{},
-			lastCompleted: "",
-			want:          []string{},
-		},
-		{
-			name:          "Command supplied",
-			completed:     []string{"command"},
-			lastCompleted: "command",
-			want:          []string{"development", "production", "valet-link"},
-		},
-		{
-			name:          "Command and env supplied",
-			completed:     []string{"command", "development"},
-			lastCompleted: "development",
-			want:          []string{"example.com"},
-		},
-		{
-			name:          "Command, env, and site supplied",
-			completed:     []string{"command", "development", "example.com"},
-			lastCompleted: "example.com",
-			want:          []string{},
-		},
-	}
+	os.Stdout = w
+	os.Stderr = w
 
-	for _, tc := range cases {
-		matches := trellis.PredictSite().Predict(
-			complete.Args{Completed: tc.completed, LastCompleted: tc.lastCompleted},
-		)
+	return func() {
+		// Reset our env
+		os.Unsetenv(envComplete)
 
-		got := strings.Join(matches, ",")
-		want := strings.Join(tc.want, ",")
+		// Reset stdout, stderr
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
 
-		if got != want {
-			t.Errorf("failed %s\ngot = %s\nwant: %s", t.Name(), got, want)
-		}
+		// Close our pipe
+		r.Close()
+		w.Close()
 	}
 }
