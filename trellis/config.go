@@ -22,8 +22,22 @@ type Site struct {
 	Cache           map[string]interface{} `yaml:"cache"`
 }
 
+func (s *Site) SslEnabled() bool {
+	return s.Ssl["enabled"] == true
+}
+
 func (s *Site) MainHost() string {
 	return s.SiteHosts[0].Canonical
+}
+
+func (s *Site) MainUrl() string {
+	var protocol string = "http"
+
+	if s.SslEnabled() {
+		protocol = "https"
+	}
+
+	return fmt.Sprintf("%s://%s", protocol, s.SiteHosts[0].Canonical)
 }
 
 type SiteHost struct {

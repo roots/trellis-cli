@@ -49,11 +49,9 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		canonical, _ := c.Trellis.HostsFromDomain(site.SiteHosts[0].Canonical, environment)
 		app := strings.TrimSuffix(canonical.String(), "."+canonical.TLD)
 
-		isSiteSslEnabled := site.Ssl["enabled"] == true
-
 		valetArgs := []string{"link"}
 
-		if isSiteSslEnabled {
+		if site.SslEnabled() {
 			valetArgs = append(valetArgs, "--secure")
 		}
 		valetArgs = append(valetArgs, app)
