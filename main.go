@@ -8,7 +8,6 @@ import (
 	"github.com/roots/trellis-cli/plugin"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/roots/trellis-cli/update"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,7 +164,7 @@ func main() {
 	exitStatus, err := c.Run()
 
 	if err != nil {
-		log.Println(err)
+		ui.Error(err.Error())
 	}
 
 	newRelease := <-updateMessageChan
