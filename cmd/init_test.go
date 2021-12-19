@@ -9,8 +9,6 @@ import (
 )
 
 func TestInitRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,6 +33,7 @@ func TestInitRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		initCommand := &InitCommand{ui, trellis}

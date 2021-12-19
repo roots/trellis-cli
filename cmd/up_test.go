@@ -9,8 +9,6 @@ import (
 )
 
 func TestUpRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,6 +33,7 @@ func TestUpRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		upCommand := NewUpCommand(ui, trellis)
@@ -54,10 +53,8 @@ func TestUpRunValidations(t *testing.T) {
 }
 
 func TestUpRun(t *testing.T) {
-	ui := cli.NewMockUi()
 	mockProject := &MockProject{true}
 	trellis := trellis.NewTrellis(mockProject)
-	upCommand := NewUpCommand(ui, trellis)
 
 	defer MockExec(t)()
 
@@ -82,6 +79,8 @@ func TestUpRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		upCommand := NewUpCommand(ui, trellis)
 		code := upCommand.Run(tc.args)
 
 		if code != tc.code {

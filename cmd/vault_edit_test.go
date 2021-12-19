@@ -9,8 +9,6 @@ import (
 )
 
 func TestVaultEditRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,6 +33,7 @@ func TestVaultEditRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		vaultEditCommand := VaultEditCommand{ui, trellis}
@@ -57,10 +56,8 @@ func TestVaultEditRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	defer MockExec(t)()
 
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	vaultEditCommand := VaultEditCommand{ui, trellis}
 
 	cases := []struct {
 		name string
@@ -77,6 +74,8 @@ func TestVaultEditRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		vaultEditCommand := VaultEditCommand{ui, trellis}
 		code := vaultEditCommand.Run(tc.args)
 
 		if code != tc.code {

@@ -10,7 +10,6 @@ import (
 
 func TestProvisionRunValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -50,6 +49,7 @@ func TestProvisionRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		provisionCommand := NewProvisionCommand(ui, trellis)
@@ -70,10 +70,8 @@ func TestProvisionRunValidations(t *testing.T) {
 
 func TestProvisionRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	provisionCommand := NewProvisionCommand(ui, trellis)
 
 	defer MockExec(t)()
 
@@ -110,6 +108,9 @@ func TestProvisionRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		provisionCommand := NewProvisionCommand(ui, trellis)
+
 		code := provisionCommand.Run(tc.args)
 
 		if code != tc.code {

@@ -10,7 +10,6 @@ import (
 
 func TestDeployRunValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -64,6 +63,7 @@ func TestDeployRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		deployCommand := NewDeployCommand(ui, trellis)
@@ -84,12 +84,8 @@ func TestDeployRunValidations(t *testing.T) {
 
 func TestDeployRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-
-	deployCommand := &DeployCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
-	deployCommand.init()
 
 	defer MockExec(t)()
 
@@ -126,6 +122,9 @@ func TestDeployRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		deployCommand := &DeployCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
+		deployCommand.init()
 		code := deployCommand.Run(tc.args)
 
 		if code != tc.code {

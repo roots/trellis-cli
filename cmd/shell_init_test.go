@@ -9,8 +9,6 @@ import (
 )
 
 func TestShellInitRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name string
 		args []string
@@ -38,6 +36,7 @@ func TestShellInitRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		shellInitCommand := &ShellInitCommand{ui}
 		code := shellInitCommand.Run(tc.args)
 
@@ -54,8 +53,6 @@ func TestShellInitRunValidations(t *testing.T) {
 }
 
 func TestShellInitRun(t *testing.T) {
-	ui := cli.NewMockUi()
-	shellInitCommand := &ShellInitCommand{ui}
 	executable, _ := os.Executable()
 
 	cases := []struct {
@@ -79,6 +76,8 @@ func TestShellInitRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		shellInitCommand := &ShellInitCommand{ui}
 		code := shellInitCommand.Run(tc.args)
 
 		if code != tc.code {

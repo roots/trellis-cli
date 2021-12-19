@@ -10,7 +10,6 @@ import (
 
 func TestSshRunValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -64,6 +63,7 @@ func TestSshRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		sshCommand := &SshCommand{ui, trellis}
@@ -88,10 +88,8 @@ func TestSshRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	defer MockExec(t)()
 
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	sshCommand := &SshCommand{ui, trellis}
 
 	cases := []struct {
 		name string
@@ -114,6 +112,8 @@ func TestSshRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		sshCommand := &SshCommand{ui, trellis}
 		code := sshCommand.Run(tc.args)
 
 		if code != tc.code {

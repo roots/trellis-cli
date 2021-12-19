@@ -10,7 +10,6 @@ import (
 
 func TestRollbackRunValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -64,6 +63,7 @@ func TestRollbackRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		rollbackCommand := NewRollbackCommand(ui, trellis)
@@ -84,10 +84,8 @@ func TestRollbackRunValidations(t *testing.T) {
 
 func TestRollbackRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	rollbackCommand := NewRollbackCommand(ui, trellis)
 
 	defer MockExec(t)()
 
@@ -118,6 +116,9 @@ func TestRollbackRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		rollbackCommand := NewRollbackCommand(ui, trellis)
+
 		code := rollbackCommand.Run(tc.args)
 
 		if code != tc.code {

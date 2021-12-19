@@ -9,8 +9,6 @@ import (
 )
 
 func TestVaultDecryptRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,6 +33,7 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		vaultDecryptCommand := NewVaultDecryptCommand(ui, trellis)
@@ -56,10 +55,8 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 func TestVaultDecryptRun(t *testing.T) {
 	defer MockExec(t)()
 
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellisProject := trellis.NewTrellis(project)
-	vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
@@ -100,6 +97,8 @@ func TestVaultDecryptRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
 		code := vaultDecryptCommand.Run(tc.args)
 
 		if code != tc.code {

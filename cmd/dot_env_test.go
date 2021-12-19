@@ -13,8 +13,6 @@ import (
 )
 
 func TestDotEnvArgumentValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -39,6 +37,7 @@ func TestDotEnvArgumentValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 
@@ -60,7 +59,6 @@ func TestDotEnvArgumentValidations(t *testing.T) {
 
 func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -79,6 +77,7 @@ func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 
@@ -100,10 +99,8 @@ func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 
 func TestDotEnvRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellis := trellis.NewTrellis(project)
-	dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
 
 	defer MockExec(t)()
 
@@ -128,6 +125,8 @@ func TestDotEnvRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
 		code := dotEnvCommand.Run(tc.args)
 
 		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()

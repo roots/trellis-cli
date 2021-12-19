@@ -10,8 +10,6 @@ import (
 )
 
 func TestNewRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -36,6 +34,7 @@ func TestNewRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		newCommand := NewNewCommand(ui, trellis, "1.0.0")
@@ -55,8 +54,6 @@ func TestNewRunValidations(t *testing.T) {
 }
 
 func TestAskDomain(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name      string
 		path      string
@@ -108,6 +105,7 @@ func TestAskDomain(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		ui.InputReader = bytes.NewBuffer([]byte(tc.hostInput))
 		domain, err := askDomain(ui, tc.path)
 		askOutput := ui.OutputWriter.String() + ui.ErrorWriter.String()

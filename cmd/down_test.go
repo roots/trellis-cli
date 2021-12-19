@@ -9,8 +9,6 @@ import (
 )
 
 func TestDownRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,6 +33,7 @@ func TestDownRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		downCommand := &DownCommand{ui, trellis}
@@ -54,10 +53,8 @@ func TestDownRunValidations(t *testing.T) {
 }
 
 func TestDownRun(t *testing.T) {
-	ui := cli.NewMockUi()
 	mockProject := &MockProject{true}
 	trellis := trellis.NewTrellis(mockProject)
-	downCommand := &DownCommand{ui, trellis}
 
 	defer MockExec(t)()
 
@@ -76,6 +73,8 @@ func TestDownRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
+		downCommand := &DownCommand{ui, trellis}
 		code := downCommand.Run(tc.args)
 
 		if code != tc.code {

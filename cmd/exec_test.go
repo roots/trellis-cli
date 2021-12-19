@@ -9,8 +9,6 @@ import (
 )
 
 func TestExecRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -28,6 +26,7 @@ func TestExecRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		ui := cli.NewMockUi()
 		mockProject := &MockProject{tc.projectDetected}
 		trellis := trellis.NewTrellis(mockProject)
 		execCommand := &ExecCommand{ui, trellis}
