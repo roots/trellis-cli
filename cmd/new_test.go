@@ -36,8 +36,7 @@ func TestNewRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			mockProject := &MockProject{tc.projectDetected}
-			trellis := trellis.NewTrellis(mockProject)
+			trellis := trellis.NewMockTrellis(tc.projectDetected)
 			newCommand := NewNewCommand(ui, trellis, "1.0.0")
 
 			code := newCommand.Run(tc.args)

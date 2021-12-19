@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+
 	"github.com/roots/trellis-cli/cmd"
 	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/plugin"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/roots/trellis-cli/update"
-	"os"
-	"path/filepath"
-	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
@@ -49,8 +50,7 @@ func main() {
 		},
 	}
 
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 
 	c.Commands = map[string]cli.CommandFactory{
 		"alias": func() (cli.Command, error) {

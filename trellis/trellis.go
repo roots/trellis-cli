@@ -3,31 +3,72 @@ package trellis
 import (
 	"errors"
 	"fmt"
-	"github.com/mitchellh/cli"
-	"gopkg.in/ini.v1"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mitchellh/cli"
+	"gopkg.in/ini.v1"
+	"gopkg.in/yaml.v2"
 )
 
-const ConfigDir string = ".trellis"
+const ConfigDir = ".trellis"
+const GlobPattern = "group_vars/*/wordpress_sites.yml"
+
+type Options struct {
+	Detector  Detector
+	ConfigDir string
+}
+
+type TrellisOption func(*Trellis)
 
 type Trellis struct {
-	detector        Detector
+	ConfigDir       string
+	Detector        Detector
 	Environments    map[string]*Config
-	ConfigPath      string
 	Path            string
 	Virtualenv      *Virtualenv
 	VenvInitialized bool
 	venvWarned      bool
 }
 
-func NewTrellis(d Detector) *Trellis {
-	return &Trellis{detector: d, VenvInitialized: false, venvWarned: false}
+func NewTrellis(opts ...TrellisOption) *Trellis {
+	const (
+		defaultConfigDir       = ConfigDir
+		defaultVenvInitialized = false
+		defaultVenvWarned      = false
+	)
+
+	t := &Trellis{
+		Detector:        &ProjectDetector{},
+		ConfigDir:       defaultConfigDir,
+		VenvInitialized: defaultVenvInitialized,
+		venvWarned:      defaultVenvWarned,
+	}
+
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
+}
+
+func WithOptions(options *Options) TrellisOption {
+	return func(t *Trellis) {
+		t.Detector = options.Detector
+		t.ConfigDir = options.ConfigDir
+	}
+}
+
+func NewMockTrellis(projectDetected bool) *Trellis {
+	return NewTrellis(
+		WithOptions(
+			&Options{Detector: &MockProjectDetector{detected: projectDetected}},
+		),
+	)
 }
 
 /*
@@ -36,11 +77,15 @@ This will traverse up the directory tree until it finds a valid project,
 or stop at the root and give up.
 */
 func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
-	return t.detector.Detect(path)
+	return t.Detector.Detect(path)
+}
+
+func (t *Trellis) ConfigPath() string {
+	return filepath.Join(t.Path, t.ConfigDir)
 }
 
 func (t *Trellis) CreateConfigDir() error {
-	if err := os.Mkdir(t.ConfigPath, 0755); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(t.ConfigPath(), 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 
@@ -81,8 +126,7 @@ func (t *Trellis) ActivateProject() bool {
 	}
 
 	t.Path = path
-	t.ConfigPath = filepath.Join(path, ConfigDir)
-	t.Virtualenv = NewVirtualenv(t.ConfigPath)
+	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
 	if !t.Virtualenv.Initialized() {
 		return false
@@ -116,8 +160,7 @@ func (t *Trellis) LoadProject() error {
 	}
 
 	t.Path = path
-	t.ConfigPath = filepath.Join(path, ConfigDir)
-	t.Virtualenv = NewVirtualenv(t.ConfigPath)
+	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
 	os.Chdir(t.Path)
 

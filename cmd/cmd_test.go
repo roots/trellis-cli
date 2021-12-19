@@ -10,14 +10,6 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-type MockProject struct {
-	detected bool
-}
-
-func (p *MockProject) Detect(path string) (projectPath string, ok bool) {
-	return "trellis", p.detected
-}
-
 func mockExecCommand(command string, args []string, ui cli.Ui) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--", command}
 	cs = append(cs, args...)

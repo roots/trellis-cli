@@ -21,8 +21,7 @@ import (
 const envComplete = "COMP_LINE"
 
 func TestCompletionFunctions(t *testing.T) {
-	project := &Project{}
-	trellis := NewTrellis(project)
+	trellis := NewTrellis()
 
 	defer TestChdir(t, "testdata/trellis")()
 
