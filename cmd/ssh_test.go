@@ -63,24 +63,26 @@ func TestSshRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		sshCommand := &SshCommand{ui, trellis}
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			sshCommand := &SshCommand{ui, trellis}
 
-		defer MockExec(t)()
+			defer MockExec(t)()
 
-		code := sshCommand.Run(tc.args)
+			code := sshCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -112,18 +114,20 @@ func TestSshRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		sshCommand := &SshCommand{ui, trellis}
-		code := sshCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			sshCommand := &SshCommand{ui, trellis}
+			code := sshCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }

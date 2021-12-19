@@ -34,22 +34,24 @@ func TestGalaxyInstallRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
-		code := galaxyInstallCommand.Run(tc.args)
+			code := galaxyInstallCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -96,29 +98,31 @@ func TestGalaxyInstallRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		project := &trellis.Project{}
-		trellis := trellis.NewTrellis(project)
-		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			project := &trellis.Project{}
+			trellis := trellis.NewTrellis(project)
+			galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
-		for _, file := range tc.roleFiles {
-			os.Create(file)
-		}
+			for _, file := range tc.roleFiles {
+				os.Create(file)
+			}
 
-		code := galaxyInstallCommand.Run(tc.args)
+			code := galaxyInstallCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
 
-		for _, file := range tc.roleFiles {
-			os.Remove(file)
-		}
+			for _, file := range tc.roleFiles {
+				os.Remove(file)
+			}
+		})
 	}
 }

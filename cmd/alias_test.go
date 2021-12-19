@@ -37,24 +37,26 @@ func TestAliasArgumentValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
 
-		aliasCommand := &AliasCommand{UI: ui, Trellis: trellis, aliasPlaybook: &MockPlaybook{ui: ui}, aliasCopyPlaybook: &MockPlaybook{ui: ui}}
-		aliasCommand.init()
+			aliasCommand := &AliasCommand{UI: ui, Trellis: trellis, aliasPlaybook: &MockPlaybook{ui: ui}, aliasCopyPlaybook: &MockPlaybook{ui: ui}}
+			aliasCommand.init()
 
-		code := aliasCommand.Run(tc.args)
+			code := aliasCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("%s: expected code %d to be %d", tc.name, code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("%s: expected code %d to be %d", tc.name, code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 

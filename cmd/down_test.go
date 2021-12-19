@@ -33,22 +33,24 @@ func TestDownRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		downCommand := &DownCommand{ui, trellis}
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			downCommand := &DownCommand{ui, trellis}
 
-		code := downCommand.Run(tc.args)
+			code := downCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -73,18 +75,20 @@ func TestDownRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		downCommand := &DownCommand{ui, trellis}
-		code := downCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			downCommand := &DownCommand{ui, trellis}
+			code := downCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }

@@ -34,22 +34,24 @@ func TestNewRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		newCommand := NewNewCommand(ui, trellis, "1.0.0")
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			newCommand := NewNewCommand(ui, trellis, "1.0.0")
 
-		code := newCommand.Run(tc.args)
+			code := newCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -105,21 +107,23 @@ func TestAskDomain(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		ui.InputReader = bytes.NewBuffer([]byte(tc.hostInput))
-		domain, err := askDomain(ui, tc.path)
-		askOutput := ui.OutputWriter.String() + ui.ErrorWriter.String()
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			ui.InputReader = bytes.NewBuffer([]byte(tc.hostInput))
+			domain, err := askDomain(ui, tc.path)
+			askOutput := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(askOutput, tc.askOutput) {
-			t.Errorf("expected ask output %q to contain %q", askOutput, tc.askOutput)
-		}
+			if !strings.Contains(askOutput, tc.askOutput) {
+				t.Errorf("expected ask output %q to contain %q", askOutput, tc.askOutput)
+			}
 
-		if domain != tc.domain {
-			t.Errorf("expected domain %q to equal %q", domain, tc.domain)
-		}
+			if domain != tc.domain {
+				t.Errorf("expected domain %q to equal %q", domain, tc.domain)
+			}
 
-		if err != nil && !strings.Contains(err.Error(), tc.err) {
-			t.Errorf("expected error %q to equal %q", err, tc.err)
-		}
+			if err != nil && !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("expected error %q to equal %q", err, tc.err)
+			}
+		})
 	}
 }

@@ -33,23 +33,25 @@ func TestDBOpenArgumentValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
 
-		dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
-		dbOpenCommand.init()
+			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
+			dbOpenCommand.init()
 
-		code := dbOpenCommand.Run(tc.args)
+			code := dbOpenCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("%s: expected code %d to be %d", tc.name, code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("%s: expected code %d to be %d", tc.name, code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -121,8 +123,10 @@ func TestDBOpenPlaybook(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		if !strings.Contains(command, tc.out) {
-			t.Errorf("%s expected command %s to contain %s", tc.name, command, tc.out)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(command, tc.out) {
+				t.Errorf("%s expected command %s to contain %s", tc.name, command, tc.out)
+			}
+		})
 	}
 }

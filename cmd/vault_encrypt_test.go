@@ -33,22 +33,24 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		ui := cli.NewMockUi()
-		vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
+		t.Run(tc.name, func(t *testing.T) {
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			ui := cli.NewMockUi()
+			vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
 
-		code := vaultEncryptCommand.Run(tc.args)
+			code := vaultEncryptCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -109,18 +111,20 @@ func TestVaultEncryptRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ui := cli.NewMockUi()
-		vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
-		code := vaultEncryptCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			vaultEncryptCommand := NewVaultEncryptCommand(ui, trellisProject)
+			code := vaultEncryptCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
