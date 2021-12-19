@@ -2,7 +2,6 @@ package trellis
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +22,7 @@ func TestDetect(t *testing.T) {
 	devConfig := filepath.Join(devDir, "wordpress_sites.yml")
 
 	if err := ioutil.WriteFile(devConfig, []byte{}, 0666); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	project := &Project{}

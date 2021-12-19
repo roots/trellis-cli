@@ -9,7 +9,6 @@ import (
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/trellis"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,7 +96,8 @@ func (c *AliasCommand) Run(args []string) int {
 
 	tempDir, tempDirErr := ioutil.TempDir("", "trellis-alias-")
 	if tempDirErr != nil {
-		log.Fatal(tempDirErr)
+		c.UI.Error(tempDirErr.Error())
+		return 1
 	}
 	defer os.RemoveAll(tempDir)
 
@@ -120,7 +120,8 @@ func (c *AliasCommand) Run(args []string) int {
 	for _, environment := range remoteEnvironments {
 		part, err := ioutil.ReadFile(filepath.Join(tempDir, environment+".yml.part"))
 		if err != nil {
-			log.Fatal(err)
+			c.UI.Error(err.Error())
+			return 1
 		}
 		combined = combined + string(part)
 	}
@@ -128,7 +129,8 @@ func (c *AliasCommand) Run(args []string) int {
 	combinedYmlPath := filepath.Join(tempDir, "/combined.yml")
 	writeFileErr := ioutil.WriteFile(combinedYmlPath, []byte(combined), 0644)
 	if writeFileErr != nil {
-		log.Fatal(writeFileErr)
+		c.UI.Error(writeFileErr.Error())
+		return 1
 	}
 
 	c.aliasCopyPlaybook.SetRoot(c.Trellis.Path)

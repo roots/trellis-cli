@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -87,7 +86,8 @@ func (c *DeployCommand) Run(args []string) int {
 	c.playbook.SetRoot(c.Trellis.Path)
 
 	if err := c.playbook.Run("deploy.yml", []string{"-e", extraVars}); err != nil {
-		log.Fatal(err)
+		c.UI.Error(err.Error())
+		return 1
 	}
 
 	return 0
