@@ -35,8 +35,7 @@ func TestUpRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		upCommand := NewUpCommand(ui, trellis)
 
 		code := upCommand.Run(tc.args)
@@ -54,9 +53,9 @@ func TestUpRunValidations(t *testing.T) {
 }
 
 func TestUpRun(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
+	trellis := trellis.NewTrellis()
 	upCommand := NewUpCommand(ui, trellis)
 
 	defer MockExec(t)()

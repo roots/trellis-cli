@@ -35,8 +35,7 @@ func TestInitRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		initCommand := &InitCommand{ui, trellis}
 
 		code := initCommand.Run(tc.args)

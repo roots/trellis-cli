@@ -50,8 +50,7 @@ func TestProvisionRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		provisionCommand := NewProvisionCommand(ui, trellis)
 
 		code := provisionCommand.Run(tc.args)
@@ -71,8 +70,7 @@ func TestProvisionRunValidations(t *testing.T) {
 func TestProvisionRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 	provisionCommand := NewProvisionCommand(ui, trellis)
 
 	defer MockExec(t)()

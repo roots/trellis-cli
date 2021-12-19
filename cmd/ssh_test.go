@@ -64,8 +64,7 @@ func TestSshRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		sshCommand := &SshCommand{ui, trellis}
 
 		defer MockExec(t)()
@@ -89,8 +88,7 @@ func TestSshRun(t *testing.T) {
 	defer MockExec(t)()
 
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 	sshCommand := &SshCommand{ui, trellis}
 
 	cases := []struct {

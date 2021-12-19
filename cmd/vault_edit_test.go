@@ -35,8 +35,7 @@ func TestVaultEditRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		vaultEditCommand := VaultEditCommand{ui, trellis}
 
 		code := vaultEditCommand.Run(tc.args)
@@ -58,8 +57,7 @@ func TestVaultEditRun(t *testing.T) {
 	defer MockExec(t)()
 
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 	vaultEditCommand := VaultEditCommand{ui, trellis}
 
 	cases := []struct {

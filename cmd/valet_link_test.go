@@ -35,9 +35,7 @@ func TestValetLinkArgumentValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		valetLinkCommand := ValetLinkCommand{ui, trellis}
 
 		code := valetLinkCommand.Run(tc.args)
@@ -79,9 +77,7 @@ func TestValetLinkValidEnvironmentArgument(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		valetLinkCommand := ValetLinkCommand{ui, trellis}
 
 		valetLinkCommand.Run(tc.args)
@@ -115,8 +111,7 @@ func TestValetLinkInvalidEnvironmentArgument(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 
 		valetLinkCommand := ValetLinkCommand{ui, trellis}
 
@@ -136,8 +131,7 @@ func TestValetLinkInvalidEnvironmentArgument(t *testing.T) {
 
 func TestValetLinkRun(t *testing.T) {
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellisProject := trellis.NewTrellis(project)
+	trellisProject := trellis.NewTrellis()
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
@@ -147,8 +141,7 @@ func TestValetLinkRun(t *testing.T) {
 
 	defer MockExec(t)()
 
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
+	trellis := trellis.NewMockTrellis(true)
 
 	valetLinkCommand := ValetLinkCommand{ui, trellis}
 

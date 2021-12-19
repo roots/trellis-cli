@@ -240,8 +240,7 @@ func TestSiteFromEnvironmentAndName(t *testing.T) {
 func TestActivateProjectProjects(t *testing.T) {
 	defer LoadFixtureProject(t)()
 
-	project := &Project{}
-	tp := NewTrellis(project)
+	tp := NewTrellis()
 
 	if !tp.ActivateProject() {
 		t.Error("expected true")
@@ -257,8 +256,7 @@ func TestActivateProjectForNonProjects(t *testing.T) {
 	defer TestChdir(t, tempDir)()
 	defer os.RemoveAll(tempDir)
 
-	project := &Project{}
-	tp := NewTrellis(project)
+	tp := NewTrellis()
 
 	if tp.ActivateProject() {
 		t.Error("expected false")
@@ -269,8 +267,7 @@ func TestActivateProjectForNonVirtualenvInitializedProjects(t *testing.T) {
 	defer LoadFixtureProject(t)()
 	os.RemoveAll(".trellis/virtualenv")
 
-	project := &Project{}
-	tp := NewTrellis(project)
+	tp := NewTrellis()
 
 	if tp.ActivateProject() {
 		t.Error("expected false")

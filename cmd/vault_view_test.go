@@ -35,8 +35,7 @@ func TestVaultViewRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		vaultViewCommand := NewVaultViewCommand(ui, trellis)
 
 		code := vaultViewCommand.Run(tc.args)
@@ -55,20 +54,17 @@ func TestVaultViewRunValidations(t *testing.T) {
 
 func TestVaultViewRun(t *testing.T) {
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellisProject := trellis.NewTrellis(project)
+	tp := trellis.NewTrellis()
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
-	if err := trellisProject.LoadProject(); err != nil {
+	if err := tp.LoadProject(); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	defer MockExec(t)()
 
-	mockProject := &MockProject{true}
-	trellis := trellis.NewTrellis(mockProject)
-	vaultViewCommand := NewVaultViewCommand(ui, trellis)
+	vaultViewCommand := NewVaultViewCommand(ui, tp)
 
 	cases := []struct {
 		name string

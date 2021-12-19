@@ -36,8 +36,7 @@ func TestGalaxyInstallRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
 		code := galaxyInstallCommand.Run(tc.args)
@@ -98,8 +97,7 @@ func TestGalaxyInstallRun(t *testing.T) {
 
 	for _, tc := range cases {
 		ui := cli.NewMockUi()
-		project := &trellis.Project{}
-		trellis := trellis.NewTrellis(project)
+		trellis := trellis.NewTrellis()
 		galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
 		for _, file := range tc.roleFiles {

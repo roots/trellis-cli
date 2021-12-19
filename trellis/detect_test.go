@@ -26,7 +26,7 @@ func TestDetect(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	project := &Project{}
+	project := &ProjectDetector{}
 
 	cases := []struct {
 		name         string
@@ -85,7 +85,7 @@ func TestDetectTrellisProjectStructure(t *testing.T) {
 	devConfig := filepath.Join(devDir, "wordpress_sites.yml")
 	ioutil.WriteFile(devConfig, []byte{}, 0666)
 
-	project := &Project{}
+	project := &ProjectDetector{}
 
 	cases := []struct {
 		name         string

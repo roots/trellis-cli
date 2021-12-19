@@ -16,8 +16,22 @@ import (
 
 const ConfigDir string = ".trellis"
 
+type MockProjectDetector struct {
+	detected bool
+}
+
+func (p *MockProjectDetector) Detect(path string) (projectPath string, ok bool) {
+	return "trellis", p.detected
+}
+
+func NewMockTrellis(detected bool) *Trellis {
+	mockTrellis := NewTrellis()
+	mockTrellis.Detector = &MockProjectDetector{detected: detected}
+	return mockTrellis
+}
+
 type Trellis struct {
-	detector        Detector
+	Detector        Detector
 	Environments    map[string]*Config
 	ConfigPath      string
 	Path            string
@@ -26,8 +40,8 @@ type Trellis struct {
 	venvWarned      bool
 }
 
-func NewTrellis(d Detector) *Trellis {
-	return &Trellis{detector: d, VenvInitialized: false, venvWarned: false}
+func NewTrellis() *Trellis {
+	return &Trellis{Detector: &ProjectDetector{}, VenvInitialized: false, venvWarned: false}
 }
 
 /*
@@ -36,7 +50,7 @@ This will traverse up the directory tree until it finds a valid project,
 or stop at the root and give up.
 */
 func (t *Trellis) Detect(path string) (projectPath string, ok bool) {
-	return t.detector.Detect(path)
+	return t.Detector.Detect(path)
 }
 
 func (t *Trellis) CreateConfigDir() error {

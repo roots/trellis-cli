@@ -64,8 +64,7 @@ func TestDeployRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		trellis := trellis.NewMockTrellis(tc.projectDetected)
 		deployCommand := NewDeployCommand(ui, trellis)
 
 		code := deployCommand.Run(tc.args)
@@ -85,8 +84,7 @@ func TestDeployRunValidations(t *testing.T) {
 func TestDeployRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 
 	deployCommand := &DeployCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
 	deployCommand.init()

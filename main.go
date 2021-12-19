@@ -50,8 +50,7 @@ func main() {
 		},
 	}
 
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 
 	c.Commands = map[string]cli.CommandFactory{
 		"alias": func() (cli.Command, error) {

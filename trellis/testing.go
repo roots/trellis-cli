@@ -21,6 +21,7 @@ func LoadFixtureProject(t *testing.T) func() {
 
 	os.Chdir("../trellis")
 	cmd := exec.Command("cp", "-a", "testdata/trellis", tempDir)
+	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 
 	if err != nil {
