@@ -9,8 +9,6 @@ import (
 )
 
 func TestVaultDecryptRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,31 +33,32 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
-		vaultDecryptCommand := NewVaultDecryptCommand(ui, trellis)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
+			vaultDecryptCommand := NewVaultDecryptCommand(ui, trellis)
 
-		code := vaultDecryptCommand.Run(tc.args)
+			code := vaultDecryptCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
 func TestVaultDecryptRun(t *testing.T) {
 	defer MockExec(t)()
 
-	ui := cli.NewMockUi()
 	project := &trellis.Project{}
 	trellisProject := trellis.NewTrellis(project)
-	vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
@@ -100,16 +99,20 @@ func TestVaultDecryptRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		code := vaultDecryptCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
+			code := vaultDecryptCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }

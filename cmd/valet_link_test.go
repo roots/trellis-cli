@@ -9,8 +9,6 @@ import (
 )
 
 func TestValetLinkArgumentValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name            string
 		projectDetected bool
@@ -35,28 +33,30 @@ func TestValetLinkArgumentValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
 
-		valetLinkCommand := ValetLinkCommand{ui, trellis}
+			valetLinkCommand := ValetLinkCommand{ui, trellis}
 
-		code := valetLinkCommand.Run(tc.args)
+			code := valetLinkCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
 func TestValetLinkValidEnvironmentArgument(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	ui := cli.NewMockUi()
 
 	cases := []struct {
 		name            string
@@ -79,18 +79,21 @@ func TestValetLinkValidEnvironmentArgument(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
 
-		valetLinkCommand := ValetLinkCommand{ui, trellis}
+			valetLinkCommand := ValetLinkCommand{ui, trellis}
 
-		valetLinkCommand.Run(tc.args)
+			valetLinkCommand.Run(tc.args)
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -115,22 +118,24 @@ func TestValetLinkInvalidEnvironmentArgument(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		mockProject := &MockProject{tc.projectDetected}
-		trellis := trellis.NewTrellis(mockProject)
+		t.Run(tc.name, func(t *testing.T) {
+			mockProject := &MockProject{tc.projectDetected}
+			trellis := trellis.NewTrellis(mockProject)
 
-		valetLinkCommand := ValetLinkCommand{ui, trellis}
+			valetLinkCommand := ValetLinkCommand{ui, trellis}
 
-		code := valetLinkCommand.Run(tc.args)
+			code := valetLinkCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
@@ -179,12 +184,14 @@ func TestValetLinkRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
-	}
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
 
-	if code != 0 {
-		t.Errorf("expected code %d to be %d", code, 0)
+			if code != 0 {
+				t.Errorf("expected code %d to be %d", code, 0)
+			}
+		})
 	}
 }

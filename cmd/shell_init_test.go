@@ -9,8 +9,6 @@ import (
 )
 
 func TestShellInitRunValidations(t *testing.T) {
-	ui := cli.NewMockUi()
-
 	cases := []struct {
 		name string
 		args []string
@@ -38,24 +36,25 @@ func TestShellInitRunValidations(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		shellInitCommand := &ShellInitCommand{ui}
-		code := shellInitCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			shellInitCommand := &ShellInitCommand{ui}
+			code := shellInitCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
 
 func TestShellInitRun(t *testing.T) {
-	ui := cli.NewMockUi()
-	shellInitCommand := &ShellInitCommand{ui}
 	executable, _ := os.Executable()
 
 	cases := []struct {
@@ -79,16 +78,20 @@ func TestShellInitRun(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		code := shellInitCommand.Run(tc.args)
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			shellInitCommand := &ShellInitCommand{ui}
+			code := shellInitCommand.Run(tc.args)
 
-		if code != tc.code {
-			t.Errorf("expected code %d to be %d", code, tc.code)
-		}
+			if code != tc.code {
+				t.Errorf("expected code %d to be %d", code, tc.code)
+			}
 
-		combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-		if !strings.Contains(combined, tc.out) {
-			t.Errorf("expected output %q to contain %q", combined, tc.out)
-		}
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			}
+		})
 	}
 }
