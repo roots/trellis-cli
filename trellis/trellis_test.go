@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -237,13 +239,23 @@ func TestSiteFromEnvironmentAndName(t *testing.T) {
 	}
 }
 
-func TestActivateProjectProjects(t *testing.T) {
+func TestActivateProjectForProjects(t *testing.T) {
 	defer LoadFixtureProject(t)()
 
 	tp := NewTrellis()
 
 	if !tp.ActivateProject() {
 		t.Error("expected true")
+	}
+
+	wd, _ := os.Getwd()
+
+	if tp.Path != wd {
+		t.Errorf("expected %s to be %s", tp.Path, wd)
+	}
+
+	if tp.Path != wd {
+		t.Errorf("expected %s to be %s", tp.Path, wd)
 	}
 }
 
@@ -271,5 +283,61 @@ func TestActivateProjectForNonVirtualenvInitializedProjects(t *testing.T) {
 
 	if tp.ActivateProject() {
 		t.Error("expected false")
+	}
+}
+
+func TestLoadProjectForProjects(t *testing.T) {
+	defer LoadFixtureProject(t)()
+
+	tp := NewTrellis()
+
+	err := tp.LoadProject()
+	wd, _ := os.Getwd()
+
+	if err != nil {
+		t.Error("expected LoadProject not to return an error")
+	}
+
+	if tp.Path != wd {
+		t.Errorf("expected %s to be %s", tp.Path, wd)
+	}
+
+	if !reflect.DeepEqual(tp.CliConfig, &CliConfig{}) {
+		t.Errorf("expected CliConfig to be an empty config")
+	}
+
+	expectedEnvNames := []string{"development", "production", "valet-link"}
+
+	if !reflect.DeepEqual(tp.EnvironmentNames(), expectedEnvNames) {
+		t.Errorf("expected environment names %s to be %s", tp.EnvironmentNames(), expectedEnvNames)
+	}
+}
+
+func TestLoadCliConfigWhenFileDoesNotExist(t *testing.T) {
+	tp := NewTrellis()
+
+	config := tp.LoadCliConfig()
+
+	if config == nil {
+		t.Error("expected config object")
+	}
+}
+
+func TestLoadCliConfigWhenFileExists(t *testing.T) {
+	defer LoadFixtureProject(t)()
+
+	tp := NewTrellis()
+
+	configFilePath := filepath.Join(tp.ConfigPath(), ConfigFile)
+	configContents := ``
+
+	if err := ioutil.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	config := tp.LoadCliConfig()
+
+	if !reflect.DeepEqual(config, &CliConfig{}) {
+		t.Error("expected open object")
 	}
 }

@@ -16,6 +16,7 @@ import (
 )
 
 const ConfigDir = ".trellis"
+const ConfigFile = "cli.yml"
 const GlobPattern = "group_vars/*/wordpress_sites.yml"
 
 type Options struct {
@@ -26,6 +27,7 @@ type Options struct {
 type TrellisOption func(*Trellis)
 
 type Trellis struct {
+	CliConfig       *CliConfig
 	ConfigDir       string
 	Detector        Detector
 	Environments    map[string]*Config
@@ -159,6 +161,7 @@ func (t *Trellis) LoadProject() error {
 		return errors.New("No Trellis project detected in the current directory or any of its parent directories.")
 	}
 
+	t.CliConfig = t.LoadCliConfig()
 	t.Path = path
 	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
@@ -249,6 +252,23 @@ func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteNam
 	}
 
 	return sites[0], nil
+}
+
+func (t *Trellis) LoadCliConfig() *CliConfig {
+	config := &CliConfig{}
+	configYaml, err := ioutil.ReadFile(filepath.Join(t.ConfigPath(), ConfigFile))
+
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatalln(err)
+	}
+
+	if err == nil {
+		if err = yaml.Unmarshal(configYaml, &config); err != nil {
+			log.Fatalln(err)
+		}
+	}
+
+	return config
 }
 
 func (t *Trellis) SiteFromEnvironmentAndName(environment string, name string) *Site {
