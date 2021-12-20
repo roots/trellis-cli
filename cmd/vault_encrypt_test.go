@@ -34,8 +34,7 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockProject := &MockProject{tc.projectDetected}
-			trellis := trellis.NewTrellis(mockProject)
+			trellis := trellis.NewMockTrellis(tc.projectDetected)
 			ui := cli.NewMockUi()
 			vaultEncryptCommand := NewVaultEncryptCommand(ui, trellis)
 
@@ -57,8 +56,7 @@ func TestVaultEncryptRunValidations(t *testing.T) {
 func TestVaultEncryptRun(t *testing.T) {
 	defer MockExec(t)()
 
-	project := &trellis.Project{}
-	trellisProject := trellis.NewTrellis(project)
+	trellisProject := trellis.NewTrellis()
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 

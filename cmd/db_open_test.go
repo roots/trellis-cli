@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/mitchellh/cli"
-	"github.com/roots/trellis-cli/trellis"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 func TestDBOpenArgumentValidations(t *testing.T) {
@@ -35,8 +36,7 @@ func TestDBOpenArgumentValidations(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			mockProject := &MockProject{tc.projectDetected}
-			trellis := trellis.NewTrellis(mockProject)
+			trellis := trellis.NewMockTrellis(tc.projectDetected)
 
 			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
 			dbOpenCommand.init()
@@ -59,8 +59,7 @@ func TestDBOpenAppFlagValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 
 	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
 	dbOpenCommand.init()
@@ -83,8 +82,7 @@ func TestDBOpenPlaybook(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 	mockPlaybook := &MockPlaybook{ui: ui}
 	dbOpenerFactory := &DBOpenerFactory{}
 

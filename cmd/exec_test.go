@@ -28,8 +28,7 @@ func TestExecRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			mockProject := &MockProject{tc.projectDetected}
-			trellis := trellis.NewTrellis(mockProject)
+			trellis := trellis.NewMockTrellis(tc.projectDetected)
 			execCommand := &ExecCommand{ui, trellis}
 
 			code := execCommand.Run(tc.args)

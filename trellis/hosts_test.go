@@ -8,8 +8,7 @@ import (
 func TestUpdateHosts(t *testing.T) {
 	defer TestChdir(t, "testdata/trellis")()
 
-	project := &Project{}
-	trellis := NewTrellis(project)
+	trellis := NewTrellis()
 
 	err := trellis.LoadProject()
 	if err != nil {

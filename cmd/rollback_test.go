@@ -65,8 +65,7 @@ func TestRollbackRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			mockProject := &MockProject{tc.projectDetected}
-			trellis := trellis.NewTrellis(mockProject)
+			trellis := trellis.NewMockTrellis(tc.projectDetected)
 			rollbackCommand := NewRollbackCommand(ui, trellis)
 
 			code := rollbackCommand.Run(tc.args)
@@ -86,8 +85,7 @@ func TestRollbackRunValidations(t *testing.T) {
 
 func TestRollbackRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	project := &trellis.Project{}
-	trellis := trellis.NewTrellis(project)
+	trellis := trellis.NewTrellis()
 
 	defer MockExec(t)()
 

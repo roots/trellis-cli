@@ -14,8 +14,7 @@ func TestVenvHookRunActivatesEnv(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
 	ui := cli.NewMockUi()
-	project := &trellis.Project{}
-	tp := trellis.NewTrellis(project)
+	tp := trellis.NewTrellis()
 	venvHookCommand := &VenvHookCommand{ui, tp}
 
 	code := venvHookCommand.Run([]string{})
@@ -41,8 +40,7 @@ func TestVenvHookRunDeactivatesEnv(t *testing.T) {
 	os.Setenv(trellis.OldPathEnvName, "foo")
 
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{false}
-	trellis := trellis.NewTrellis(mockProject)
+	trellis := trellis.NewMockTrellis(false)
 	venvHookCommand := &VenvHookCommand{ui, trellis}
 
 	code := venvHookCommand.Run([]string{})
@@ -67,8 +65,7 @@ func TestVenvHookRunWithoutProject(t *testing.T) {
 	os.Unsetenv(trellis.OldPathEnvName)
 
 	ui := cli.NewMockUi()
-	mockProject := &MockProject{false}
-	trellis := trellis.NewTrellis(mockProject)
+	trellis := trellis.NewMockTrellis(false)
 	venvHookCommand := &VenvHookCommand{ui, trellis}
 
 	code := venvHookCommand.Run([]string{})
