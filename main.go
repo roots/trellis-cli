@@ -107,6 +107,9 @@ func main() {
 		"new": func() (cli.Command, error) {
 			return cmd.NewNewCommand(ui, trellis, c.Version), nil
 		},
+		"open": func() (cli.Command, error) {
+			return &cmd.OpenCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"provision": func() (cli.Command, error) {
 			return cmd.NewProvisionCommand(ui, trellis), nil
 		},

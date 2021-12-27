@@ -263,7 +263,7 @@ func (t *Trellis) LoadCliConfig() *CliConfig {
 	}
 
 	if err == nil {
-		if err = yaml.Unmarshal(configYaml, &config); err != nil {
+		if err = yaml.UnmarshalStrict(configYaml, &config); err != nil {
 			log.Fatalln(err)
 		}
 	}

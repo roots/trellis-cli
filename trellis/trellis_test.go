@@ -302,8 +302,14 @@ func TestLoadProjectForProjects(t *testing.T) {
 		t.Errorf("expected %s to be %s", tp.Path, wd)
 	}
 
-	if !reflect.DeepEqual(tp.CliConfig, &CliConfig{}) {
-		t.Errorf("expected CliConfig to be an empty config")
+	expectedConfig := &CliConfig{
+		Open: map[string]string{
+			"sentry": "https://myapp.sentry.io",
+		},
+	}
+
+	if !reflect.DeepEqual(tp.CliConfig, expectedConfig) {
+		t.Errorf("expected config not equal")
 	}
 
 	expectedEnvNames := []string{"development", "production", "valet-link"}
