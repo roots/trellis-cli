@@ -105,6 +105,12 @@ func TestProvisionRun(t *testing.T) {
 			"ansible-playbook dev.yml -e env=development k=v foo=bar",
 			0,
 		},
+		{
+			"with_verbose",
+			[]string{"--verbose", "development"},
+			"ansible-playbook dev.yml -e env=development -vvvv",
+			0,
+		},
 	}
 
 	for _, tc := range cases {

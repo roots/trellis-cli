@@ -26,13 +26,15 @@ type ProvisionCommand struct {
 	tags      string
 	Trellis   *trellis.Trellis
 	playbook  PlaybookRunner
+	verbose   bool
 }
 
 func (c *ProvisionCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.tags, "tags", "", "only run roles and tasks tagged with these values")
 	c.flags.StringVar(&c.extraVars, "extra-vars", "", "Additional variables which are passed through to Ansible as 'extra-vars'")
+	c.flags.StringVar(&c.tags, "tags", "", "only run roles and tasks tagged with these values")
+	c.flags.BoolVar(&c.verbose, "verbose", false, "Enable Ansible's verbose mode")
 }
 
 func (c *ProvisionCommand) Run(args []string) int {
@@ -78,6 +80,10 @@ func (c *ProvisionCommand) Run(args []string) int {
 	playbookArgs := []string{"-e", vars}
 	if c.tags != "" {
 		playbookArgs = append(playbookArgs, "--tags", c.tags)
+	}
+
+	if c.verbose {
+		playbookArgs = append(playbookArgs, "-vvvv")
 	}
 
 	var playbookFile string = "server.yml"
@@ -133,6 +139,7 @@ Arguments:
 Options:
       --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
       --tags        (multiple) only run roles and tasks tagged with these values
+      --verbose     Enable Ansible's verbose mode
   -h, --help        show this help
 `
 
@@ -147,5 +154,6 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--extra-vars": complete.PredictNothing,
 		"--tags":       complete.PredictNothing,
+		"--verbose":    complete.PredictNothing,
 	}
 }

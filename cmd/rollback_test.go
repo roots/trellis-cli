@@ -113,6 +113,12 @@ func TestRollbackRun(t *testing.T) {
 			"ansible-playbook rollback.yml -e env=development site=example.com release=123",
 			0,
 		},
+		{
+			"with_verbose",
+			[]string{"--verbose", "development", "example.com"},
+			"ansible-playbook rollback.yml -e env=development site=example.com -vvvv",
+			0,
+		},
 	}
 
 	for _, tc := range cases {

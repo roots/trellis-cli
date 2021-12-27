@@ -22,12 +22,14 @@ type RollbackCommand struct {
 	release  string
 	Trellis  *trellis.Trellis
 	playbook PlaybookRunner
+	verbose  bool
 }
 
 func (c *RollbackCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.StringVar(&c.release, "release", "", "Release to rollback instead of latest one")
+	c.flags.BoolVar(&c.verbose, "verbose", false, "Enable Ansible's verbose mode")
 }
 
 func (c *RollbackCommand) Run(args []string) int {
@@ -72,9 +74,15 @@ func (c *RollbackCommand) Run(args []string) int {
 		extraVars = fmt.Sprintf("%s release=%s", extraVars, c.release)
 	}
 
+	playbookArgs := []string{"-e", extraVars}
+
+	if c.verbose {
+		playbookArgs = append(playbookArgs, "-vvvv")
+	}
+
 	c.playbook.SetRoot(c.Trellis.Path)
 
-	if err := c.playbook.Run("rollback.yml", []string{"-e", extraVars}); err != nil {
+	if err := c.playbook.Run("rollback.yml", playbookArgs); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -106,6 +114,7 @@ Arguments:
 
 Options:
       --release  Name of release to rollback instead of latest
+      --verbose  Enable Ansible's verbose mode
   -h, --help     show this help
 `
 
@@ -119,5 +128,6 @@ func (c *RollbackCommand) AutocompleteArgs() complete.Predictor {
 func (c *RollbackCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--release": complete.PredictNothing,
+		"--verbose": complete.PredictNothing,
 	}
 }

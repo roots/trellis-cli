@@ -23,6 +23,7 @@ type DeployCommand struct {
 	extraVars string
 	Trellis   *trellis.Trellis
 	playbook  PlaybookRunner
+	verbose   bool
 }
 
 func (c *DeployCommand) init() {
@@ -30,6 +31,7 @@ func (c *DeployCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.StringVar(&c.branch, "branch", "", "Optional git branch to deploy which overrides the branch set in your site config (default: master)")
 	c.flags.StringVar(&c.extraVars, "extra-vars", "", "Additional variables which are passed through to Ansible as 'extra-vars'")
+	c.flags.BoolVar(&c.verbose, "verbose", false, "Enable Ansible's verbose mode")
 }
 
 func (c *DeployCommand) Run(args []string) int {
@@ -71,6 +73,10 @@ func (c *DeployCommand) Run(args []string) int {
 	vars := []string{
 		fmt.Sprintf("env=%s", environment),
 		fmt.Sprintf("site=%s", siteName),
+	}
+
+	if c.verbose {
+		vars = append(vars, "-vvvv")
 	}
 
 	if c.branch != "" {
@@ -120,6 +126,7 @@ Arguments:
 Options:
       --branch      Optional git branch to deploy which overrides the branch set in your site config (default: master)
       --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
+      --verbose     Enable Ansible's verbose mode
   -h, --help        show this help
 `
 
@@ -134,5 +141,6 @@ func (c *DeployCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--branch":     complete.PredictNothing,
 		"--extra-vars": complete.PredictNothing,
+		"--verbose":    complete.PredictNothing,
 	}
 }
