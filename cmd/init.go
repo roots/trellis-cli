@@ -2,20 +2,36 @@ package cmd
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
-	"github.com/fatih/color"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
 
+func NewInitCommand(ui cli.Ui, trellis *trellis.Trellis) *InitCommand {
+	c := &InitCommand{UI: ui, Trellis: trellis}
+	c.init()
+	return c
+}
+
 type InitCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
+	flags   *flag.FlagSet
+	force   bool
+}
+
+func (c *InitCommand) init() {
+	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.BoolVar(&c.force, "force", false, "Force initialization by re-creating the virtualenv")
 }
 
 func (c *InitCommand) Run(args []string) int {
@@ -23,6 +39,13 @@ func (c *InitCommand) Run(args []string) int {
 		c.UI.Error(err.Error())
 		return 1
 	}
+
+	if err := c.flags.Parse(args); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	args = c.flags.Args()
 
 	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
 	commandArgumentErr := commandArgumentValidator.validate(args)
@@ -45,6 +68,17 @@ func (c *InitCommand) Run(args []string) int {
 		s.Start()
 		c.Trellis.Virtualenv.Install()
 		s.Stop()
+	}
+
+	if c.force {
+		err := os.RemoveAll(c.Trellis.Virtualenv.Path)
+
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error deleting virtualenv: %s", err))
+			return 1
+		}
+
+		c.UI.Info(color.GreenString("✓ Existing virtualenv deleted"))
 	}
 
 	if !c.Trellis.Virtualenv.Initialized() {
@@ -108,8 +142,13 @@ This command is idempotent meaning it can be run multiple times without side-eff
 
   $ trellis init
 
+Force initialization by re-creating the existing virtualenv
+
+  $ trellis init --force
+
 Options:
-  -h, --help  show this help
+      --force  Force init by re-creating the virtualenv
+  -h, --help   show this help
 `
 
 	return strings.TrimSpace(helpText)

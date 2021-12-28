@@ -36,7 +36,7 @@ func TestInitRunValidations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
-			initCommand := &InitCommand{ui, trellis}
+			initCommand := NewInitCommand(ui, trellis)
 
 			code := initCommand.Run(tc.args)
 
