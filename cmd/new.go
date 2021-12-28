@@ -121,7 +121,7 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	if !c.skipVirtualenv {
-		initCommand := &InitCommand{UI: c.UI, Trellis: c.trellis}
+		initCommand := NewInitCommand(c.UI, c.trellis)
 		initCommand.Run([]string{})
 	}
 
