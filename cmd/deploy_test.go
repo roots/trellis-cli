@@ -102,7 +102,7 @@ func TestDeployRun(t *testing.T) {
 			0,
 		},
 		{
-			"site_not_needed_in_defaut_case",
+			"site_not_needed_in_default_case",
 			[]string{"development"},
 			"ansible-playbook deploy.yml -e env=development site=example.com",
 			0,

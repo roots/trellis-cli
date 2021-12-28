@@ -91,16 +91,20 @@ func (c *RollbackCommand) Run(args []string) int {
 }
 
 func (c *RollbackCommand) Synopsis() string {
-	return "Rollsback the last deploy of the site on the specified environment"
+	return "Rollback the last deploy of the site on the specified environment"
 }
 
 func (c *RollbackCommand) Help() string {
 	helpText := `
-Usage: trellis rollback [options] ENVIRONMENT SITE
+Usage: trellis rollback [options] ENVIRONMENT [SITE]
 
-Rollsback the last deploy for the site specified.
+Performs a rollback (revert) of the last deploy for the site specified.
 
-Rollback the latest deploy:
+Rollback the latest deploy on the default site:
+
+  $ trellis rollback production
+
+Rollback the latest deploy for a specific site:
 
   $ trellis rollback production example.com
 

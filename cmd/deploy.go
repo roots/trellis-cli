@@ -105,17 +105,21 @@ func (c *DeployCommand) Synopsis() string {
 
 func (c *DeployCommand) Help() string {
 	helpText := `
-Usage: trellis deploy [options] ENVIRONMENT SITE
+Usage: trellis deploy [options] ENVIRONMENT [SITE]
 
 Deploys a site to the specified environment.
 
 See https://roots.io/trellis/docs/deploys/ for more information on deploys with Trellis.
 
-Deploy a site to production:
+Deploy the default site to production:
+
+  $ trellis deploy production
+
+Deploy example.com site to production:
 
   $ trellis deploy production example.com
 
-Deploy a site to staging with a dfferent git branch:
+Deploy a site to staging with a different git branch:
 
   $ trellis deploy --branch=feature-123 production example.com
 

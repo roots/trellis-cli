@@ -73,7 +73,7 @@ func (c *SshCommand) Synopsis() string {
 
 func (c *SshCommand) Help() string {
 	helpText := `
-Usage: trellis ssh [options] ENVIRONMENT SITE
+Usage: trellis ssh [options] ENVIRONMENT [SITE]
 
 Connects to the main canonical host via SSH for the specified environment.
 

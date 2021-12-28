@@ -156,6 +156,10 @@ Usage: trellis db [options] ENVIRONMENT [SITE]
 
 Open database with GUI applications
 
+Open default site's production database with tableplus:
+
+  $ trellis db open --app=tableplus production
+
 Open a site's production database with tableplus:
 
   $ trellis db open --app=tableplus production example.com
