@@ -7,10 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -60,57 +57,81 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.UI.Info("Initializing project\n")
+
 	if ok, _ := c.Trellis.Virtualenv.Installed(); !ok {
 		c.UI.Info("virtualenv not found")
-		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = " Installing virtualenv..."
-		s.FinalMSG = color.GreenString("\n✓ virtualenv installed")
-		s.Start()
+		spinner := NewSpinner(
+			SpinnerCfg{
+				Message:     "Installing virtualenv",
+				FailMessage: "Error installing virtualenv",
+			},
+		)
+		spinner.Start()
 		c.Trellis.Virtualenv.Install()
-		s.Stop()
+		spinner.Stop()
 	}
 
 	if c.force {
+		spinner := NewSpinner(
+			SpinnerCfg{
+				Message:     "Deleting existing virtualenv",
+				FailMessage: "Error deleting virtualenv",
+			},
+		)
+		spinner.Start()
 		err := os.RemoveAll(c.Trellis.Virtualenv.Path)
 
 		if err != nil {
-			c.UI.Error(fmt.Sprintf("Error deleting virtualenv: %s", err))
+			spinner.StopFail()
+			c.UI.Error(err.Error())
 			return 1
 		}
 
-		c.UI.Info(color.GreenString("✓ Existing virtualenv deleted"))
+		spinner.Stop()
 	}
 
 	if !c.Trellis.Virtualenv.Initialized() {
-		c.UI.Info(fmt.Sprintf("Creating virtualenv in %s", c.Trellis.Virtualenv.Path))
+		spinner := NewSpinner(
+			SpinnerCfg{
+				Message:     "Creating virtualenv",
+				FailMessage: "Error creating virtualenv",
+				StopMessage: fmt.Sprintf("Created virtualenv (%s)", c.Trellis.Virtualenv.Path),
+			},
+		)
 
+		spinner.Start()
 		err := c.Trellis.Virtualenv.Create()
 		if err != nil {
-			c.UI.Error(fmt.Sprintf("Error creating virtualenv: %s", err))
+			spinner.StopFail()
+			c.UI.Error(err.Error())
 			return 1
 		}
 
 		c.Trellis.VenvInitialized = true
-		c.UI.Info(color.GreenString("✓ virtualenv created"))
+		spinner.Stop()
 	}
 
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Suffix = " Installing dependencies => pip install -r requirements.txt (this can take a minute...)"
-	s.FinalMSG = "\n"
-	s.Start()
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Installing dependencies (this can take a minute...)",
+			FailMessage: "Error installing dependencies",
+			StopMessage: "Installing dependencies",
+		},
+	)
+	spinner.Start()
 	pipCmd := exec.Command("pip", "install", "-r", "requirements.txt")
 	errorOutput := &bytes.Buffer{}
 	pipCmd.Stderr = errorOutput
 	err := pipCmd.Run()
-	s.Stop()
 
 	if err != nil {
-		c.UI.Error("✘ Error installing dependencies\n")
+		spinner.StopFail()
 		c.UI.Error(errorOutput.String())
 		return 1
 	}
 
-	c.UI.Info(color.GreenString("✓ Dependencies installed"))
+	spinner.Stop()
 	return 0
 }
 

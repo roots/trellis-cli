@@ -6,7 +6,6 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/briandowns/spinner v1.18.0
 	github.com/digitalocean/godo v1.73.0
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/fatih/color v1.13.0
@@ -31,6 +30,7 @@ require (
 	github.com/nwaples/rardecode v1.1.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/posener/complete v1.2.3
+	github.com/theckman/yacspin v0.13.7
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/weppos/publicsuffix-go v0.15.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect

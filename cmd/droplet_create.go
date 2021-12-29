@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/digitalocean/godo"
 	"github.com/digitalocean/godo/util"
 	"github.com/fatih/color"
@@ -145,19 +144,13 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 	droplet, err := createDroplet(c.UI, c.region, c.size, c.image, publicKey, name, environment)
 	if err != nil {
-		c.UI.Error(fmt.Sprintf("Error creating server: %s", err))
 		return 1
 	}
-
-	c.UI.Info("✓ Server booted")
 
 	droplet, err = waitForSSH(droplet)
 	if err != nil {
-		c.UI.Error(fmt.Sprintf("Timeout waiting for SSH: %s", err))
 		return 1
 	}
-
-	c.UI.Info("✓ SSH available")
 
 	ip, _ := droplet.PublicIPv4()
 
@@ -223,49 +216,74 @@ func createDroplet(ui cli.Ui, region string, size string, image string, publicKe
 
 	ui.Info(fmt.Sprintf("\n✓ Server created => https://cloud.digitalocean.com/droplets/%d", droplet.ID))
 
-	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-	s.Suffix = " Waiting for server to boot (this may take a minute)"
+	s := NewSpinner(
+		SpinnerCfg{
+			Message:     "Waiting for server to boot (this may take a minute)",
+			StopMessage: "Server booted",
+			FailMessage: "Server did not become active (or timed out)",
+		},
+	)
 
 	s.Start()
 	err = util.WaitForActive(context.TODO(), client.Client, monitorUri)
-	s.Stop()
 
 	if err != nil {
+		s.StopFail()
+		ui.Error(err.Error())
 		return nil, err
 	}
+
+	s.Stop()
 
 	return droplet, nil
 }
 
 func waitForSSH(droplet *godo.Droplet) (*godo.Droplet, error) {
-	const retries int = 9 // retry for a total of 3 minutes
-
 	droplet, ip, err := client.GetDroplet(droplet)
 	if err != nil {
 		return droplet, err
 	}
 
-	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-	s.Suffix = " Waiting for SSH (this may take a minute)"
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		3*time.Minute,
+	)
+	defer cancel()
+
+	s := NewSpinner(
+		SpinnerCfg{
+			Message:     "Waiting for SSH (this may take a minute)",
+			StopMessage: "SSH available",
+			FailMessage: "Timeout waiting for SSH",
+		},
+	)
 	s.Start()
+	err = checkSSH(ip, ctx)
 
-	for i := 0; i < retries; i++ {
-		if checkSSH(ip) == nil {
-			break
-		}
-
-		time.Sleep(10 * time.Second)
+	if err != nil {
+		s.StopFail()
 	}
-
 	s.Stop()
 
 	return droplet, nil
 }
 
-func checkSSH(host string) (err error) {
+func checkSSH(host string, ctx context.Context) (err error) {
 	host = net.JoinHostPort(host, "22")
-	_, err = net.DialTimeout("tcp", host, 10*time.Second)
-	return err
+
+	for {
+		_, err = net.DialTimeout("tcp", host, 10*time.Second)
+
+		if err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(10 * time.Second):
+		}
+	}
 }
 
 func checkSSHKey(ui cli.Ui, keyString string, publicKey ssh.PublicKey) error {
