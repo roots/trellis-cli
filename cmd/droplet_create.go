@@ -160,15 +160,11 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info(fmt.Sprintf("✓ Updated hosts/%s with IP: %s", environment, ip))
+	c.UI.Info(fmt.Sprintf("%s Updated hosts/%s with droplet IP: %s", color.GreenString("[✓]"), environment, ip))
 
 	if c.skipProvision {
 		c.UI.Warn(fmt.Sprintf("Skipping provision. Run `trellis provision %s` to manually provision.", environment))
 	} else {
-		c.UI.Info("\nInstalling Galaxy roles...\n")
-		galaxyInstallCmd := GalaxyInstallCommand{UI: c.UI, Trellis: c.Trellis}
-		galaxyInstallCmd.Run([]string{})
-
 		c.UI.Info("\nProvisioning server...\n")
 
 		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
@@ -214,7 +210,7 @@ func createDroplet(ui cli.Ui, region string, size string, image string, publicKe
 		return nil, err
 	}
 
-	ui.Info(fmt.Sprintf("\n✓ Server created => https://cloud.digitalocean.com/droplets/%d", droplet.ID))
+	ui.Info(fmt.Sprintf("\n%s Server created => https://cloud.digitalocean.com/droplets/%d", color.GreenString("[✓]"), droplet.ID))
 
 	s := NewSpinner(
 		SpinnerCfg{
@@ -310,8 +306,6 @@ func checkSSHKey(ui cli.Ui, keyString string, publicKey ssh.PublicKey) error {
 	default:
 		return err
 	}
-
-	return nil
 }
 
 func loadSSHKey(path string) (keyString string, publicKey ssh.PublicKey, err error) {
