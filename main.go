@@ -104,6 +104,15 @@ func main() {
 		"init": func() (cli.Command, error) {
 			return cmd.NewInitCommand(ui, trellis), nil
 		},
+		"key": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis key <subcommand> [<args>]",
+				SynopsisText: "Commands for managing SSH keys",
+			}, nil
+		},
+		"key generate": func() (cli.Command, error) {
+			return cmd.NewKeyGenerateCommand(ui, trellis), nil
+		},
 		"new": func() (cli.Command, error) {
 			return cmd.NewNewCommand(ui, trellis, c.Version), nil
 		},
