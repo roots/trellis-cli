@@ -23,10 +23,10 @@ func NewSpinner(config SpinnerCfg) *yacspin.Spinner {
 		Suffix:            " ",
 		Message:           config.Message,
 		SuffixAutoColon:   false,
-		StopCharacter:     "✓",
+		StopCharacter:     "[✓]",
 		StopColors:        []string{"fgGreen"},
 		StopMessage:       config.StopMessage,
-		StopFailCharacter: "✘",
+		StopFailCharacter: "[✘]",
 		StopFailColors:    []string{"fgRed"},
 		StopFailMessage:   config.FailMessage,
 	}
