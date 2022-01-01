@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -145,5 +146,26 @@ func TestKeyGenerateExistingPublicKey(t *testing.T) {
 
 	if !strings.Contains(combined, expected) {
 		t.Errorf("expected output %q to contain %q", combined, expected)
+	}
+}
+
+func TestParseAnsibleHosts(t *testing.T) {
+	output := `
+  hosts (3):
+    192.168.56.5
+    192.168.56.10
+    your_server_hostname
+`
+
+	hosts := parseAnsibleHosts(output)
+
+	expectedHosts := []string{
+		"192.168.56.5",
+		"192.168.56.10",
+		"your_server_hostname",
+	}
+
+	if !reflect.DeepEqual(hosts, expectedHosts) {
+		t.Errorf("expected hosts %q to equal %q", hosts, expectedHosts)
 	}
 }
