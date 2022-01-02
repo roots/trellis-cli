@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -19,8 +20,11 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-const secretName = "TRELLIS_DEPLOY_SSH_PRIVATE_KEY"
-const deployKeyName = "Trellis deploy"
+const (
+	sshKeySecret        = "TRELLIS_DEPLOY_SSH_PRIVATE_KEY"
+	sshKnownHostsSecret = "TRELLIS_DEPLOY_SSH_KNOWN_HOSTS"
+	deployKeyName       = "Trellis deploy"
+)
 
 func NewKeyGenerateCommand(ui cli.Ui, trellis *trellis.Trellis) *KeyGenerateCommand {
 	c := &KeyGenerateCommand{UI: ui, Trellis: trellis}
@@ -133,7 +137,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	_, err = exec.LookPath("gh")
 	if err != nil {
 		c.UI.Error("Error: GitHub CLI not found")
-		c.UI.Error("gh command must be available to create a GitHub secret")
+		c.UI.Error("gh command must be available to interact with GitHub")
 		c.UI.Error("See https://cli.github.com")
 		return 1
 	}
@@ -145,19 +149,14 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 1
 	}
 
-	ghArgs := []string{"secret", "set", secretName, "--body", string(privateKeyContent)}
-
-	ghSecret := exec.Command("gh", ghArgs...)
-	ghSecret.Stdout = io.Discard
-	ghSecret.Stderr = os.Stderr
-	err = ghSecret.Run()
+	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
 	if err != nil {
-		c.UI.Error("Error: could not create GitHub secret")
+		c.UI.Error("Error: could not set GitHub secret")
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	c.UI.Info(fmt.Sprintf("%s GitHub secret set [%s]", color.GreenString("[✓]"), secretName))
+	c.UI.Info(fmt.Sprintf("%s GitHub private key secret set [%s]", color.GreenString("[✓]"), sshKeySecret))
 
 	publicKeyContent, err := ioutil.ReadFile(trellisPublicKeyPath)
 	if err != nil {
@@ -167,24 +166,42 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	}
 
 	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
-
 	title := fmt.Sprintf("title=%s", deployKeyName)
 	key := fmt.Sprintf("key=%s", string(publicKeyContent))
-	ghApiArgs := []string{"api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true"}
 
-	ghApi := exec.Command("gh", ghApiArgs...)
-	ghApi.Stdout = io.Discard
-	ghApi.Stderr = os.Stderr
-	err = ghApi.Run()
+	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
 	if err != nil {
 		c.UI.Error("Error: could not create GitHub deploy key")
 		c.UI.Error(err.Error())
 		return 1
 	}
-	c.UI.Info(fmt.Sprintf("%s GitHub deploy key added [%s]\n", color.GreenString("[✓]"), deployKeyName))
+	c.UI.Info(fmt.Sprintf("%s GitHub deploy key added [%s]", color.GreenString("[✓]"), deployKeyName))
+
+	hosts, err := getAnsibleHosts()
+	if err != nil {
+		c.UI.Error("Error: could not get hosts to set known hosts secret")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	keyscanOutput, err := exec.Command("ssh-keyscan", "-t", "ed25519", "-H", strings.Join(hosts, " ")).Output()
+	if err != nil {
+		c.UI.Error("Error: could not set SSH known hosts. ssh-keyscan command failed.")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	err = githubCLI("secret", "set", sshKnownHostsSecret, "--body", string(keyscanOutput))
+	if err != nil {
+		c.UI.Error("Error: could not set GitHub secret")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	c.UI.Info(fmt.Sprintf("%s GitHub known hosts secret set [%s]", color.GreenString("[✓]"), sshKnownHostsSecret))
 
 	if c.provisionEnv == "" {
-		c.UI.Info("The public key will not be usable until it's added to your server.")
+		c.UI.Info("\nThe public key will not be usable until it's added to your server.")
 		prompt := promptui.Prompt{
 			Label:     "Provision now and apply the new public key",
 			IsConfirm: true,
@@ -275,4 +292,55 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 		"--path":      complete.PredictDirs(""),
 		"--provision": complete.PredictSet(environmentNames...),
 	}
+}
+
+func githubCLI(args ...string) error {
+	ghCmd := exec.Command("gh", args...)
+	ghCmd.Stdout = io.Discard
+	ghCmd.Stderr = os.Stderr
+
+	return ghCmd.Run()
+}
+
+func getAnsibleHosts() (hosts []string, err error) {
+	hostsOutput, err := exec.Command("ansible", "all", "--list-hosts").Output()
+
+	if err != nil {
+		return nil, err
+	}
+
+	hosts = parseAnsibleHosts(string(hostsOutput))
+
+	if len(hosts) == 0 {
+		return nil, errors.New("No hosts found by Ansible. This is either a bug in trellis-cli or your host files are invalid.")
+	}
+
+	return hosts, nil
+}
+
+/*
+
+Parses the output of `ansible all --list-hosts` into a slice of host strings
+
+Example input:
+  hosts (3):
+    192.168.56.5
+    192.168.56.10
+    your_server_hostname
+*/
+
+func parseAnsibleHosts(output string) (hosts []string) {
+	lines := strings.Split(string(output), "\n")
+
+	for _, host := range lines {
+		host = strings.TrimSpace(host)
+
+		if strings.HasPrefix(host, "hosts (") || host == "" {
+			continue
+		}
+
+		hosts = append(hosts, host)
+	}
+
+	return hosts
 }
