@@ -71,6 +71,27 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 1
 	}
 
+	if !c.noGithub {
+		_, err := exec.LookPath("gh")
+		if err != nil {
+			c.UI.Error("Error: GitHub CLI not found")
+			c.UI.Error("gh command must be available to interact with GitHub")
+			c.UI.Error("See https://cli.github.com")
+			c.UI.Error("")
+			c.UI.Error("To skip GitHub integration, re-run this command with the --no-github option.")
+			return 1
+		}
+
+		_, err = exec.Command("gh", "auth", "status").Output()
+		if err != nil {
+			c.UI.Error("Error: GitHub CLI is not authenticated.")
+			c.UI.Error("Run `gh auth login` first.")
+			c.UI.Error("")
+			c.UI.Error("To skip GitHub integration, re-run this command with the --no-github option.")
+			return 1
+		}
+	}
+
 	if c.keyName == "" {
 		siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment("development", "")
 		if siteNameErr != nil {
@@ -132,14 +153,6 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 
 	if c.noGithub {
 		return 0
-	}
-
-	_, err = exec.LookPath("gh")
-	if err != nil {
-		c.UI.Error("Error: GitHub CLI not found")
-		c.UI.Error("gh command must be available to interact with GitHub")
-		c.UI.Error("See https://cli.github.com")
-		return 1
 	}
 
 	privateKeyContent, err := ioutil.ReadFile(keyPath)
