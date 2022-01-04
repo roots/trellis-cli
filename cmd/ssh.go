@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -105,7 +106,7 @@ Options:
 }
 
 func (c *SshCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteSite()
+	return c.Trellis.AutocompleteSite(flag.NewFlagSet("", flag.ContinueOnError))
 }
 
 func (c *SshCommand) AutocompleteFlags() complete.Flags {

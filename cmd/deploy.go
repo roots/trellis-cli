@@ -138,7 +138,7 @@ Options:
 }
 
 func (c *DeployCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteSite()
+	return c.Trellis.AutocompleteSite(c.flags)
 }
 
 func (c *DeployCommand) AutocompleteFlags() complete.Flags {

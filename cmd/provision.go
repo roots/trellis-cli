@@ -147,7 +147,7 @@ Options:
 }
 
 func (c *ProvisionCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteEnvironment()
+	return c.Trellis.AutocompleteEnvironment(c.flags)
 }
 
 func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
