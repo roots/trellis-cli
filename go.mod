@@ -26,7 +26,7 @@ require (
 	github.com/mitchellh/cli v1.1.2
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/muesli/go-app-paths v0.2.1
+	github.com/muesli/go-app-paths v0.2.2
 	github.com/nwaples/rardecode v1.1.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/posener/complete v1.2.3
