@@ -52,7 +52,7 @@ Usage: trellis vault edit [options] FILE
 
 Edit an encrypted file in place
 
-Trellis docs: https://roots.io/trellis/docs/vault/
+Trellis docs: https://docs.roots.io/trellis/master/vault/ 
 Ansible Vault docs: https://docs.ansible.com/ansible/latest/user_guide/vault.html
 
 Edit production file:
