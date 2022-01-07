@@ -81,7 +81,7 @@ func (c *CheckCommand) Run(args []string) int {
 		return 0
 	} else {
 		c.UI.Error(fmt.Sprintf("\n%d requirement(s) not met\n", len(Requirements)-requirementsMet))
-		c.UI.Info("See https://roots.io/trellis/docs/installing-trellis/#install-requirements")
+		c.UI.Info("See https://docs.roots.io/trellis/master/installation/#install-requirements")
 		return 1
 	}
 }

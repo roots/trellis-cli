@@ -115,7 +115,7 @@ Usage: trellis provision [options] ENVIRONMENT
 Provisions a server on the specified environment.
 
 This is considered a safe operation and can be re-run on existing servers to apply new configuration changes.
-See https://roots.io/trellis/docs/remote-server-setup/#provision for more details.
+See https://docs.roots.io/trellis/master/remote-server-setup/#provision for more details.
 
 Provision the production environment:
 

@@ -109,7 +109,7 @@ Usage: trellis deploy [options] ENVIRONMENT [SITE]
 
 Deploys a site to the specified environment.
 
-See https://roots.io/trellis/docs/deploys/ for more information on deploys with Trellis.
+See https://docs.roots.io/trellis/master/deployments/ for more information on deploys with Trellis.
 
 Deploy the default site to production:
 

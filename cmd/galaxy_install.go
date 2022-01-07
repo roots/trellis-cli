@@ -103,7 +103,7 @@ Usage: trellis galaxy install
 
 Installs Ansible Galaxy roles.
 
-See https://roots.io/trellis/docs/remote-server-setup/#requirements for more information.
+See https://docs.roots.io/trellis/master/remote-server-setup/#requirements for more information.
 
 Any previously installed roles that have a new version updated in galaxy.yml will automatically be installed.
 
