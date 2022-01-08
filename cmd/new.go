@@ -122,7 +122,11 @@ func (c *NewCommand) Run(args []string) int {
 
 	if !c.skipVirtualenv {
 		initCommand := NewInitCommand(c.UI, c.trellis)
-		initCommand.Run([]string{})
+		code := initCommand.Run([]string{})
+
+		if code != 0 {
+			return 1
+		}
 	}
 
 	// Update default configs
