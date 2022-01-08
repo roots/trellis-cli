@@ -164,6 +164,18 @@ func main() {
 		"venv hook": func() (cli.Command, error) {
 			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"xdebug-tunnel": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis xdebug-tunnel <subcommand> [<args>]",
+				SynopsisText: "Commands for Xdebug tunnel",
+			}, nil
+		},
+		"xdebug-tunnel open": func() (cli.Command, error) {
+			return cmd.NewXdebugTunnelOpenCommand(ui, trellis), nil
+		},
+		"xdebug-tunnel close": func() (cli.Command, error) {
+			return cmd.NewXdebugTunnelCloseCommand(ui, trellis), nil
+		},
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
