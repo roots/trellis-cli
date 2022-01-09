@@ -126,7 +126,7 @@ Options:
 }
 
 func (c *RollbackCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteSite()
+	return c.Trellis.AutocompleteSite(c.flags)
 }
 
 func (c *RollbackCommand) AutocompleteFlags() complete.Flags {

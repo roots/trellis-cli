@@ -164,7 +164,7 @@ Options:
 }
 
 func (c *VaultEncryptCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteEnvironment()
+	return c.Trellis.AutocompleteEnvironment(c.flags)
 }
 
 func (c *VaultEncryptCommand) AutocompleteFlags() complete.Flags {

@@ -130,7 +130,7 @@ Options:
 }
 
 func (c *VaultDecryptCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteEnvironment()
+	return c.Trellis.AutocompleteEnvironment(c.flags)
 }
 
 func (c *VaultDecryptCommand) AutocompleteFlags() complete.Flags {

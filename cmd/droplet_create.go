@@ -436,7 +436,7 @@ Options:
 }
 
 func (c *DropletCreateCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.PredictEnvironment()
+	return c.Trellis.PredictEnvironment(c.flags)
 }
 
 func (c *DropletCreateCommand) AutocompleteFlags() complete.Flags {
@@ -444,6 +444,6 @@ func (c *DropletCreateCommand) AutocompleteFlags() complete.Flags {
 		"--region":          complete.PredictNothing,
 		"--size":            complete.PredictNothing,
 		"--skip--provision": complete.PredictNothing,
-		"--ssh-key":         complete.PredictFiles("*"),
+		"--ssh-key":         complete.PredictFiles("*.pub"),
 	}
 }

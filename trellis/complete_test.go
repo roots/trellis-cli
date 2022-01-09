@@ -2,6 +2,7 @@ package trellis
 
 import (
 	"bytes"
+	"flag"
 	"io"
 	"os"
 	"reflect"
@@ -29,24 +30,43 @@ func TestCompletionFunctions(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	flags := flag.NewFlagSet("", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+
+	flagsPredictor := complete.Flags{
+		"--branch": complete.PredictNothing,
+	}
+
 	cases := []struct {
 		Predictor complete.Predictor
 		Completed []string
 		Last      string
 		Expected  []string
 	}{
-		{trellis.AutocompleteEnvironment(), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
-		{trellis.AutocompleteEnvironment(), []string{"deploy"}, "d", []string{"development"}},
-		{trellis.AutocompleteEnvironment(), []string{"deploy", "production"}, "", nil},
-		{trellis.AutocompleteSite(), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
-		{trellis.AutocompleteSite(), []string{"deploy"}, "d", []string{"development"}},
-		{trellis.AutocompleteSite(), []string{"deploy", "production"}, "", []string{"example.com"}},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy"}, "d", []string{"development"}},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy", "production"}, "", nil},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy"}, "--b", []string{"--branch"}},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy", "--branch=foo"}, "", []string{"development", "valet-link", "production"}},
+		{trellis.AutocompleteEnvironment(flags), []string{"deploy", "--branch=foo"}, "pro", []string{"production"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy"}, "", []string{"development", "valet-link", "production"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy"}, "d", []string{"development"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy", "production"}, "", []string{"example.com"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy", "--branch=foo"}, "dev", []string{"development"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy", "--branch=foo", "production"}, "", []string{"example.com"}},
+		{trellis.AutocompleteSite(flags), []string{"deploy", "--branch=foo", "production"}, "example", []string{"example.com"}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.Last, func(t *testing.T) {
+			var flagValue string
+
+			flags = flag.NewFlagSet("", flag.ContinueOnError)
+			flags.StringVar(&flagValue, "branch", "", "Branch name")
+
 			command := new(cli.MockCommandAutocomplete)
 			command.AutocompleteArgsValue = tc.Predictor
+			command.AutocompleteFlagsValue = flagsPredictor
 
 			cli := &cli.CLI{
 				Commands: map[string]cli.CommandFactory{
@@ -104,7 +124,7 @@ func TestCompletionFunctions(t *testing.T) {
 			sort.Strings(tc.Expected)
 
 			if !reflect.DeepEqual(actual, tc.Expected) {
-				t.Fatalf("bad:\n\n%#v\n\n%#v", actual, tc.Expected)
+				t.Fatalf("\n\nExpected:\n%#v\n\nActual:\n%#v", tc.Expected, actual)
 			}
 		})
 	}

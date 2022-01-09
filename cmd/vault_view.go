@@ -110,7 +110,7 @@ Options:
 }
 
 func (c *VaultViewCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteEnvironment()
+	return c.Trellis.AutocompleteEnvironment(c.flags)
 }
 
 func (c *VaultViewCommand) AutocompleteFlags() complete.Flags {
