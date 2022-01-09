@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -58,8 +57,9 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	c.UI.Info("Initializing project\n")
+	ok, virtualenvCmd := c.Trellis.Virtualenv.Installed()
 
-	if ok, _ := c.Trellis.Virtualenv.Installed(); !ok {
+	if !ok {
 		c.UI.Info("virtualenv not found")
 		spinner := NewSpinner(
 			SpinnerCfg{
@@ -68,8 +68,20 @@ func (c *InitCommand) Run(args []string) int {
 			},
 		)
 		spinner.Start()
-		c.Trellis.Virtualenv.Install()
+		_, err := c.Trellis.Virtualenv.Install()
 		spinner.Stop()
+
+		c.UI.Error(err.Error())
+		c.UI.Error("")
+		c.UI.Error("Project initialization failed due to the error above.")
+		c.UI.Error("")
+		c.UI.Error("trellis-cli attempted to install virtualenv as a fallback but failed.")
+		c.UI.Error("Without virtualenv, a Python virtual environment cannot be created and the required dependencies (eg: Ansible) can't be installed either.")
+		c.UI.Error("")
+		c.UI.Error("There are two options:")
+		c.UI.Error("  1. Ensure Python 3 is installed and the `python3` command works. trellis-cli will use python3's built-in venv feature.")
+		c.UI.Error(fmt.Sprintf("  2. Disable trellis-cli's virtual env feature by setting this env variable: export %s=false", trellis.TrellisVenvEnvName))
+		return 1
 	}
 
 	if c.force {
@@ -80,7 +92,7 @@ func (c *InitCommand) Run(args []string) int {
 			},
 		)
 		spinner.Start()
-		err := os.RemoveAll(c.Trellis.Virtualenv.Path)
+		err := c.Trellis.Virtualenv.Delete()
 
 		if err != nil {
 			spinner.StopFail()
@@ -105,6 +117,19 @@ func (c *InitCommand) Run(args []string) int {
 		if err != nil {
 			spinner.StopFail()
 			c.UI.Error(err.Error())
+			c.UI.Error("")
+			c.UI.Error("Project initialization failed due to the error above.")
+			c.UI.Error("")
+			c.UI.Error("trellis-cli tried to create a virtual environment but failed.")
+			c.UI.Error(fmt.Sprintf("  => %s", virtualenvCmd.String()))
+			c.UI.Error("")
+			c.UI.Error("Without a Python virtual environment the required dependencies (eg: Ansible) can't be installed.")
+			c.UI.Error("")
+			c.UI.Error("There are two options:")
+			c.UI.Error("  1. Ensure Python 3 is installed and the `python3` command works. trellis-cli will use python3's built-in venv feature.")
+			c.UI.Error(fmt.Sprintf("  2. Disable trellis-cli's virtual env feature by setting this env variable: export %s=false", trellis.TrellisVenvEnvName))
+			c.UI.Error("")
+			c.UI.Error("This could also be a bug in trellis-cli. Please create an issue at https://github.com/roots/trellis-cli and include the output above.")
 			return 1
 		}
 

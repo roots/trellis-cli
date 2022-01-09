@@ -69,6 +69,10 @@ func (v *Virtualenv) Deactivate() {
 	os.Setenv(PathEnvName, v.OldPath)
 }
 
+func (v *Virtualenv) Delete() error {
+	return os.RemoveAll(v.Path)
+}
+
 func (v *Virtualenv) LocalPath() string {
 	configHome := os.Getenv("XDG_CONFIG_HOME")
 
@@ -96,17 +100,17 @@ func (v *Virtualenv) Initialized() bool {
 	return true
 }
 
-func (v *Virtualenv) Install() string {
+func (v *Virtualenv) Install() (installPath string, err error) {
 	localPath := v.LocalPath()
 	configDir := filepath.Dir(localPath)
 
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+	if _, err = os.Stat(configDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(configDir, 0755); err != nil {
-			log.Fatal(err)
+			return "", err
 		}
 	}
 
-	return github.DownloadRelease("pypa/virtualenv", "latest", os.TempDir(), localPath)
+	return github.DownloadRelease("pypa/virtualenv", "latest", os.TempDir(), localPath), nil
 }
 
 func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
