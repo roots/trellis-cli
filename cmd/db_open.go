@@ -26,7 +26,7 @@ func NewDBOpenCommand(ui cli.Ui, trellis *trellis.Trellis) *DBOpenCommand {
 			"db_credentials.json.j2":  dbCredentialsJsonJ2,
 		},
 		Playbook: Playbook{
-			ui: ui,
+			ui: cli.NewMockUi(),
 		},
 	}
 
@@ -142,7 +142,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info(color.GreenString(fmt.Sprintf("✓ Open %s (%s) database with %s", siteName, environment, c.app)))
+	c.UI.Info(color.GreenString(fmt.Sprintf("[✓] Opened %s (%s) database with %s", siteName, environment, c.app)))
 	return 0
 }
 

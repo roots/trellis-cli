@@ -24,7 +24,7 @@ func NewDotEnvCommand(ui cli.Ui, trellis *trellis.Trellis) *DotEnvCommand {
 			"dotenv.yml": dotenvYmlContent,
 		},
 		Playbook: Playbook{
-			ui: ui,
+			ui: cli.NewMockUi(),
 		},
 	}
 
@@ -58,13 +58,24 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Generating .env file",
+			StopMessage: "Generated .env file",
+			FailMessage: "Error templating .env file",
+		},
+	)
+	spinner.Start()
+
 	c.playbook.SetRoot(c.Trellis.Path)
 
 	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}); err != nil {
+		spinner.StopFail()
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}
 
+	spinner.Stop()
 	return 0
 }
 
