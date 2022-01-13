@@ -39,9 +39,3 @@ func TestHelperProcess(t *testing.T) {
 	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }
-
-type MockCommand struct {
-	cmd  string
-	args string
-	env  []string
-}
