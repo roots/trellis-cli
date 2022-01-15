@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/mitchellh/cli"
-	"github.com/roots/trellis-cli/cmd"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 )
 
 func TestIntegrationForceNoPlugin(t *testing.T) {
@@ -46,7 +47,7 @@ func TestIntegrationForceNoPlugin(t *testing.T) {
 
 	mockUi := cli.NewMockUi()
 
-	trellisCommand := cmd.CommandExecWithOutput(bin, []string{"--help"}, mockUi)
+	trellisCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, []string{"--help"})
 	trellisCommand.Env = []string{"PATH=" + tempDir + ":$PATH", "TRELLIS_NO_PLUGINS=true"}
 
 	trellisCommand.Run()

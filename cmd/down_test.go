@@ -56,8 +56,6 @@ func TestDownRunValidations(t *testing.T) {
 func TestDownRun(t *testing.T) {
 	trellis := trellis.NewMockTrellis(true)
 
-	defer MockExec(t)()
-
 	cases := []struct {
 		name string
 		args []string
@@ -75,6 +73,8 @@ func TestDownRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			downCommand := &DownCommand{ui, trellis}
 			code := downCommand.Run(tc.args)
 

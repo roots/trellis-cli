@@ -7,19 +7,19 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 type XdebugTunnelCloseCommand struct {
-	UI       cli.Ui
-	Trellis  *trellis.Trellis
-	flags    *flag.FlagSet
-	playbook PlaybookRunner
-	verbose  bool
+	UI      cli.Ui
+	Trellis *trellis.Trellis
+	flags   *flag.FlagSet
+	verbose bool
 }
 
 func NewXdebugTunnelCloseCommand(ui cli.Ui, trellis *trellis.Trellis) *XdebugTunnelCloseCommand {
-	c := &XdebugTunnelCloseCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &XdebugTunnelCloseCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
@@ -52,17 +52,17 @@ func (c *XdebugTunnelCloseCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.playbook.SetRoot(c.Trellis.Path)
-
 	host := args[0]
 	inventoryHost := fmt.Sprintf("xdebug_tunnel_inventory_host=%s", host)
-	playbookArgs := []string{"-e", "xdebug_remote_enable=0", "-e", inventoryHost}
+	playbookArgs := []string{"xdebug-tunnel.yml", "-e", "xdebug_remote_enable=0", "-e", inventoryHost}
 
 	if c.verbose {
 		playbookArgs = append(playbookArgs, "-vvvv")
 	}
 
-	if err := c.playbook.Run("xdebug-tunnel.yml", playbookArgs); err != nil {
+	xdebugClose := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbookArgs)
+
+	if err := xdebugClose.Run(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

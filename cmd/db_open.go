@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/mitchellh/cli"
-	"github.com/roots/trellis-cli/trellis"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/fatih/color"
+	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 //go:embed files/playbooks/db_credentials.yml
@@ -21,12 +23,10 @@ var dbCredentialsJsonJ2 string
 
 func NewDBOpenCommand(ui cli.Ui, trellis *trellis.Trellis) *DBOpenCommand {
 	playbook := &AdHocPlaybook{
+		path: trellis.Path,
 		files: map[string]string{
 			"dump_db_credentials.yml": dumpDbCredentialsYml,
 			"db_credentials.json.j2":  dbCredentialsJsonJ2,
-		},
-		Playbook: Playbook{
-			ui: ui,
 		},
 	}
 
@@ -41,7 +41,7 @@ type DBOpenCommand struct {
 	app             string
 	Trellis         *trellis.Trellis
 	dbOpenerFactory *DBOpenerFactory
-	playbook        PlaybookRunner
+	playbook        *AdHocPlaybook
 }
 
 type DBCredentials struct {
@@ -111,14 +111,22 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 	defer os.Remove(dbCredentialsJson.Name())
 
+	if err := c.playbook.DumpFiles(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+	defer c.playbook.RemoveFiles()
+
 	// Template db credentials to JSON file.
-	c.playbook.SetRoot(c.Trellis.Path)
 	playbookArgs := []string{
+		"dump_db_credentials.yml",
 		"-e", "env=" + environment,
 		"-e", "site=" + siteName,
 		"-e", "dest=" + dbCredentialsJson.Name(),
 	}
-	if err := c.playbook.Run("dump_db_credentials.yml", playbookArgs); err != nil {
+	dumpDbCredentials := command.Cmd("ansible-playbook", playbookArgs)
+
+	if err := dumpDbCredentials.Run(); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook dump_db_credentials.yml: %s", err))
 		return 1
 	}

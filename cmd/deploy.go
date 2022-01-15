@@ -7,11 +7,12 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 func NewDeployCommand(ui cli.Ui, trellis *trellis.Trellis) *DeployCommand {
-	c := &DeployCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &DeployCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
@@ -22,7 +23,6 @@ type DeployCommand struct {
 	branch    string
 	extraVars string
 	Trellis   *trellis.Trellis
-	playbook  PlaybookRunner
 	verbose   bool
 }
 
@@ -89,9 +89,12 @@ func (c *DeployCommand) Run(args []string) int {
 
 	extraVars := strings.Join(vars, " ")
 
-	c.playbook.SetRoot(c.Trellis.Path)
+	deploy := command.WithOptions(
+		command.WithUiOutput(c.UI),
+		command.WithLogging(c.UI),
+	).Cmd("ansible-playbook", []string{"deploy.yml", "-e", extraVars})
 
-	if err := c.playbook.Run("deploy.yml", []string{"-e", extraVars}); err != nil {
+	if err := deploy.Run(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

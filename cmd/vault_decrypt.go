@@ -8,6 +8,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -86,10 +87,9 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 
 	vaultArgs = append(vaultArgs, filesToDecrypt...)
 
-	vaultDecrypt := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
-	err := vaultDecrypt.Run()
+	vaultDecrypt := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", vaultArgs)
 
-	if err == nil {
+	if err := vaultDecrypt.Run(); err == nil {
 		c.UI.Info(color.GreenString("Decryption successful"))
 	}
 

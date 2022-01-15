@@ -3,9 +3,9 @@ package cmd
 import (
 	"strings"
 
-	"github.com/roots/trellis-cli/trellis"
-
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type DownCommand struct {
@@ -29,7 +29,11 @@ func (c *DownCommand) Run(args []string) int {
 		return 1
 	}
 
-	vagrantHalt := execCommandWithOutput("vagrant", []string{"halt"}, c.UI)
+	vagrantHalt := command.WithOptions(
+		command.WithLogging(c.UI),
+		command.WithTermOutput(),
+	).Cmd("vagrant", []string{"halt"})
+
 	err := vagrantHalt.Run()
 
 	if err != nil {

@@ -54,8 +54,6 @@ func TestVaultDecryptRunValidations(t *testing.T) {
 }
 
 func TestVaultDecryptRun(t *testing.T) {
-	defer MockExec(t)()
-
 	trellisProject := trellis.NewTrellis()
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
@@ -99,6 +97,8 @@ func TestVaultDecryptRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			vaultDecryptCommand := NewVaultDecryptCommand(ui, trellisProject)
 			code := vaultDecryptCommand.Run(tc.args)
 

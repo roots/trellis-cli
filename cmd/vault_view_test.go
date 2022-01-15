@@ -62,8 +62,6 @@ func TestVaultViewRun(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	defer MockExec(t)()
-
 	trellis := trellis.NewMockTrellis(true)
 
 	cases := []struct {
@@ -95,6 +93,8 @@ func TestVaultViewRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			vaultViewCommand := NewVaultViewCommand(ui, trellis)
 			code := vaultViewCommand.Run(tc.args)
 

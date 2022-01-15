@@ -7,6 +7,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -70,7 +71,7 @@ func (c *VaultViewCommand) Run(args []string) int {
 	}
 
 	vaultArgs = append(vaultArgs, files...)
-	vaultView := execCommandWithOutput("ansible-vault", vaultArgs, c.UI)
+	vaultView := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", vaultArgs)
 	_ = vaultView.Run()
 
 	return 0

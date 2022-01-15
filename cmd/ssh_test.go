@@ -65,10 +65,10 @@ func TestSshRunValidations(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
 			sshCommand := &SshCommand{ui, trellis}
-
-			defer MockExec(t)()
 
 			code := sshCommand.Run(tc.args)
 
@@ -87,8 +87,6 @@ func TestSshRunValidations(t *testing.T) {
 
 func TestSshRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	defer MockExec(t)()
-
 	trellis := trellis.NewTrellis()
 
 	cases := []struct {
@@ -114,6 +112,8 @@ func TestSshRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			sshCommand := &SshCommand{ui, trellis}
 			code := sshCommand.Run(tc.args)
 

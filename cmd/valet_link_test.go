@@ -137,7 +137,6 @@ func TestValetLinkInvalidEnvironmentArgument(t *testing.T) {
 }
 
 func TestValetLinkRun(t *testing.T) {
-	ui := cli.NewMockUi()
 	trellisProject := trellis.NewTrellis()
 
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
@@ -146,15 +145,7 @@ func TestValetLinkRun(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	defer MockExec(t)()
-
 	trellis := trellis.NewMockTrellis(true)
-
-	valetLinkCommand := ValetLinkCommand{ui, trellis}
-
-	code := valetLinkCommand.Run([]string{"valet-link"})
-
-	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
 	cases := []struct {
 		name string
@@ -180,6 +171,13 @@ func TestValetLinkRun(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
+			valetLinkCommand := ValetLinkCommand{ui, trellis}
+			code := valetLinkCommand.Run([]string{"valet-link"})
+
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 			if !strings.Contains(combined, tc.out) {
 				t.Errorf("expected output %q to contain %q", combined, tc.out)
 			}

@@ -3,11 +3,13 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
-	"github.com/mitchellh/cli"
 	"io/ioutil"
 	"os"
 	"text/template"
 	"time"
+
+	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 )
 
 type DBOpenerSequelAce struct {
@@ -43,7 +45,8 @@ func (o *DBOpenerSequelAce) Open(c DBCredentials) (err error) {
 		return fmt.Errorf("Error writing SequelAce SPF: %s", err)
 	}
 
-	open := execCommandWithOutput("open", []string{sequelAceSpf.Name()}, o.ui)
+	open := command.Cmd("open", []string{sequelAceSpf.Name()})
+
 	if err := open.Run(); err != nil {
 		return fmt.Errorf("Error opening database with Tableplus: %s", err)
 	}

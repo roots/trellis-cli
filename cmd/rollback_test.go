@@ -87,8 +87,6 @@ func TestRollbackRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	defer MockExec(t)()
-
 	cases := []struct {
 		name string
 		args []string
@@ -124,6 +122,8 @@ func TestRollbackRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			rollbackCommand := NewRollbackCommand(ui, trellis)
 
 			code := rollbackCommand.Run(tc.args)

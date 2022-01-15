@@ -38,7 +38,7 @@ func TestDBOpenArgumentValidations(t *testing.T) {
 			ui := cli.NewMockUi()
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
 
-			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
+			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &AdHocPlaybook{}}
 			dbOpenCommand.init()
 
 			code := dbOpenCommand.Run(tc.args)
@@ -61,7 +61,7 @@ func TestDBOpenAppFlagValidations(t *testing.T) {
 	ui := cli.NewMockUi()
 	trellis := trellis.NewTrellis()
 
-	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &MockPlaybook{ui: ui}}
+	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &AdHocPlaybook{}}
 	dbOpenCommand.init()
 	dbOpenCommand.app = "unexpected-app"
 
@@ -80,50 +80,34 @@ func TestDBOpenAppFlagValidations(t *testing.T) {
 
 func TestDBOpenPlaybook(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-
-	ui := cli.NewMockUi()
 	trellis := trellis.NewTrellis()
-	mockPlaybook := &MockPlaybook{ui: ui}
+
 	dbOpenerFactory := &DBOpenerFactory{}
 
-	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: dbOpenerFactory, playbook: mockPlaybook}
-	dbOpenCommand.init()
-	dbOpenCommand.app = dbOpenerFactory.GetSupportedApps()[0]
-
-	dbOpenCommand.Run([]string{"production", "example.com"})
-
-	commands := mockPlaybook.GetCommands()
-	count := len(commands)
-	if count != 1 {
-		t.Errorf("expected playbook to be ran exactly once but being ran %d time(s)", count)
-	}
-
-	command := commands[0]
 	cases := []struct {
 		name string
+		args []string
 		out  string
 	}{
 		{
-			"correct_playbook",
-			"ansible-playbook dump_db_credentials.yml",
-		},
-		{
-			"correct_environment",
-			"-e env=production",
-		},
-		{
-			"correct_site",
-			"-e site=example.com",
-		},
-		{
-			"correct_destination",
-			"-e dest=" + os.TempDir(),
+			"default",
+			[]string{"-app=" + dbOpenerFactory.GetSupportedApps()[0], "production", "example.com"},
+			"ansible-playbook dump_db_credentials.yml -e env=production -e site=example.com -e dest=" + os.TempDir(),
 		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if !strings.Contains(command, tc.out) {
-				t.Errorf("%s expected command %s to contain %s", tc.name, command, tc.out)
+			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
+			dbOpenCommand := NewDBOpenCommand(ui, trellis)
+			dbOpenCommand.Run(tc.args)
+
+			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+
+			if !strings.Contains(combined, tc.out) {
+				t.Errorf("expected output %q to contain %q", combined, tc.out)
 			}
 		})
 	}

@@ -57,8 +57,6 @@ func TestGalaxyInstallRunValidations(t *testing.T) {
 func TestGalaxyInstallRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
-	defer MockExec(t)()
-
 	cases := []struct {
 		name      string
 		args      []string
@@ -91,7 +89,7 @@ func TestGalaxyInstallRun(t *testing.T) {
 			"default",
 			[]string{},
 			[]string{"galaxy.yml", "requirements.yml"},
-			"ansible-galaxy install -r galaxy.yml\n\nWarning: multiple role files found. Defaulting to galaxy.yml",
+			"ansible-galaxy install -r galaxy.yml\nWarning: multiple role files found. Defaulting to galaxy.yml",
 			0,
 		},
 	}
@@ -99,6 +97,8 @@ func TestGalaxyInstallRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			trellis := trellis.NewTrellis()
 			galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 

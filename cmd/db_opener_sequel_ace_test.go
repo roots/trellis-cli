@@ -8,8 +8,6 @@ import (
 )
 
 func TestOpen(t *testing.T) {
-	defer MockExec(t)()
-
 	dbCredentials := DBCredentials{
 		SSHUser:    "ssh-user",
 		SSHHost:    "ssh-host",
@@ -22,6 +20,8 @@ func TestOpen(t *testing.T) {
 	}
 
 	ui := cli.NewMockUi()
+	defer MockUiExec(t, ui)()
+
 	sequelAce := &DBOpenerSequelAce{
 		ui: ui,
 	}
