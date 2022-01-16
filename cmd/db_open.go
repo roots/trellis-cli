@@ -111,11 +111,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 	defer os.Remove(dbCredentialsJson.Name())
 
-	if err := c.playbook.DumpFiles(); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-	defer c.playbook.RemoveFiles()
+	defer c.playbook.DumpFiles()()
 
 	// Template db credentials to JSON file.
 	playbookArgs := []string{

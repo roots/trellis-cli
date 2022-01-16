@@ -99,11 +99,7 @@ func (c *AliasCommand) Run(args []string) int {
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := c.aliasPlaybook.DumpFiles(); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-	defer c.aliasPlaybook.RemoveFiles()
+	defer c.aliasPlaybook.DumpFiles()()
 
 	for _, environment := range remoteEnvironments {
 		args := []string{
@@ -138,11 +134,7 @@ func (c *AliasCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := c.aliasCopyPlaybook.DumpFiles(); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-	defer c.aliasCopyPlaybook.RemoveFiles()
+	defer c.aliasCopyPlaybook.DumpFiles()()
 
 	aliasCopyPlaybook := command.Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
 

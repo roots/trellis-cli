@@ -57,11 +57,7 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := c.playbook.DumpFiles(); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-	defer c.playbook.RemoveFiles()
+	defer c.playbook.DumpFiles()()
 
 	dotenv := command.Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
 

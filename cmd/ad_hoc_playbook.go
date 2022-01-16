@@ -11,27 +11,27 @@ type AdHocPlaybook struct {
 	path  string
 }
 
-func (p *AdHocPlaybook) DumpFiles() error {
+func (p *AdHocPlaybook) DumpFiles() func() {
 	for fileName, content := range p.files {
 		destination := filepath.Join(p.path, fileName)
 		contentByte := []byte(content)
 
 		if err := ioutil.WriteFile(destination, contentByte, 0644); err != nil {
-			return err
+			panic("Could not write temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}
 
-	return nil
+	return func() {
+		p.removeFiles()
+	}
 }
 
-func (p *AdHocPlaybook) RemoveFiles() error {
-	for fileName, _ := range p.files {
+func (p *AdHocPlaybook) removeFiles() {
+	for fileName := range p.files {
 		destination := filepath.Join(p.path, fileName)
 
 		if err := os.Remove(destination); err != nil {
-			return err
+			panic("Could not delete temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}
-
-	return nil
 }
