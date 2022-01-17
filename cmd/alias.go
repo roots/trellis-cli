@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
@@ -84,6 +83,15 @@ func (c *AliasCommand) Run(args []string) int {
 		return 1
 	}
 
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Generating WP-CLI aliases config",
+			StopMessage: "wp-cli.trellis-alias.yml generated",
+			FailMessage: "Error generating config",
+		},
+	)
+	spinner.Start()
+
 	environments := c.Trellis.EnvironmentNames()
 	var remoteEnvironments []string
 	for _, environment := range environments {
@@ -94,6 +102,7 @@ func (c *AliasCommand) Run(args []string) int {
 
 	tempDir, tempDirErr := ioutil.TempDir("", "trellis-alias-")
 	if tempDirErr != nil {
+		spinner.StopFail()
 		c.UI.Error(tempDirErr.Error())
 		return 1
 	}
@@ -112,6 +121,7 @@ func (c *AliasCommand) Run(args []string) int {
 		aliasPlaybook := command.Cmd("ansible-playbook", args)
 
 		if err := aliasPlaybook.Run(); err != nil {
+			spinner.StopFail()
 			c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias.yml: %s", err))
 			return 1
 		}
@@ -121,6 +131,7 @@ func (c *AliasCommand) Run(args []string) int {
 	for _, environment := range remoteEnvironments {
 		part, err := ioutil.ReadFile(filepath.Join(tempDir, environment+".yml.part"))
 		if err != nil {
+			spinner.StopFail()
 			c.UI.Error(err.Error())
 			return 1
 		}
@@ -130,6 +141,7 @@ func (c *AliasCommand) Run(args []string) int {
 	combinedYmlPath := filepath.Join(tempDir, "/combined.yml")
 	writeFileErr := ioutil.WriteFile(combinedYmlPath, []byte(combined), 0644)
 	if writeFileErr != nil {
+		spinner.StopFail()
 		c.UI.Error(writeFileErr.Error())
 		return 1
 	}
@@ -139,13 +151,15 @@ func (c *AliasCommand) Run(args []string) int {
 	aliasCopyPlaybook := command.Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
 
 	if err := aliasCopyPlaybook.Run(); err != nil {
+		spinner.StopFail()
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias-copy.yml: %s", err))
 		return 1
 	}
 
-	c.UI.Info(color.GreenString("✓ wp-cli.trellis-alias.yml generated"))
+	spinner.Stop()
+	c.UI.Info("")
 	message := `
-Action Required: Add these lines into wp-cli.yml or wp-cli.local.yml
+Action Required: use the generated config by adding these lines to your wp-cli.yml or wp-cli.local.yml config.
 
 _: 
   inherit: wp-cli.trellis-alias.yml
@@ -166,7 +180,7 @@ Usage: trellis alias [options]
 Generate WP CLI aliases for remote environments
 
 Options:
-      --local (default: development) Local environment name
+      --local Local environment name (default: development)
   -h, --help  show this help
 `
 
