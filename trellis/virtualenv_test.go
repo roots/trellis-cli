@@ -1,12 +1,16 @@
 package trellis
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/roots/trellis-cli/command"
 )
 
 func TestNewVirtualenv(t *testing.T) {
@@ -103,30 +107,6 @@ func TestDeactive(t *testing.T) {
 	}
 }
 
-func TestLocalPath(t *testing.T) {
-	venv := NewVirtualenv("trellis")
-	originalConfigHome := os.Getenv("XDG_CONFIG_HOME")
-	os.Unsetenv("XDG_CONFIG_HOME")
-	defer os.Setenv("XDG_CONFIG_HOME", originalConfigHome)
-
-	homeDir, _ := os.UserHomeDir()
-
-	localPath := venv.LocalPath()
-
-	if localPath != filepath.Join(homeDir, ".local/share/trellis/virtualenv") {
-		t.Error("Expected LocalPath to default to $USER/.local/share")
-	}
-
-	os.Setenv("XDG_CONFIG_HOME", "mydir")
-	defer os.Setenv("XDG_CONFIG_HOME", originalConfigHome)
-
-	localPath = venv.LocalPath()
-
-	if localPath != filepath.Join("mydir", "trellis/virtualenv") {
-		t.Error("Expected LocalPath to use XDG_CONFIG_HOME when set")
-	}
-}
-
 func TestInitialized(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "trellis")
 	defer os.RemoveAll(tempDir)
@@ -163,7 +143,7 @@ func TestInstalled(t *testing.T) {
 	}
 }
 
-func TestInstalledPython3(t *testing.T) {
+func TestInstalledPython3WithEnsurepip(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "trellis")
 	defer os.RemoveAll(tempDir)
 
@@ -178,14 +158,69 @@ func TestInstalledPython3(t *testing.T) {
 
 	venv := NewVirtualenv(tempDir)
 
+	var output bytes.Buffer
+
+	mockExecCommand := func(command string, args []string) *exec.Cmd {
+		cs := []string{"-test.run=TestEnsurePipSuccessHelperProcess", "--", command}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Stderr = &output
+		cmd.Stdout = &output
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
+	}
+
+	command.Mock(mockExecCommand)
+	defer command.Restore()
+
 	ok, cmd := venv.Installed()
 
 	if !ok {
 		t.Error("Expected to be installed")
 	}
 
-	if strings.Join(cmd.Args, " ") != fmt.Sprintf("%s -m venv", pythonPath) {
-		t.Error("Expected args incorrect")
+	expected := "python3 -m venv"
+	actual := cmd.String()
+
+	if !strings.Contains(actual, expected) {
+		t.Errorf("Expected command incorrect.\nexpected: %s\ngot: %s", expected, actual)
+	}
+}
+
+func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "trellis")
+	defer os.RemoveAll(tempDir)
+
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	defer testSetEnv("PATH", tempDir)()
+
+	pythonPath := filepath.Join(tempDir, "python3")
+	os.OpenFile(pythonPath, os.O_CREATE, 0555)
+
+	var output bytes.Buffer
+
+	mockExecCommand := func(command string, args []string) *exec.Cmd {
+		cs := []string{"-test.run=TestEnsurePipFailureHelperProcess", "--", command}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Stderr = &output
+		cmd.Stdout = &output
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
+	}
+
+	command.Mock(mockExecCommand)
+	defer command.Restore()
+
+	venv := NewVirtualenv(tempDir)
+
+	ok, _ := venv.Installed()
+
+	if ok {
+		t.Error("Expected not to be installed")
 	}
 }
 
@@ -215,33 +250,6 @@ func TestInstalledVirtualenv(t *testing.T) {
 	}
 }
 
-func TestInstalledLocalVirtualenv(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	defer testSetEnv("PATH", "")()
-	defer testSetEnv("XDG_CONFIG_HOME", tempDir)()
-
-	venv := NewVirtualenv(tempDir)
-	localVenvPath := filepath.Join(venv.LocalPath(), "virtualenv.py")
-	os.MkdirAll(venv.LocalPath(), os.ModePerm)
-	testCreateFile(t, localVenvPath)()
-
-	ok, cmd := venv.Installed()
-
-	if !ok {
-		t.Error("Expected to be installed")
-	}
-
-	if strings.Join(cmd.Args, " ") != fmt.Sprintf("python %s", localVenvPath) {
-		t.Error("Expected args incorrect")
-	}
-}
-
 func testCreateFile(t *testing.T, path string) func() {
 	file, err := os.Create(path)
 
@@ -256,4 +264,22 @@ func testSetEnv(env string, value string) func() {
 	old := os.Getenv(env)
 	os.Setenv(env, value)
 	return func() { os.Setenv(env, old) }
+}
+
+func TestEnsurePipSuccessHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
+	os.Exit(0)
+}
+
+func TestEnsurePipFailureHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, strings.Join(os.Args[3:], " "))
+	os.Exit(1)
 }
