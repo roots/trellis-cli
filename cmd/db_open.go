@@ -146,7 +146,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info(color.GreenString(fmt.Sprintf("✓ Open %s (%s) database with %s", siteName, environment, c.app)))
+	c.UI.Info(color.GreenString(fmt.Sprintf("[✓] Open %s (%s) database with %s", siteName, environment, c.app)))
 	return 0
 }
 

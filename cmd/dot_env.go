@@ -46,6 +46,15 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Generating .env file",
+			StopMessage: "Generated .env file",
+			FailMessage: "Error templating .env file",
+		},
+	)
+	spinner.Start()
+
 	environment := "development"
 	if len(args) == 1 {
 		environment = args[0]
@@ -62,10 +71,12 @@ func (c *DotEnvCommand) Run(args []string) int {
 	dotenv := command.Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
 
 	if err := dotenv.Run(); err != nil {
+		spinner.StopFail()
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}
 
+	spinner.Stop()
 	return 0
 }
 
