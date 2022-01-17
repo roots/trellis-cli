@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -117,16 +117,32 @@ func (c *InitCommand) Run(args []string) int {
 
 	spinner := NewSpinner(
 		SpinnerCfg{
-			Message:     "Installing dependencies (this can take a minute...)",
-			FailMessage: "Error installing dependencies",
-			StopMessage: "Installing dependencies",
+			Message:     "Ensure pip is up to date",
+			FailMessage: "Error upgrading pip",
 		},
 	)
 	spinner.Start()
-	pipCmd := exec.Command("pip", "install", "-r", "requirements.txt")
+	pipUpgradeOutput, err := command.Cmd("python3", []string{"-m", "pip", "install", "--upgrade", "pip"}).CombinedOutput()
+
+	if err != nil {
+		spinner.StopFail()
+		c.UI.Error(string(pipUpgradeOutput))
+		return 1
+	}
+	spinner.Stop()
+
+	spinner = NewSpinner(
+		SpinnerCfg{
+			Message:     "Installing dependencies (this can take a minute...)",
+			FailMessage: "Error installing dependencies",
+			StopMessage: "Dependencies installed",
+		},
+	)
+	spinner.Start()
+	pipCmd := command.Cmd("pip", []string{"install", "-r", "requirements.txt"})
 	errorOutput := &bytes.Buffer{}
 	pipCmd.Stderr = errorOutput
-	err := pipCmd.Run()
+	err = pipCmd.Run()
 
 	if err != nil {
 		spinner.StopFail()
