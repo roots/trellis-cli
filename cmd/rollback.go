@@ -7,22 +7,22 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 func NewRollbackCommand(ui cli.Ui, trellis *trellis.Trellis) *RollbackCommand {
-	c := &RollbackCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &RollbackCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
 
 type RollbackCommand struct {
-	UI       cli.Ui
-	flags    *flag.FlagSet
-	release  string
-	Trellis  *trellis.Trellis
-	playbook PlaybookRunner
-	verbose  bool
+	UI      cli.Ui
+	flags   *flag.FlagSet
+	release string
+	Trellis *trellis.Trellis
+	verbose bool
 }
 
 func (c *RollbackCommand) init() {
@@ -74,15 +74,18 @@ func (c *RollbackCommand) Run(args []string) int {
 		extraVars = fmt.Sprintf("%s release=%s", extraVars, c.release)
 	}
 
-	playbookArgs := []string{"-e", extraVars}
+	playbookArgs := []string{"rollback.yml", "-e", extraVars}
 
 	if c.verbose {
 		playbookArgs = append(playbookArgs, "-vvvv")
 	}
 
-	c.playbook.SetRoot(c.Trellis.Path)
+	rollback := command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(c.UI),
+	).Cmd("ansible-playbook", playbookArgs)
 
-	if err := c.playbook.Run("rollback.yml", playbookArgs); err != nil {
+	if err := rollback.Run(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

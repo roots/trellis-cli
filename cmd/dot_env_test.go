@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -34,40 +34,6 @@ func TestDotEnvArgumentValidations(t *testing.T) {
 			"Error: too many arguments",
 			1,
 		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ui := cli.NewMockUi()
-			trellis := trellis.NewMockTrellis(tc.projectDetected)
-
-			dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
-
-			code := dotEnvCommand.Run(tc.args)
-
-			if code != tc.code {
-				t.Errorf("expected code %d to be %d", code, tc.code)
-			}
-
-			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
-
-			if !strings.Contains(combined, tc.out) {
-				t.Errorf("expected output %q to contain %q", combined, tc.out)
-			}
-		})
-	}
-}
-
-func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
-	defer trellis.LoadFixtureProject(t)()
-
-	cases := []struct {
-		name            string
-		projectDetected bool
-		args            []string
-		out             string
-		code            int
-	}{
 		{
 			"invalid_env",
 			true,
@@ -82,8 +48,7 @@ func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 			ui := cli.NewMockUi()
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
 
-			dotEnvCommand := DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
-
+			dotEnvCommand := NewDotEnvCommand(ui, trellis)
 			code := dotEnvCommand.Run(tc.args)
 
 			if code != tc.code {
@@ -102,8 +67,6 @@ func TestDotEnvInvalidEnvironmentArgument(t *testing.T) {
 func TestDotEnvRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
-
-	defer MockExec(t)()
 
 	cases := []struct {
 		name string
@@ -128,7 +91,9 @@ func TestDotEnvRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			dotEnvCommand := &DotEnvCommand{UI: ui, Trellis: trellis, playbook: &MockPlaybook{ui: ui}}
+			defer MockUiExec(t, ui)()
+
+			dotEnvCommand := NewDotEnvCommand(ui, trellis)
 			code := dotEnvCommand.Run(tc.args)
 
 			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
@@ -162,13 +127,13 @@ func TestIntegrationDotEnv(t *testing.T) {
 		t.Error("TEST_DUMMY not supplied")
 	}
 
-	actualPath := path.Join(dummy, "site/.env")
+	actualPath := filepath.Join(dummy, "site/.env")
 
 	os.Remove(actualPath)
 	defer os.Remove(actualPath)
 
 	dotEnv := exec.Command(bin, "dotenv")
-	dotEnv.Dir = path.Join(dummy, "trellis")
+	dotEnv.Dir = filepath.Join(dummy, "trellis")
 
 	dotEnv.Run()
 

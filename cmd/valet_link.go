@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/fatih/color"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -56,7 +58,7 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		}
 		valetArgs = append(valetArgs, app)
 
-		valetLink := execCommandWithOutput("valet", valetArgs, c.UI)
+		valetLink := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("valet", valetArgs)
 		valetLink.Dir = site.LocalPath
 
 		err := valetLink.Run()

@@ -26,7 +26,7 @@ import (
 var client *digitalocean.Client
 
 func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreateCommand {
-	c := &DropletCreateCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &DropletCreateCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
@@ -40,7 +40,6 @@ type DropletCreateCommand struct {
 	image         string
 	size          string
 	skipProvision bool
-	playbook      PlaybookRunner
 }
 
 func (c *DropletCreateCommand) init() {

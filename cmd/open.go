@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -60,7 +61,11 @@ func (c *OpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	open := execCommand(openCommandName, openArgs, c.UI)
+	open := command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(c.UI),
+	).Cmd(openCommandName, openArgs)
+
 	err := open.Run()
 
 	if err != nil {

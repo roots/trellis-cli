@@ -7,6 +7,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -57,7 +58,7 @@ func (c *SshCommand) Run(args []string) int {
 
 	host = fmt.Sprintf("%s@%s", user, host)
 
-	ssh := execCommand("ssh", []string{host}, c.UI)
+	ssh := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ssh", []string{host})
 	err := ssh.Run()
 
 	if err != nil {

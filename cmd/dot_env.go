@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 type DotEnvCommand struct {
 	UI       cli.Ui
 	Trellis  *trellis.Trellis
-	playbook PlaybookRunner
+	playbook *AdHocPlaybook
 }
 
 //go:embed files/playbooks/dot_env_template.yml
@@ -20,11 +21,9 @@ var dotenvYmlContent string
 
 func NewDotEnvCommand(ui cli.Ui, trellis *trellis.Trellis) *DotEnvCommand {
 	playbook := &AdHocPlaybook{
+		path: trellis.Path,
 		files: map[string]string{
 			"dotenv.yml": dotenvYmlContent,
-		},
-		Playbook: Playbook{
-			ui: ui,
 		},
 	}
 
@@ -58,9 +57,11 @@ func (c *DotEnvCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.playbook.SetRoot(c.Trellis.Path)
+	defer c.playbook.DumpFiles()()
 
-	if err := c.playbook.Run("dotenv.yml", []string{"-e", "env=" + environment}); err != nil {
+	dotenv := command.Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
+
+	if err := dotenv.Run(); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
 		return 1
 	}

@@ -2,8 +2,6 @@ package plugin
 
 import (
 	"fmt"
-	"github.com/mitchellh/cli"
-	"github.com/roots/trellis-cli/cmd"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,6 +9,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 )
 
 const spyCommand = `#!/usr/bin/env bash
@@ -116,7 +117,7 @@ func TestIntegrationPluginCommand(t *testing.T) {
 
 	for _, tc := range cases {
 		mockUi := cli.NewMockUi()
-		spyCommand := cmd.CommandExecWithOutput(bin, tc.args, mockUi)
+		spyCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, tc.args)
 		spyCommand.Env = []string{"PATH=" + tempDir + ":" + os.ExpandEnv("$PATH")}
 
 		spyCommand.Run()
@@ -183,7 +184,7 @@ func TestIntegrationPluginListInHelpFunc(t *testing.T) {
 
 	mockUi := cli.NewMockUi()
 
-	trellisCommand := cmd.CommandExecWithOutput(bin, []string{"--help"}, mockUi)
+	trellisCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, []string{"--help"})
 	trellisCommand.Env = []string{"PATH=" + tempDir + ":$PATH"}
 
 	trellisCommand.Run()

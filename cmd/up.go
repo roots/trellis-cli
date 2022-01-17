@@ -7,6 +7,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -64,10 +65,10 @@ func (c *UpCommand) Run(args []string) int {
 		vagrantArgs = append(vagrantArgs, "--no-provision")
 	}
 
-	vagrantUp := execCommandWithOutput("vagrant", vagrantArgs, c.UI)
+	vagrantUp := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("vagrant", vagrantArgs)
 
 	env := os.Environ()
-	// To allow mockExecCommand injects its environment variables.
+	// To allow moc.CmdCommand injects its environment variables.
 	if vagrantUp.Env != nil {
 		env = vagrantUp.Env
 	}

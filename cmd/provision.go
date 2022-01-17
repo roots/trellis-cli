@@ -8,13 +8,14 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
-	c := &ProvisionCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &ProvisionCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
@@ -25,7 +26,6 @@ type ProvisionCommand struct {
 	extraVars string
 	tags      string
 	Trellis   *trellis.Trellis
-	playbook  PlaybookRunner
 	verbose   bool
 }
 
@@ -70,8 +70,6 @@ func (c *ProvisionCommand) Run(args []string) int {
 	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.Trellis}
 	galaxyInstallCommand.Run([]string{})
 
-	c.playbook.SetRoot(c.Trellis.Path)
-
 	vars := "env=" + environment
 	if c.extraVars != "" {
 		vars = strings.Join([]string{vars, c.extraVars}, " ")
@@ -96,7 +94,12 @@ func (c *ProvisionCommand) Run(args []string) int {
 		}
 	}
 
-	if err := c.playbook.Run(playbookFile, playbookArgs); err != nil {
+	provision := command.WithOptions(
+		command.WithUiOutput(c.UI),
+		command.WithLogging(c.UI),
+	).Cmd("ansible-playbook", append([]string{playbookFile}, playbookArgs...))
+
+	if err := provision.Run(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

@@ -7,44 +7,31 @@ import (
 )
 
 type AdHocPlaybook struct {
-	Playbook
 	files map[string]string
+	path  string
 }
 
-func (p *AdHocPlaybook) Run(playbookYml string, args []string) error {
-	if len(p.files) == 0 {
-		panic("AdHocPlaybook files is empty; This is a flaw in the source code. Please send bug report.")
-	}
-
-	defer p.removeFiles()
-	if err := p.dumpFiles(); err != nil {
-		return err
-	}
-
-	return p.Playbook.Run(playbookYml, args)
-}
-
-func (p *AdHocPlaybook) dumpFiles() error {
+func (p *AdHocPlaybook) DumpFiles() func() {
 	for fileName, content := range p.files {
-		destination := filepath.Join(p.root, fileName)
+		destination := filepath.Join(p.path, fileName)
 		contentByte := []byte(content)
 
 		if err := ioutil.WriteFile(destination, contentByte, 0644); err != nil {
-			return err
+			panic("Could not write temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}
 
-	return nil
+	return func() {
+		p.removeFiles()
+	}
 }
 
-func (p *AdHocPlaybook) removeFiles() error {
-	for fileName, _ := range p.files {
-		destination := filepath.Join(p.root, fileName)
+func (p *AdHocPlaybook) removeFiles() {
+	for fileName := range p.files {
+		destination := filepath.Join(p.path, fileName)
 
 		if err := os.Remove(destination); err != nil {
-			return err
+			panic("Could not delete temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}
-
-	return nil
 }

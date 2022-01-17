@@ -4,14 +4,16 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/mitchellh/cli"
-	"github.com/posener/complete"
-	"github.com/roots/trellis-cli/trellis"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fatih/color"
+	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/trellis"
 )
 
 type AliasCommand struct {
@@ -19,8 +21,8 @@ type AliasCommand struct {
 	flags             *flag.FlagSet
 	Trellis           *trellis.Trellis
 	local             string
-	aliasPlaybook     PlaybookRunner
-	aliasCopyPlaybook PlaybookRunner
+	aliasPlaybook     *AdHocPlaybook
+	aliasCopyPlaybook *AdHocPlaybook
 }
 
 //go:embed files/playbooks/alias.yml
@@ -37,21 +39,17 @@ var aliasCopyYml string
 
 func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
 	aliasPlaybook := &AdHocPlaybook{
+		path: trellis.Path,
 		files: map[string]string{
 			"alias.yml":    aliasYml,
 			"alias.yml.j2": strings.TrimSpace(aliasYmlJ2) + "\n",
 		},
-		Playbook: Playbook{
-			ui: ui,
-		},
 	}
 
 	aliasCopyPlaybook := &AdHocPlaybook{
+		path: trellis.Path,
 		files: map[string]string{
 			"alias-copy.yml": aliasCopyYml,
-		},
-		Playbook: Playbook{
-			ui: ui,
 		},
 	}
 
@@ -101,16 +99,19 @@ func (c *AliasCommand) Run(args []string) int {
 	}
 	defer os.RemoveAll(tempDir)
 
-	c.aliasPlaybook.SetRoot(c.Trellis.Path)
+	defer c.aliasPlaybook.DumpFiles()()
 
 	for _, environment := range remoteEnvironments {
 		args := []string{
+			"alias.yml",
 			"-vvv",
 			"-e", "env=" + environment,
 			"-e", "trellis_alias_j2=alias.yml.j2",
 			"-e", "trellis_alias_temp_dir=" + tempDir,
 		}
-		if err := c.aliasPlaybook.Run("alias.yml", args); err != nil {
+		aliasPlaybook := command.Cmd("ansible-playbook", args)
+
+		if err := aliasPlaybook.Run(); err != nil {
 			c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias.yml: %s", err))
 			return 1
 		}
@@ -133,9 +134,11 @@ func (c *AliasCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.aliasCopyPlaybook.SetRoot(c.Trellis.Path)
+	defer c.aliasCopyPlaybook.DumpFiles()()
 
-	if err := c.aliasCopyPlaybook.Run("alias-copy.yml", []string{"-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath}); err != nil {
+	aliasCopyPlaybook := command.Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
+
+	if err := aliasCopyPlaybook.Run(); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias-copy.yml: %s", err))
 		return 1
 	}

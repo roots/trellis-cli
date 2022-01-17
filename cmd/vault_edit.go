@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -31,7 +32,7 @@ func (c *VaultEditCommand) Run(args []string) int {
 
 	file := args[0]
 
-	vaultEdit := execCommand("ansible-vault", []string{"edit", file}, c.UI)
+	vaultEdit := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", []string{"edit", file})
 	err := vaultEdit.Run()
 
 	if err != nil {

@@ -7,19 +7,19 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
 type XdebugTunnelOpenCommand struct {
-	UI       cli.Ui
-	Trellis  *trellis.Trellis
-	flags    *flag.FlagSet
-	playbook PlaybookRunner
-	verbose  bool
+	UI      cli.Ui
+	Trellis *trellis.Trellis
+	flags   *flag.FlagSet
+	verbose bool
 }
 
 func NewXdebugTunnelOpenCommand(ui cli.Ui, trellis *trellis.Trellis) *XdebugTunnelOpenCommand {
-	c := &XdebugTunnelOpenCommand{UI: ui, Trellis: trellis, playbook: &Playbook{ui: ui}}
+	c := &XdebugTunnelOpenCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
@@ -52,17 +52,17 @@ func (c *XdebugTunnelOpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.playbook.SetRoot(c.Trellis.Path)
-
 	host := args[0]
 	inventoryHost := fmt.Sprintf("xdebug_tunnel_inventory_host=%s", host)
-	playbookArgs := []string{"-e", "xdebug_remote_enable=1", "-e", "sshd_allow_tcp_forwarding=yes", "-e", inventoryHost}
+	playbookArgs := []string{"xdebug-tunnel.yml", "-e", "xdebug_remote_enable=1", "-e", "sshd_allow_tcp_forwarding=yes", "-e", inventoryHost}
 
 	if c.verbose {
 		playbookArgs = append(playbookArgs, "-vvvv")
 	}
 
-	if err := c.playbook.Run("xdebug-tunnel.yml", playbookArgs); err != nil {
+	xdebugOpen := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbookArgs)
+
+	if err := xdebugOpen.Run(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

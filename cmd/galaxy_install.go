@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -54,7 +55,10 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 
 	mockUi := cli.NewMockUi()
 
-	galaxyInstall := execCommandWithOutput("ansible-galaxy", []string{"install", "-r", files[0]}, mockUi)
+	galaxyInstall := command.WithOptions(
+		command.WithUiOutput(mockUi),
+	).Cmd("ansible-galaxy", []string{"install", "-r", files[0]})
+
 	err := galaxyInstall.Run()
 
 	if err != nil {
@@ -81,7 +85,7 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 	if len(rolesToForceUpdate) > 0 {
 		c.UI.Info(fmt.Sprintf("Updating roles: %s\n", strings.Join(rolesToForceUpdate, ", ")))
 		installArgs := append([]string{"install", "-f", "-r", files[0]}, rolesToForceUpdate...)
-		galaxyInstall := execCommandWithOutput("ansible-galaxy", installArgs, c.UI)
+		galaxyInstall := command.WithOptions(command.WithLogging(c.UI)).Cmd("ansible-galaxy", installArgs)
 		err = galaxyInstall.Run()
 
 		if err != nil {

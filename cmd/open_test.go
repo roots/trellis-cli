@@ -59,8 +59,6 @@ func TestOpenRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	defer MockExec(t)()
-
 	cases := []struct {
 		name string
 		args []string
@@ -90,6 +88,8 @@ func TestOpenRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			downCommand := &OpenCommand{ui, trellis}
 			code := downCommand.Run(tc.args)
 

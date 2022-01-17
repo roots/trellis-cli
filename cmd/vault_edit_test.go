@@ -55,7 +55,6 @@ func TestVaultEditRunValidations(t *testing.T) {
 
 func TestVaultEditRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
-	defer MockExec(t)()
 
 	trellis := trellis.NewTrellis()
 
@@ -76,6 +75,8 @@ func TestVaultEditRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			vaultEditCommand := VaultEditCommand{ui, trellis}
 			code := vaultEditCommand.Run(tc.args)
 

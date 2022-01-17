@@ -56,8 +56,6 @@ func TestUpRunValidations(t *testing.T) {
 func TestUpRun(t *testing.T) {
 	trellis := trellis.NewMockTrellis(true)
 
-	defer MockExec(t)()
-
 	cases := []struct {
 		name string
 		args []string
@@ -81,6 +79,8 @@ func TestUpRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
+			defer MockUiExec(t, ui)()
+
 			upCommand := NewUpCommand(ui, trellis)
 			code := upCommand.Run(tc.args)
 

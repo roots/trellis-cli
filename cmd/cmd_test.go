@@ -3,31 +3,20 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/command"
 )
 
-func mockExecCommand(command string, args []string, ui cli.Ui) *exec.Cmd {
-	cs := []string{"-test.run=TestHelperProcess", "--", command}
-	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Stderr = &UiErrorWriter{ui}
-	cmd.Stdout = &cli.UiWriter{ui}
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-	return cmd
-}
-
-func MockExec(t *testing.T) func() {
+func MockUiExec(t *testing.T, ui *cli.MockUi) func() {
 	t.Helper()
 
-	execCommandWithOutput = mockExecCommand
-	execCommand = mockExecCommand
+	command.Mock(command.MockExecCommand(ui.OutputWriter, ui.ErrorWriter))
+
 	return func() {
-		execCommandWithOutput = CommandExecWithOutput
-		execCommand = CommandExec
+		command.Restore()
 	}
 }
 
@@ -38,10 +27,4 @@ func TestHelperProcess(t *testing.T) {
 
 	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
-}
-
-type MockCommand struct {
-	cmd  string
-	args string
-	env  []string
 }
