@@ -17,6 +17,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
 	"github.com/posener/complete"
+	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -82,7 +83,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 			return 1
 		}
 
-		_, err = exec.Command("gh", "auth", "status").Output()
+		_, err = command.Cmd("gh", []string{"auth", "status"}).Output()
 		if err != nil {
 			c.UI.Error("Error: GitHub CLI is not authenticated.")
 			c.UI.Error("Run `gh auth login` first.")
@@ -128,7 +129,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	}
 
 	keygenArgs := []string{"-t", "ed25519", "-C", deployKeyName, "-f", keyPath, "-P", ""}
-	sshKeygen := exec.Command("ssh-keygen", keygenArgs...)
+	sshKeygen := command.Cmd("ssh-keygen", keygenArgs)
 	sshKeygen.Stdout = io.Discard
 	sshKeygen.Stderr = os.Stderr
 	err := sshKeygen.Run()
@@ -197,14 +198,15 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 1
 	}
 
-	keyscanOutput, err := exec.Command("ssh-keyscan", "-t", "ed25519", "-H", strings.Join(hosts, " ")).Output()
-	if err != nil {
-		c.UI.Error("Error: could not set SSH known hosts. ssh-keyscan command failed.")
-		c.UI.Error(err.Error())
+	knownHosts := keyscanHosts(hosts)
+
+	if len(knownHosts) == 0 {
+		c.UI.Error("Error: could not set SSH known hosts.")
+		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", hosts))
 		return 1
 	}
 
-	err = githubCLI("secret", "set", sshKnownHostsSecret, "--body", string(keyscanOutput))
+	err = githubCLI("secret", "set", sshKnownHostsSecret, "--body", strings.Join(knownHosts, "\n"))
 	if err != nil {
 		c.UI.Error("Error: could not set GitHub secret")
 		c.UI.Error(err.Error())
@@ -308,7 +310,7 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func githubCLI(args ...string) error {
-	ghCmd := exec.Command("gh", args...)
+	ghCmd := command.Cmd("gh", args)
 	ghCmd.Stdout = io.Discard
 	ghCmd.Stderr = os.Stderr
 
@@ -316,7 +318,8 @@ func githubCLI(args ...string) error {
 }
 
 func getAnsibleHosts() (hosts []string, err error) {
-	hostsOutput, err := exec.Command("ansible", "all", "--list-hosts").Output()
+	args := []string{"all", "--list-hosts", "--limit", "!development"}
+	hostsOutput, err := command.Cmd("ansible", args).Output()
 
 	if err != nil {
 		return nil, err
@@ -352,8 +355,26 @@ func parseAnsibleHosts(output string) (hosts []string) {
 			continue
 		}
 
+		// remove default placeholder since it will cause  an error
+		// this isn't ideal, but it will do
+		if host == "your_server_hostname" {
+			continue
+		}
+
 		hosts = append(hosts, host)
 	}
 
 	return hosts
+}
+
+func keyscanHosts(hosts []string) (knownHosts []string) {
+	for _, host := range hosts {
+		output, err := command.Cmd("ssh-keyscan", []string{"-t", "ed25519", "-H", "-T", "1", host}).Output()
+
+		if err == nil {
+			knownHosts = append(knownHosts, string(output))
+		}
+	}
+
+	return knownHosts
 }
