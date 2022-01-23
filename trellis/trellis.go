@@ -97,11 +97,14 @@ func (t *Trellis) CreateConfigDir() error {
 func (t *Trellis) CheckVirtualenv(ui cli.Ui) {
 	if !t.venvWarned && !t.VenvInitialized {
 		ui.Warn(fmt.Sprintf(`
-WARNING: no virtualenv found for this project. Trellis may not work as expected.
+WARNING: This project has not been initialized with trellis-cli and may not work as expected.
+
+You may see this warning if you are using trellis-cli on an existing project (previously created without the CLI).
 To ensure you have the required dependencies, initialize the project with the following command:
 
-$ trellis init
+  $ trellis init
 
+If you want to manage dependencies yourself manually, you can ignore this warning.
 To disable this automated check, set the %s environment variable to 'false': export %s=false
 
   `, TrellisVenvEnvName, TrellisVenvEnvName))
