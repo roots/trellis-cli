@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/digitalocean/godo v1.74.0
+	github.com/digitalocean/godo v1.75.0
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/fatih/color v1.13.0
 	github.com/frankban/quicktest v1.11.2 // indirect
