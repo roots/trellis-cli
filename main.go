@@ -136,6 +136,9 @@ func main() {
 		"ssh": func() (cli.Command, error) {
 			return &cmd.SshCommand{ui, trellis}, nil
 		},
+		"start": func() (cli.Command, error) {
+			return cmd.NewStartCommand(ui, trellis), nil
+		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},

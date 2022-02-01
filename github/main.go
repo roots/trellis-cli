@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,10 +19,16 @@ var (
 	Client  = &http.Client{Timeout: time.Second * 5}
 )
 
+type Asset struct {
+	Name string `json:"name"`
+	Url  string `json:"browser_download_url"`
+}
+
 type Release struct {
-	Version string `json:"tag_name"`
-	ZipUrl  string `json:"zipball_url"`
-	URL     string `json:"html_url"`
+	Assets  []Asset `json:"assets"`
+	Version string  `json:"tag_name"`
+	ZipUrl  string  `json:"zipball_url"`
+	URL     string  `json:"html_url"`
 }
 
 func NewReleaseFromVersion(repo string, version string) *Release {
@@ -46,7 +53,7 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	os.Chdir(path)
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
-	err = DownloadFile(archivePath, release.ZipUrl, Client)
+	err = downloadFile(archivePath, release.ZipUrl, Client)
 	defer os.Remove(archivePath)
 
 	if err != nil {
@@ -74,6 +81,36 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	}
 
 	return release, nil
+}
+
+func DownloadAsset(repo string, version string, path string, dest string, pattern string) (asset *Asset, archivePath string) {
+	var err error
+	var release *Release
+
+	if version == "latest" {
+		release, err = FetchLatestRelease(repo, Client)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if version == "dev" {
+		release = NewReleaseFromVersion(repo, "master")
+	} else {
+		release = NewReleaseFromVersion(repo, version)
+	}
+
+	asset = findAsset(release.Assets, pattern)
+	err = downloadFile(filepath.Join(path, asset.Name), asset.Url, Client)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	archivePath = filepath.Join(path, asset.Name)
+	if err := archiver.Unarchive(archivePath, path); err != nil {
+		log.Fatal(err)
+	}
+
+	return asset, archivePath
 }
 
 func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
@@ -105,7 +142,17 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	return release, nil
 }
 
-func DownloadFile(filepath string, url string, client *http.Client) error {
+func findAsset(assets []Asset, pattern string) *Asset {
+	for _, asset := range assets {
+		if strings.Contains(strings.ToLower(asset.Url), strings.ToLower(pattern)) {
+			return &asset
+		}
+	}
+
+	return nil
+}
+
+func downloadFile(filepath string, url string, client *http.Client) error {
 	out, err := os.Create(filepath)
 	if err != nil {
 		return fmt.Errorf("Could not create file %s: %v", filepath, err)
