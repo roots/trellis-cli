@@ -13,6 +13,7 @@ import (
 )
 
 const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
+const LimaInventoryFilePath string = ".trellis/lima/inventory"
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
 	c := &ProvisionCommand{UI: ui, Trellis: trellis}
@@ -88,9 +89,10 @@ func (c *ProvisionCommand) Run(args []string) int {
 
 	if environment == "development" {
 		playbookFile = "dev.yml"
+		devInventoryFile := findDevHostsFile(c.Trellis.Path)
 
-		if _, err := os.Stat(filepath.Join(c.Trellis.Path, VagrantInventoryFilePath)); err == nil {
-			playbookArgs = append(playbookArgs, "--inventory-file", VagrantInventoryFilePath)
+		if devInventoryFile != "" {
+			playbookArgs = append(playbookArgs, "--inventory-file", devInventoryFile)
 		}
 	}
 
@@ -159,4 +161,16 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 		"--tags":       complete.PredictNothing,
 		"--verbose":    complete.PredictNothing,
 	}
+}
+
+func findDevHostsFile(path string) string {
+	if _, limaInventoryErr := os.Stat(filepath.Join(path, LimaInventoryFilePath)); limaInventoryErr == nil {
+		return LimaInventoryFilePath
+	}
+
+	if _, vagrantInventoryErr := os.Stat(filepath.Join(path, VagrantInventoryFilePath)); vagrantInventoryErr == nil {
+		return VagrantInventoryFilePath
+	}
+
+	return ""
 }
