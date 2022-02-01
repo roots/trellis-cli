@@ -1,0 +1,20 @@
+vmType: "vz"
+images:
+{{ range $image := .Images -}}
+- location: {{ $image.Location }}
+  arch: {{ $image.Arch }}
+{{ end }}
+mounts:
+{{ range $siteName, $site := .Sites -}}
+- location: {{ $site.AbsLocalPath }}
+  mountPoint: /srv/www/{{ $siteName }}/current
+  writable: true
+{{ end }}
+mountType: "virtiofs"
+networks:
+- vzNAT: true
+portForwards:
+- guestPort: 80
+  hostPort: {{ .HttpForwardPort }}
+containerd:
+  user: false

@@ -37,6 +37,20 @@ var DefaultCliConfig = cli_config.Config{
 	LoadPlugins:             true,
 	Open:                    make(map[string]string),
 	VirtualenvIntegration:   true,
+	Vm: cli_config.VmConfig{
+		Manager:       "lima",
+		HostsResolver: "hosts_file",
+		Images: []cli_config.VmImage{
+			{
+				Location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img",
+				Arch:     "x86_64",
+			},
+			{
+				Location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img",
+				Arch:     "aarch64",
+			},
+		},
+	},
 }
 
 type Trellis struct {

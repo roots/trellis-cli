@@ -23,7 +23,7 @@ func LoadFixtureProject(t *testing.T) func() {
 	err = cmd.Run()
 
 	if err != nil {
-		t.Fatalf("err: %s", err)
+		t.Fatalf("failed to copy trellis fixture project: %s", err)
 	}
 
 	os.Chdir(filepath.Join(tempDir, "trellis"))
