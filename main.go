@@ -19,6 +19,9 @@ import (
 // To be replaced by goreleaser build flags.
 var version = "canary"
 var updaterRepo = ""
+var experimentalCommands = []string{
+	"vm",
+}
 
 func main() {
 	c := cli.NewCLI("trellis", version)
@@ -35,6 +38,8 @@ func main() {
 	}
 
 	trellis := trellis.NewTrellis()
+
+	// load global CLI config
 	if err := trellis.LoadCliConfig(); err != nil {
 		ui.Error(err.Error())
 		os.Exit(1)
@@ -134,7 +139,7 @@ func main() {
 			return cmd.NewRollbackCommand(ui, trellis), nil
 		},
 		"shell-init": func() (cli.Command, error) {
-			return &cmd.ShellInitCommand{ui}, nil
+			return &cmd.ShellInitCommand{UI: ui}, nil
 		},
 		"ssh": func() (cli.Command, error) {
 			return cmd.NewSshCommand(ui, trellis), nil
@@ -149,7 +154,7 @@ func main() {
 			}, nil
 		},
 		"vault edit": func() (cli.Command, error) {
-			return &cmd.VaultEditCommand{ui, trellis}, nil
+			return &cmd.VaultEditCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vault encrypt": func() (cli.Command, error) {
 			return cmd.NewVaultEncryptCommand(ui, trellis), nil
@@ -172,6 +177,27 @@ func main() {
 		"venv hook": func() (cli.Command, error) {
 			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"vm": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis vm <subcommand> [<args>]",
+				SynopsisText: "Commands for managing development virtual machines",
+			}, nil
+		},
+		"vm delete": func() (cli.Command, error) {
+			return cmd.NewVmDeleteCommand(ui, trellis), nil
+		},
+		"vm shell": func() (cli.Command, error) {
+			return &cmd.VmShellCommand{UI: ui, Trellis: trellis}, nil
+		},
+		"vm start": func() (cli.Command, error) {
+			return cmd.NewVmStartCommand(ui, trellis), nil
+		},
+		"vm stop": func() (cli.Command, error) {
+			return cmd.NewVmStopCommand(ui, trellis), nil
+		},
+		"vm sudoers": func() (cli.Command, error) {
+			return &cmd.VmSudoersCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"xdebug-tunnel": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis xdebug-tunnel <subcommand> [<args>]",
@@ -187,6 +213,7 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
+	c.HelpFunc = experimentalCommandHelpFunc(c.Name, cli.BasicHelpFunc("trellis"))
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
