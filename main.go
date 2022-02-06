@@ -139,6 +139,9 @@ func main() {
 		"start": func() (cli.Command, error) {
 			return cmd.NewStartCommand(ui, trellis), nil
 		},
+		"stop": func() (cli.Command, error) {
+			return cmd.NewStopCommand(ui, trellis), nil
+		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
