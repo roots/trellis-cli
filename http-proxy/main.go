@@ -65,10 +65,10 @@ func Install() error {
 	}
 
 	conn, err := net.DialTimeout("tcp", ":80", time.Second)
-	if err != nil {
+	if err == nil && conn != nil {
+		conn.Close()
 		return PortInUseError
 	}
-	conn.Close()
 
 	err = command.Cmd("launchctl", []string{"load", plistPath()}).Run()
 	if err != nil {
