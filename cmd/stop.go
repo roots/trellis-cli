@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/config"
@@ -61,10 +63,15 @@ func (c *StopCommand) Run(args []string) int {
 	instance, ok := lima.GetInstance(siteName)
 
 	if ok {
-		err := instance.Stop()
-		if err != nil {
-			c.UI.Error("Error stopping lima instance")
-			return 1
+		if instance.Stopped() {
+			c.UI.Info(fmt.Sprintf("%s Lima VM already stopped", color.GreenString("[✓]")))
+			return 0
+		} else {
+			if err := instance.Stop(); err != nil {
+				c.UI.Error("Error stopping lima instance")
+				c.UI.Error(err.Error())
+				return 1
+			}
 		}
 	} else {
 		c.UI.Info("Lima instance does not exist for this project. Start it first?")
@@ -90,6 +97,7 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.UI.Info(fmt.Sprintf("\n%s Lima VM stopped\n", color.GreenString("[✓]")))
 	return 0
 }
 

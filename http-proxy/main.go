@@ -2,12 +2,15 @@ package httpProxy
 
 import (
 	_ "embed"
+	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/roots/trellis-cli/command"
@@ -16,6 +19,11 @@ import (
 
 //go:embed files/service.plist
 var PlistTemplate string
+
+var (
+	PortInUseError    = errors.New("Port 80 already in use")
+	LaunchDaemonError = errors.New("Could not start daemon")
+)
 
 const (
 	ServiceName     string = "com.roots.trellis"
@@ -56,9 +64,15 @@ func Install() error {
 		}
 	}
 
+	conn, err := net.DialTimeout("tcp", ":80", time.Second)
+	defer conn.Close()
+	if err != nil {
+		return PortInUseError
+	}
+
 	err = command.Cmd("launchctl", []string{"load", plistPath()}).Run()
 	if err != nil {
-		return err
+		return LaunchDaemonError
 	}
 
 	return nil
