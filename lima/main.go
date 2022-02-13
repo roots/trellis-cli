@@ -3,6 +3,8 @@ package lima
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -16,6 +18,11 @@ import (
 
 //go:embed files/config.yml
 var ConfigTemplate string
+
+var (
+	ConfigError    = errors.New("Could not write Lima config file")
+	HydrationError = errors.New("Could not fetch Lima instance data")
+)
 
 type PortForward struct {
 	GuestPort int `yaml:"guestPort"`
@@ -106,16 +113,20 @@ func (i *Instance) Stop() error {
 	return err
 }
 
+func (i *Instance) Stopped() bool {
+	return i.Status == "Stopped"
+}
+
 func (i *Instance) hydrateFromConfig() error {
 	config := &Config{}
 
 	configYaml, err := os.ReadFile(i.ConfigFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %w", HydrationError, err)
 	}
 
 	if err = yaml.Unmarshal(configYaml, config); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", HydrationError, err)
 	}
 
 	i.HttpForwardPort = config.PortForwards[0].HostPort
@@ -126,13 +137,13 @@ func (i *Instance) hydrateFromConfig() error {
 func (i *Instance) hydrateFromLima() error {
 	output, err := command.Cmd("limactl", []string{"list", "--json", i.Name}).Output()
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %w", HydrationError, err)
 	}
 
 	data := strings.Split(string(output), "\n")[0]
 
 	if err = json.Unmarshal([]byte(data), i); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", HydrationError, err)
 	}
 
 	return nil
@@ -168,12 +179,12 @@ func (i *Instance) CreateConfig() error {
 
 	file, err := os.Create(i.ConfigFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %w", ConfigError, err)
 	}
 
 	err = tpl.Execute(file, i)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %w", ConfigError, err)
 	}
 
 	return nil

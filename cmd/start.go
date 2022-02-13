@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -69,7 +70,7 @@ func (c *StartCommand) Run(args []string) int {
 	}
 
 	dataDir := dataDirs[0]
-	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		c.UI.Error("Error creating trellis-cli data dir.")
 		c.UI.Error(err.Error())
 		return 1
@@ -125,13 +126,21 @@ func (c *StartCommand) Run(args []string) int {
 	}
 
 	if err := httpProxy.Install(); err != nil {
-		c.UI.Error("Error installing HTTP proxy launch agent.")
-		c.UI.Error(err.Error())
+		c.UI.Error("Error installing reverse HTTP proxy.")
+
+		if errors.Is(err, httpProxy.PortInUseError) {
+			c.UI.Error(err.Error())
+			c.UI.Error("You likely have another web server or service running on port 80. trellis-cli runs a reverse HTTP proxy on port 80 for access to Nginx on the virtual machines.")
+			c.UI.Error("Using the `lsof` command will let you know what is listening on port 80.")
+			c.UI.Error("=> sudo lsof -nP -i4TCP:80 | grep LISTEN")
+		} else {
+			c.UI.Error(err.Error())
+		}
 		return 1
 	}
 
 	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
-	os.MkdirAll(limaConfigPath, os.ModePerm)
+	os.MkdirAll(limaConfigPath, 0644)
 
 	var firstRun bool = false
 	var instance *lima.Instance
@@ -174,14 +183,14 @@ func (c *StartCommand) Run(args []string) int {
 
 	sshConfigPath := filepath.Join(limaConfigPath, "ssh_config")
 	if err = addSshConfigInclude(sshConfigPath); err != nil {
-		c.UI.Error("Error adding SSH config include")
+		c.UI.Error("Error adding include directive to ~/.ssh/config")
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	err = createSshConfig(sshConfigPath, instance.Name)
 	if err != nil {
-		c.UI.Error("Error creating SSH configs")
+		c.UI.Error("Error creating SSH config")
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -205,10 +214,17 @@ func (c *StartCommand) Run(args []string) int {
 		}
 
 		err = command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("mutagen", mutagenArgs).Run()
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error creating mutagen sync: %v", err))
+			return 1
+		}
 	}
 
 	hostsPath := filepath.Join(limaConfigPath, "inventory")
-	err = createLimaHostsFile(hostsPath, instance.SshLocalPort)
+	if err = createInventoryFile(hostsPath, instance.SshLocalPort); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
 
 	if firstRun {
 		c.UI.Info("\nProvisioning VM...")
@@ -270,7 +286,7 @@ func installMutagen(installPath string) error {
 	return nil
 }
 
-func createLimaHostsFile(path string, port int) error {
+func createInventoryFile(path string, port int) error {
 	const hostsTemplate string = `
 [development]
 127.0.0.1 ansible_port={{ .Port }}
@@ -283,7 +299,7 @@ func createLimaHostsFile(path string, port int) error {
 
 	file, err := os.Create(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
 	}
 
 	data := struct {
@@ -294,7 +310,7 @@ func createLimaHostsFile(path string, port int) error {
 
 	err = tpl.Execute(file, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
 	}
 
 	return nil
@@ -307,11 +323,14 @@ func addSshConfigInclude(includesPath string) error {
 
 	configContents, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not read ~/.ssh/config: %v", err)
 	}
 
 	if !strings.Contains(string(configContents), includeStatement) {
-		os.WriteFile(path, []byte(includeStatement+string(configContents)), 0644)
+		err = os.WriteFile(path, []byte(includeStatement+string(configContents)), 0644)
+		if err != nil {
+			return fmt.Errorf("Could not write ~/.ssh/config: %v", err)
+		}
 	}
 
 	return nil
@@ -320,7 +339,7 @@ func addSshConfigInclude(includesPath string) error {
 func createSshConfig(path string, instanceName string) error {
 	sshConfig, err := command.Cmd("limactl", []string{"show-ssh", "--format=config", instanceName}).Output()
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not fetch lima SSH config: %v", err)
 	}
 
 	re := regexp.MustCompile(`User (.*)`)
@@ -335,7 +354,7 @@ func createSshConfig(path string, instanceName string) error {
 	contents := string(sshConfig) + "\n\n" + string(sshConfigWeb)
 	err = os.WriteFile(path, []byte(contents), 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not write SSH config to %s: %v", path, err)
 	}
 
 	return nil
