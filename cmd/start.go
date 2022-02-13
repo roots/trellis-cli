@@ -140,7 +140,7 @@ func (c *StartCommand) Run(args []string) int {
 	}
 
 	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
-	os.MkdirAll(limaConfigPath, 0644)
+	os.MkdirAll(limaConfigPath, 0755)
 
 	var firstRun bool = false
 	var instance *lima.Instance
