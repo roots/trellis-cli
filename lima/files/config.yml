@@ -5,7 +5,7 @@ images:
   arch: "aarch64"
 portForwards:
 - guestPort: 80
-  hostPort: 63389
+  hostPort: {{ .HttpForwardPort }}
 containerd:
   user: false
 provision:
