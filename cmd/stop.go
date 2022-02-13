@@ -2,20 +2,13 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"strings"
-	"text/template"
 
 	"github.com/mitchellh/cli"
-	"github.com/mitchellh/go-homedir"
 	"github.com/roots/trellis-cli/command"
-	"github.com/roots/trellis-cli/github"
+	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -65,22 +58,35 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 
-	limaInstanceName := lima.ConvertToInstanceName(siteName)
+	instance, ok := lima.GetInstance(siteName)
+
+	if ok {
+		err := instance.Stop()
+		if err != nil {
+			c.UI.Error("Error stopping lima instance")
+			return 1
+		}
+	} else {
+		c.UI.Info("Lima instance does not exist for this project. Start it first?")
+	}
 
 	err = command.WithOptions(
 		command.WithTermOutput(),
-		command.WithLogging(c.UI),
-	).Cmd("limactl", []string{"stop", limaInstanceName}).Run()
+	).Cmd("mutagen", []string{"sync", "terminate", instance.Name}).Run()
 
 	if err != nil {
 		return 1
 	}
 
-	err = command.WithOptions(
-		command.WithTermOutput(),
-	).Cmd("mutagen", []string{"sync", "terminate", limaInstanceName}).Run()
-
+	dataDirs, err := config.Scope.DataDirs()
 	if err != nil {
+		c.UI.Error("could not determine XDG data dir. This is a trellis-cli bug.")
+		return 1
+	}
+
+	err = deleteProxyRecords(dataDirs[0], c.Trellis.Environments["development"].AllHosts())
+	if err != nil {
+		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
 		return 1
 	}
 
@@ -102,4 +108,17 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func deleteProxyRecords(dataDir string, hosts []string) (err error) {
+	for _, host := range hosts {
+		path := filepath.Join(dataDir, host)
+		err = os.Remove(path)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

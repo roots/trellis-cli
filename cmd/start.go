@@ -12,10 +12,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/github"
+	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -59,6 +62,22 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
+	dataDirs, err := config.Scope.DataDirs()
+	if err != nil {
+		c.UI.Error("could not determine XDG data dir. This is a trellis-cli bug.")
+		return 1
+	}
+
+	dataDir := dataDirs[0]
+	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+		c.UI.Error("Error creating trellis-cli data dir.")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	osPath := os.Getenv("PATH")
+	os.Setenv("PATH", fmt.Sprintf("%s:%s", dataDir, osPath))
+
 	if _, err := exec.LookPath("limactl"); err != nil {
 		spinner := NewSpinner(
 			SpinnerCfg{
@@ -67,7 +86,7 @@ func (c *StartCommand) Run(args []string) int {
 			},
 		)
 		spinner.Start()
-		err := lima.Install(c.Trellis.Virtualenv.BinPath)
+		err := lima.Install(dataDir)
 
 		if err != nil {
 			spinner.StopFail()
@@ -87,7 +106,7 @@ func (c *StartCommand) Run(args []string) int {
 			},
 		)
 		spinner.Start()
-		installMutagen(c)
+		installMutagen(dataDir)
 
 		if err != nil {
 			spinner.StopFail()
@@ -105,40 +124,53 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
-	limaInstanceName := lima.ConvertToInstanceName(siteName)
+	if err := httpProxy.Install(); err != nil {
+		c.UI.Error("Error installing HTTP proxy launch agent.")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
 	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
 	os.MkdirAll(limaConfigPath, os.ModePerm)
 
-	configFilePath := filepath.Join(limaConfigPath, limaInstanceName+".yml")
+	var firstRun bool = false
+	var instance *lima.Instance
 
-	if err = lima.CreateConfig(configFilePath, siteName); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	instance, ok := lima.GetInstance(limaInstanceName)
-	var configOrName string
-
-	if ok {
-		configOrName = instance.Name
+	if lima.InstanceExists(siteName) {
+		instance = lima.NewInstance(siteName, limaConfigPath)
+		if err := instance.Start(); err != nil {
+			c.UI.Error("Error starting VM.")
+			c.UI.Error(err.Error())
+			return 1
+		}
 	} else {
-		configOrName = configFilePath
+		c.UI.Info("Creating new Lima VM...")
+		instance = lima.NewInstance(siteName, limaConfigPath)
+		firstRun = true
+		if err := instance.Create(); err != nil {
+			c.UI.Error("Error creating VM.")
+			c.UI.Error(err.Error())
+			return 1
+		}
 	}
 
-	err = command.WithOptions(
-		command.WithTermOutput(),
-		command.WithLogging(c.UI),
-	).Cmd("limactl", []string{"start", "--tty=false", configOrName}).Run()
-
+	instance, err = lima.HydrateInstance(siteName, limaConfigPath)
 	if err != nil {
-		c.UI.Error("Error starting lima instance.")
+		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	instance, _ = lima.GetInstance(limaInstanceName)
+	c.UI.Info(fmt.Sprintf("\n%s Lima VM started\n", color.GreenString("[✓]")))
+	c.UI.Info(fmt.Sprintf("Name: %s", instance.Name))
+	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
+	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
-	c.UI.Info(fmt.Sprintf("\nLima VM instance started: %s\n", instance.Name))
+	err = writeProxyRecords(dataDir, instance, c.Trellis.Environments["development"].AllHosts())
+	if err != nil {
+		c.UI.Error("Error writing hosts files for HTTP proxy. This is a trellis-cli bug; please report it.")
+		return 1
+	}
 
 	sshConfigPath := filepath.Join(limaConfigPath, "ssh_config")
 	if err = addSshConfigInclude(sshConfigPath); err != nil {
@@ -178,11 +210,18 @@ func (c *StartCommand) Run(args []string) int {
 	hostsPath := filepath.Join(limaConfigPath, "inventory")
 	err = createLimaHostsFile(hostsPath, instance.SshLocalPort)
 
-	c.UI.Info("\nProvisioning VM...")
+	if firstRun {
+		c.UI.Info("\nProvisioning VM...")
 
-	os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
-	provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-	return provisionCmd.Run([]string{"--extra-vars", "web_user=web", "development"})
+		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
+		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
+		return provisionCmd.Run([]string{"--extra-vars", "web_user=web", "development"})
+	} else {
+		c.UI.Info("\nSkipping provisioning. VM already created.")
+		c.UI.Info("To provision again, run: trellis provision development")
+	}
+
+	return 0
 }
 
 func (c *StartCommand) Synopsis() string {
@@ -202,7 +241,7 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
-func installMutagen(c *StartCommand) error {
+func installMutagen(installPath string) error {
 	tempDir, _ := ioutil.TempDir("", "trellis-mutagen")
 	defer os.RemoveAll(tempDir)
 
@@ -222,7 +261,7 @@ func installMutagen(c *StartCommand) error {
 	}
 
 	for _, file := range files {
-		err := os.Rename(filepath.Join(tempDir, file.Name()), filepath.Join(c.Trellis.Virtualenv.BinPath, file.Name()))
+		err := os.Rename(filepath.Join(tempDir, file.Name()), filepath.Join(installPath, file.Name()))
 		if err != nil {
 			return err
 		}
@@ -294,9 +333,23 @@ func createSshConfig(path string, instanceName string) error {
 	sshConfigWeb = re.ReplaceAll([]byte(sshConfigWeb), []byte(""))
 
 	contents := string(sshConfig) + "\n\n" + string(sshConfigWeb)
-	err = os.WriteFile(path, []byte(contents), os.ModePerm)
+	err = os.WriteFile(path, []byte(contents), 0644)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func writeProxyRecords(dataDir string, instance *lima.Instance, hosts []string) (err error) {
+	for _, host := range hosts {
+		path := filepath.Join(dataDir, host)
+		contents := []byte(fmt.Sprintf("http://127.0.0.1:%d", instance.HttpForwardPort))
+		err = os.WriteFile(path, contents, 0644)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

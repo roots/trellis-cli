@@ -34,6 +34,22 @@ type Config struct {
 	WordPressSites map[string]*Site `yaml:"wordpress_sites"`
 }
 
+func (c *Config) AllHosts() []string {
+	hosts := []string{}
+
+	for _, site := range c.WordPressSites {
+		for _, siteHost := range site.SiteHosts {
+			hosts = append(hosts, siteHost.Canonical)
+
+			for _, host := range siteHost.Redirects {
+				hosts = append(hosts, host)
+			}
+		}
+	}
+
+	return hosts
+}
+
 func (t *Trellis) ParseConfig(path string) *Config {
 	configYaml, err := os.ReadFile(path)
 

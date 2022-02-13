@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <title>Not found - Trellis Proxy</title>
+    <style>
+      html {
+        background: #fff;
+        font-size: 1rem;
+        padding-left: 40px;
+        padding-right: 40px;
+        line-height: 1.15;
+      }
+
+      body {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 0;
+        width: 100%;
+        background-color: #f4f6f8;
+        color: #212529;
+        font-family: sans-serif;
+        font-size: 1rem;
+        font-weight: 300;
+        line-height: 1.5;
+        padding: 1rem;
+      }
+
+      header {
+        border-bottom: 1px solid #c3c7ef;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      .logo {
+        float: left;
+        height: 40px;
+      }
+
+      header span {
+        color: #525ddc;
+        font-size: 2.15rem;
+        font-weight: bold;
+      }
+    </style>
+</head>
+<body>
+  <header>
+      <svg class="svg logo" width="74" height="74" viewBox="0 0 74 74" xmlns="http://www.w3.org/2000/svg"><path d="M60.125 0l-9.25 9.25L41.625 0H0v9.25h41.625l9.25 9.25 9.25-9.25H74V0H60.125zm-9.25 18.5l-9.25 9.25-9.25-9.25H0v9.25h32.375l9.25 9.25 9.25-9.25H74V18.5H50.875zM41.625 37l-9.25 9.25-9.25-9.25H0v9.25h23.125l9.25 9.25 9.25-9.25H74V37H41.625zm-9.25 18.5l-9.25 9.25-9.25-9.25H0v9.25h13.875l9.25 9.25 9.25-9.25H74V55.5H32.375z" fill="#525DDC" fill-rule="nonzero"></path></svg>
+      <span>trellis-cli reverse HTTP proxy</span>
+    </header>
+    <h1>Proxy host not found</h1>
+    <p>
+      Possible causes for this:
+      <ul>
+        <li>Typo in URL</li>
+        <li>Virtual machine is not started. Try running <code>trellis start</code> in your project directory.</li>
+      </ul>
+    </p>
+    <p>
+      Valid hosts are:
+      <ul>
+        {{range $key, $value := .Hosts}}<li><a href="http://{{ $key }}">{{ $key }}</a></li>{{end}}
+      </ul>
+    </p>
+</body>
