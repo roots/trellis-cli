@@ -3,6 +3,7 @@
 <plist version="1.0">
 	<dict>
     <key>Label</key><string>{{ .Label }}</string>
+    <key>ProgramArguments</key>
     <array>
       <string>{{ .Program }}</string>
       <string>-proxy</string>
