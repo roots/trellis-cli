@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -18,8 +17,9 @@ var Requirements = []trellis.Requirement{
 	{
 		Name:              "Python",
 		Command:           "python",
+		Optional:          false,
 		Url:               "https://www.python.org/",
-		VersionConstraint: ">= 2.7.0",
+		VersionConstraint: ">= 3.8.0",
 		ExtractVersion: func(output string) string {
 			return strings.Replace(output, "Python ", "", 1)
 		},
@@ -27,6 +27,7 @@ var Requirements = []trellis.Requirement{
 	{
 		Name:              "Vagrant",
 		Command:           "vagrant",
+		Optional:          true,
 		Url:               "https://www.vagrantup.com/downloads.html",
 		VersionConstraint: ">= 2.1.0",
 		ExtractVersion: func(output string) string {
@@ -36,6 +37,7 @@ var Requirements = []trellis.Requirement{
 	{
 		Name:              "VirtualBox",
 		Command:           "VBoxManage",
+		Optional:          true,
 		Url:               "https://www.virtualbox.org/wiki/Downloads",
 		VersionConstraint: ">= 4.3.10",
 	},
@@ -50,55 +52,76 @@ func (c *CheckCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info("Checking Trellis requirements\n")
+	c.UI.Info("Checking Trellis requirements...\n")
 
-	requirementsMet := 0
+	c.UI.Info("Required:\n")
+
+	requirementsMet := true
 
 	for _, req := range Requirements {
-		output := fmt.Sprintf("%s [%s]:", req.Name, req.VersionConstraint)
+		if req.Optional {
+			continue
+		}
 
-		result, err := req.Check()
+		result, err := checkRequirement(req)
 		if err != nil {
-			c.UI.Error(fmt.Sprintf("Error checking %s requirement: %s", req.Name, err))
+			c.UI.Error(err.Error())
 		}
 
-		if result.Installed {
-			if result.Satisfied {
-				requirementsMet += 1
-				output = fmt.Sprintf("%s %s %s", color.GreenString("[✓]"), output, color.GreenString(result.Version))
-			} else {
-				output = fmt.Sprintf("%s %s %s", color.RedString("[X]"), output, color.RedString(result.Version))
-			}
-		} else {
-			output = fmt.Sprintf("%s %s", output, color.RedString("not installed"))
+		if !result.Satisfied {
+			requirementsMet = false
 		}
 
-		c.UI.Info(output)
+		c.UI.Info(result.Message)
 	}
 
-	if requirementsMet == len(Requirements) {
-		c.UI.Info("\nAll requirements met")
+	c.UI.Info("\nOptional:\n")
+
+	for _, req := range Requirements {
+		if !req.Optional {
+			continue
+		}
+
+		result, err := checkRequirement(req)
+		if err != nil {
+			c.UI.Error(err.Error())
+		}
+
+		c.UI.Info(result.Message)
+	}
+
+	c.UI.Info("\nSee requirements documentation for more information:")
+	c.UI.Info("https://docs.roots.io/trellis/master/installation/#install-requirements")
+
+	if requirementsMet {
 		return 0
 	} else {
-		c.UI.Error(fmt.Sprintf("\n%d requirement(s) not met\n", len(Requirements)-requirementsMet))
-		c.UI.Info("See https://docs.roots.io/trellis/master/installation/#install-requirements")
 		return 1
 	}
 }
 
 func (c *CheckCommand) Synopsis() string {
-	return "Checks if Trellis requirements are met"
+	return "Checks if the required and optional Trellis dependencies are installed"
 }
 
 func (c *CheckCommand) Help() string {
 	helpText := `
 Usage: trellis check
 
-Checks if Trellis requirements are met
+Checks if the required and optional Trellis dependencies are installed.
 
 Options:
   -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func checkRequirement(req trellis.Requirement) (result trellis.RequirementResult, err error) {
+	result, err = req.Check()
+	if err != nil {
+		return result, fmt.Errorf("Error checking %s requirement: %v", req.Name, err)
+	}
+
+	return result, nil
 }
