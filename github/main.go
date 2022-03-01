@@ -2,11 +2,9 @@ package github
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,8 +14,10 @@ import (
 	"github.com/mholt/archiver"
 )
 
-var BaseURL = "https://api.github.com"
-var Client = &http.Client{Timeout: time.Second * 5}
+var (
+	BaseURL = "https://api.github.com"
+	Client  = &http.Client{Timeout: time.Second * 5}
+)
 
 type Release struct {
 	Version string `json:"tag_name"`
@@ -32,14 +32,11 @@ func NewReleaseFromVersion(repo string, version string) *Release {
 	}
 }
 
-func DownloadRelease(repo string, version string, path string, dest string) string {
-	var err error
-	var release *Release
-
+func DownloadRelease(repo string, version string, path string, dest string) (release *Release, err error) {
 	if version == "latest" {
 		release, err = FetchLatestRelease(repo, Client)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("Error fetching release information from the GitHub API: %v", err)
 		}
 	} else if version == "dev" {
 		release = NewReleaseFromVersion(repo, "master")
@@ -54,18 +51,18 @@ func DownloadRelease(repo string, version string, path string, dest string) stri
 	defer os.Remove(archivePath)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error deleting the temporary archive path: %v", err)
 	}
 
 	if err := archiver.Unarchive(archivePath, path); err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error extracting the release archive: %v", err)
 	}
 
 	org := strings.Split(repo, "/")[0]
 	dirs, _ := filepath.Glob(fmt.Sprintf("%s-*", org))
 
 	if len(dirs) == 0 {
-		log.Fatalln("Error: extracted release zip did not contain the expected directory")
+		return nil, fmt.Errorf("Extracted release archive did not contain the expected directory: %v", err)
 	}
 
 	for _, dir := range dirs {
@@ -73,11 +70,11 @@ func DownloadRelease(repo string, version string, path string, dest string) stri
 
 		if err != nil {
 			os.RemoveAll(dir)
-			log.Fatal(err)
+			return nil, fmt.Errorf("Error deleting temporary directories: %v", err)
 		}
 	}
 
-	return release.Version
+	return release, nil
 }
 
 func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
@@ -85,7 +82,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	resp, err := client.Get(url)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error fetching %s: %v", url, err)
 	}
 
 	defer resp.Body.Close()
@@ -93,13 +90,13 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error reading API response: %v", err)
 	}
 
 	release := &Release{}
 
 	if err = json.Unmarshal(body, release); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error parsing JSON response: %v", err)
 	}
 
 	return release, nil
@@ -108,23 +105,23 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 func DownloadFile(filepath string, url string) error {
 	out, err := os.Create(filepath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not create file %s: %v", filepath, err)
 	}
 	defer out.Close()
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not download file %s: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return errors.New(fmt.Sprintf("404 Not found: %s", url))
+		return fmt.Errorf("URL not found %s: %v", url, err)
 	}
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not write contents to file %s: %v", filepath, err)
 	}
 
 	return nil

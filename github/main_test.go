@@ -56,10 +56,10 @@ func TestDownloadRelease(t *testing.T) {
 
 	const expectedVersion = "1.0.0"
 
-	version := DownloadRelease("roots/trellis", expectedVersion, tmpDir, filepath.Join(tmpDir, "test_release_dir"))
+	release, err := DownloadRelease("roots/trellis", expectedVersion, tmpDir, filepath.Join(tmpDir, "test_release_dir"))
 
-	if expectedVersion != version {
-		t.Errorf("expected version %s but got %s", expectedVersion, version)
+	if expectedVersion != release.Version {
+		t.Errorf("expected version %s but got %s", expectedVersion, release.Version)
 	}
 }
 

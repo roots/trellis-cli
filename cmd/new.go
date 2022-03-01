@@ -100,18 +100,31 @@ func (c *NewCommand) Run(args []string) int {
 	if statErr != nil {
 		if os.IsNotExist(statErr) {
 			if err := os.MkdirAll(path, os.ModePerm); err != nil {
-				c.UI.Error(fmt.Sprintf("Error creating directory: %s", err))
+				c.UI.Error(fmt.Sprintf("Aborting: error creating directory: %s", err))
 				return 1
 			}
 		} else {
-			c.UI.Error(fmt.Sprintf("Error reading path %s", statErr))
+			c.UI.Error(fmt.Sprintf("Aborting: error reading path %s", statErr))
 			return 1
 		}
 	}
 
 	trellisPath := filepath.Join(path, "trellis")
-	trellisVersion := github.DownloadRelease("roots/trellis", c.trellisVersion, path, trellisPath)
-	bedrockVersion := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
+	trellisVersion, err := github.DownloadRelease("roots/trellis", c.trellisVersion, path, trellisPath)
+	if err != nil {
+		c.UI.Error("Aborting: error while downloading Trellis")
+		c.UI.Error(err.Error())
+		c.UI.Error("This might just be a network error. Please delete this project folder and try again.")
+		return 1
+	}
+
+	bedrockVersion, err := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
+	if err != nil {
+		c.UI.Error("Aborting: error while downloading Bedrock")
+		c.UI.Error(err.Error())
+		c.UI.Error("This might just be a network error. Please delete this project folder and try again.")
+		return 1
+	}
 
 	os.Chdir(path)
 
@@ -125,6 +138,8 @@ func (c *NewCommand) Run(args []string) int {
 		code := initCommand.Run([]string{})
 
 		if code != 0 {
+			c.UI.Error("Aborting: project failed to initialize.")
+			c.UI.Error("This might be a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
 			return 1
 		}
 	}
@@ -149,14 +164,21 @@ func (c *NewCommand) Run(args []string) int {
 
 	if err := c.trellis.GenerateVaultPassFile(c.vaultPass); err != nil {
 		c.UI.Error(fmt.Sprintf("Error writing Vault pass file: %s", err))
+		c.UI.Error("Your project may not work correctly.")
+		c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
 	}
 
 	if err := c.trellis.UpdateAnsibleConfig("defaults", "vault_password_file", c.vaultPass); err != nil {
 		c.UI.Error(fmt.Sprintf("Error adding vault_password_file setting to ansible.cfg: %s", err))
+		c.UI.Error("Your project may not work correctly.")
+		c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
 	}
 
 	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.trellis}
-	galaxyInstallCommand.Run([]string{})
+	code := galaxyInstallCommand.Run([]string{})
+	if code != 0 {
+		return 1
+	}
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis %s\n", trellisVersion)
@@ -182,25 +204,25 @@ Create a new project in the current directory:
 
   $ trellis new .
 
-Create a new project in the target path:
+Create a new project in the specified target path:
 
-  $ trellis new ~/projects/example.com
+  $ trellis new ./example.com
 
 Force create a new project in a non-empty target path:
 
-  $ trellis new --force ~/projects/example.com
+  $ trellis new --force ./example.com
 
 Specify name and host to bypass the prompts:
 
-  $ trellis new --name example.com --host www.example.com ~/projects/foo
+  $ trellis new --name example.com --host www.example.com ~/path/to/myproject
 
 Create a new project with the dev version of Trellis:
 
-  $ trellis new --trellis-version dev ~/projects/example.com
+  $ trellis new --trellis-version dev ./example.com
 
 Create a new project with a specific version of Trellis:
 
-  $ trellis new --trellis-version 1.7.0 ~/projects/example.com
+  $ trellis new --trellis-version 1.7.0 ./example.com
 
 Arguments:
   PATH  Path to create new project in
