@@ -25,9 +25,9 @@ func TestVenvHookRunActivatesEnv(t *testing.T) {
 
 	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-	venv := fmt.Sprintf("export %s=%s", trellis.VenvEnvName, tp.Virtualenv.Path)
-	oldPath := fmt.Sprintf("export %s=%s", trellis.OldPathEnvName, tp.Virtualenv.OldPath)
-	path := fmt.Sprintf("export %s=%s:%s", trellis.PathEnvName, tp.Virtualenv.BinPath, tp.Virtualenv.OldPath)
+	venv := fmt.Sprintf("export %s=\"%s\"", trellis.VenvEnvName, tp.Virtualenv.Path)
+	oldPath := fmt.Sprintf("export %s=\"%s\"", trellis.OldPathEnvName, tp.Virtualenv.OldPath)
+	path := fmt.Sprintf("export %s=\"%s\":\"%s\"", trellis.PathEnvName, tp.Virtualenv.BinPath, tp.Virtualenv.OldPath)
 
 	expected := fmt.Sprintf("%s\n%s\n%s\n", venv, oldPath, path)
 
