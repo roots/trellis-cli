@@ -62,8 +62,9 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 	err := galaxyInstall.Run()
 
 	if err != nil {
+		c.UI.Error("Error while installing Ansible Galaxy roles:")
 		c.UI.Error(mockUi.ErrorWriter.String())
-		c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
+		c.UI.Error("This may be a temporary network issue. Please try again.")
 		return 1
 	}
 
@@ -89,7 +90,8 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 		err = galaxyInstall.Run()
 
 		if err != nil {
-			c.UI.Error(fmt.Sprintf("Error running ansible-galaxy: %s", err))
+			c.UI.Error("Error while updating Ansible Galaxy roles:")
+			c.UI.Error("This may be a temporary network issue. Please try again.")
 			return 1
 		}
 	}
