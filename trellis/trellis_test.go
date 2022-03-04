@@ -10,8 +10,7 @@ import (
 )
 
 func TestCreateConfigDir(t *testing.T) {
-	dir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	configPath := dir + "/testing-trellis-create-config-dir"
 
 	trellis := Trellis{
@@ -260,13 +259,9 @@ func TestActivateProjectForProjects(t *testing.T) {
 }
 
 func TestActivateProjectForNonProjects(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	tempDir := t.TempDir()
 
 	defer TestChdir(t, tempDir)()
-	defer os.RemoveAll(tempDir)
 
 	tp := NewTrellis()
 

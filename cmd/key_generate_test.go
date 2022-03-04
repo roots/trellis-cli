@@ -66,8 +66,7 @@ func TestKeyGenerateNewKey(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	tmpDir, _ := ioutil.TempDir("", "key_generate_test")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	ui := cli.NewMockUi()
 	keyGenerateCommand := NewKeyGenerateCommand(ui, trellis)
@@ -96,8 +95,7 @@ func TestKeyGenerateExistingPrivateKey(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	tmpDir, _ := ioutil.TempDir("", "key_generate_test")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	privateKeyPath := filepath.Join(tmpDir, "trellis_example_com_ed25519")
 	ioutil.WriteFile(privateKeyPath, []byte{}, 0666)
@@ -123,8 +121,7 @@ func TestKeyGenerateExistingPublicKey(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	tmpDir, _ := ioutil.TempDir("", "key_generate_test")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	os.Mkdir(filepath.Join(trellis.Path, "public_keys"), os.ModePerm)
 	publicKeyPath := filepath.Join(trellis.Path, "public_keys", "trellis_example_com_ed25519.pub")
@@ -155,8 +152,7 @@ func TestKeyGenerateKeyscan(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	tmpDir, _ := ioutil.TempDir("", "key_generate_test")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// fake gh binary to satisfy ok.LookPath
 	ghPath := filepath.Join(tmpDir, "gh")

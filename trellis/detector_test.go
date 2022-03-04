@@ -10,8 +10,7 @@ import (
 const testDir = "tmp"
 
 func TestDetect(t *testing.T) {
-	testDir, _ := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 
 	devDir := filepath.Join(testDir, "group_vars", "development")
 
@@ -67,8 +66,7 @@ func TestDetect(t *testing.T) {
 }
 
 func TestDetectTrellisProjectStructure(t *testing.T) {
-	testDir, _ := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 
 	trellisDir := filepath.Join(testDir, "trellis")
 	siteDir := filepath.Join(testDir, "site")

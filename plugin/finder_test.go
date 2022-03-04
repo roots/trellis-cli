@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,16 +9,7 @@ import (
 )
 
 func TestFind(t *testing.T) {
-	tempDir, err := ioutil.TempDir(os.TempDir(), "test-cmd-plugins")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			panic(fmt.Errorf("unexpected cleanup error: %v", err))
-		}
-	}()
+	tempDir := t.TempDir()
 
 	createTempFile := func(name string, mode os.FileMode) (*os.File, error) {
 		file, err := os.Create(filepath.Join(tempDir, name))
@@ -168,16 +158,7 @@ func TestFind(t *testing.T) {
 }
 
 func TestIsExecutable(t *testing.T) {
-	tempDir, err := ioutil.TempDir(os.TempDir(), "test-cmd-plugins")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			panic(fmt.Errorf("unexpected cleanup error: %v", err))
-		}
-	}()
+	tempDir := t.TempDir()
 
 	createTempFile := func(mode os.FileMode) (*os.File, error) {
 		file, err := ioutil.TempFile(tempDir, "trellis-")

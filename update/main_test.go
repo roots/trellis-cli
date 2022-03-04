@@ -20,8 +20,7 @@ type Env struct {
 }
 
 func TestDoesNotCheckForUpdate(t *testing.T) {
-	cacheDir, _ := ioutil.TempDir("", "trellis_cache")
-	defer os.RemoveAll(cacheDir)
+	cacheDir := t.TempDir()
 
 	cases := []struct {
 		name          string
@@ -213,8 +212,7 @@ latest_release:
 	}
 
 	for _, tc := range cases {
-		cacheDir, _ := ioutil.TempDir("", "trellis_cache")
-		defer os.RemoveAll(cacheDir)
+		cacheDir := t.TempDir()
 
 		if tc.stateEntry != "" {
 			_ = ioutil.WriteFile(filepath.Join(cacheDir, "state.yml"), []byte(tc.stateEntry), 0600)
