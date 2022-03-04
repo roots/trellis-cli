@@ -3,7 +3,6 @@ package trellis
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -108,12 +107,7 @@ func TestDeactive(t *testing.T) {
 }
 
 func TestInitialized(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	tempDir := t.TempDir()
 
 	venv := NewVirtualenv(tempDir)
 
@@ -144,13 +138,7 @@ func TestInstalled(t *testing.T) {
 }
 
 func TestInstalledPython3WithEnsurepip(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
+	tempDir := t.TempDir()
 	defer testSetEnv("PATH", tempDir)()
 
 	pythonPath := filepath.Join(tempDir, "python3")
@@ -188,13 +176,7 @@ func TestInstalledPython3WithEnsurepip(t *testing.T) {
 }
 
 func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
+	tempDir := t.TempDir()
 	defer testSetEnv("PATH", tempDir)()
 
 	pythonPath := filepath.Join(tempDir, "python3")
@@ -225,13 +207,7 @@ func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
 }
 
 func TestInstalledVirtualenv(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "trellis")
-	defer os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
+	tempDir := t.TempDir()
 	defer testSetEnv("PATH", tempDir)()
 
 	venvPath := filepath.Join(tempDir, "virtualenv")
@@ -306,8 +282,7 @@ next line
 }
 
 func TestUpdateBinShebangsNoSpaces(t *testing.T) {
-	dir, _ := ioutil.TempDir("", "shebangs-nospaces-")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
 
@@ -333,8 +308,7 @@ func TestUpdateBinShebangsNoSpaces(t *testing.T) {
 
 func TestUpdateBinShebangsWithSpaces(t *testing.T) {
 	t.SkipNow()
-	dir, _ := ioutil.TempDir("", "shebangs with spaces-")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
 

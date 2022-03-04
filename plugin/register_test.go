@@ -1,8 +1,6 @@
 package plugin
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -33,16 +31,7 @@ func TestIntegrationPluginCommand(t *testing.T) {
 		t.Error(bin + " not exist")
 	}
 
-	tempDir, err := ioutil.TempDir(os.TempDir(), "test-cmd-plugins")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			panic(fmt.Errorf("unexpected cleanup error: %v", err))
-		}
-	}()
+	tempDir := t.TempDir()
 
 	file, err := os.Create(filepath.Join(tempDir, "trellis-spy-foo"))
 	if err != nil {
@@ -150,16 +139,7 @@ func TestIntegrationPluginListInHelpFunc(t *testing.T) {
 		t.Error(bin + " not exist")
 	}
 
-	tempDir, err := ioutil.TempDir(os.TempDir(), "test-cmd-plugins")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			panic(fmt.Errorf("unexpected cleanup error: %v", err))
-		}
-	}()
+	tempDir := t.TempDir()
 
 	createTempFile := func(name string, mode os.FileMode) (*os.File, error) {
 		file, err := os.Create(filepath.Join(tempDir, name))

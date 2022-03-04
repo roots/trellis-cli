@@ -3,7 +3,6 @@ package github
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,8 +27,7 @@ func TestNewReleaseFromVersion(t *testing.T) {
 }
 
 func TestDownloadRelease(t *testing.T) {
-	tmpDir, _ := ioutil.TempDir("", "release_test")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 	os.Chdir(tmpDir)
 
 	var dir = "roots-trellis"
