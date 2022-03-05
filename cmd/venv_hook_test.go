@@ -37,7 +37,7 @@ func TestVenvHookRunActivatesEnv(t *testing.T) {
 }
 
 func TestVenvHookRunDeactivatesEnv(t *testing.T) {
-	os.Setenv(trellis.OldPathEnvName, "foo")
+	t.Setenv(trellis.OldPathEnvName, "foo")
 
 	ui := cli.NewMockUi()
 	trellis := trellis.NewMockTrellis(false)

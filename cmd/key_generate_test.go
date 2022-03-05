@@ -158,10 +158,7 @@ func TestKeyGenerateKeyscan(t *testing.T) {
 	ghPath := filepath.Join(tmpDir, "gh")
 	os.OpenFile(ghPath, os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
-	os.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmpDir))
-	defer func() {
-		os.Setenv("PATH", path)
-	}()
+	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmpDir))
 
 	mockExecCommand := func(command string, args []string) *exec.Cmd {
 		cs := []string{"-test.run=TestKeyGenerateHelperProcess", "--", command}
