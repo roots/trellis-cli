@@ -4,6 +4,7 @@ FROM golang:1.17-buster
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+ENV GOLANG_VERSION=1.17
 ENV TEST_BINARY=/test/trellis-cli
 ENV TEST_DUMMY=/test/dummy
 

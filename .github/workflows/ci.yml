@@ -50,7 +50,9 @@ jobs:
   integration-test:
     runs-on: ubuntu-latest
     container:
-      image: rootsdev/trellis-cli-dev
+      image: rootsdev/trellis-cli-dev:2022.03.05.2
+      env:
+        GOLANG_VERSION: "1.17"
     steps:
       - run: go version
       - run: ansible --version
