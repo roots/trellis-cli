@@ -125,8 +125,8 @@ func TestInitialized(t *testing.T) {
 }
 
 func TestInstalled(t *testing.T) {
-	defer testSetEnv("PATH", "")()
-	defer testSetEnv("XDG_CONFIG_HOME", "none")()
+	t.Setenv("PATH", "")
+	t.Setenv("XDG_CONFIG_HOME", "none")
 
 	venv := NewVirtualenv("foo")
 
@@ -139,7 +139,7 @@ func TestInstalled(t *testing.T) {
 
 func TestInstalledPython3WithEnsurepip(t *testing.T) {
 	tempDir := t.TempDir()
-	defer testSetEnv("PATH", tempDir)()
+	t.Setenv("PATH", tempDir)
 
 	pythonPath := filepath.Join(tempDir, "python3")
 	os.OpenFile(pythonPath, os.O_CREATE, 0555)
@@ -177,7 +177,7 @@ func TestInstalledPython3WithEnsurepip(t *testing.T) {
 
 func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
 	tempDir := t.TempDir()
-	defer testSetEnv("PATH", tempDir)()
+	t.Setenv("PATH", tempDir)
 
 	pythonPath := filepath.Join(tempDir, "python3")
 	os.OpenFile(pythonPath, os.O_CREATE, 0555)
@@ -208,7 +208,7 @@ func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
 
 func TestInstalledVirtualenv(t *testing.T) {
 	tempDir := t.TempDir()
-	defer testSetEnv("PATH", tempDir)()
+	t.Setenv("PATH", tempDir)
 
 	venvPath := filepath.Join(tempDir, "virtualenv")
 	os.OpenFile(venvPath, os.O_CREATE, 0555)
@@ -371,12 +371,6 @@ func testCreateFile(t *testing.T, path string) func() {
 	}
 
 	return func() { file.Close() }
-}
-
-func testSetEnv(env string, value string) func() {
-	old := os.Getenv(env)
-	os.Setenv(env, value)
-	return func() { os.Setenv(env, old) }
 }
 
 func TestEnsurePipSuccessHelperProcess(t *testing.T) {
