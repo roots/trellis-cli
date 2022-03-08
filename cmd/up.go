@@ -17,6 +17,7 @@ type UpCommand struct {
 	flags       *flag.FlagSet
 	noGalaxy    bool
 	noProvision bool
+        debug       bool
 }
 
 func NewUpCommand(ui cli.Ui, trellis *trellis.Trellis) *UpCommand {
@@ -30,6 +31,7 @@ func (c *UpCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGalaxy, "no-galaxy", false, "Skip Ansible Galaxy install")
 	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skip provisioning")
+        c.flags.BoolVar(&c.debug, "debug", false, "Enable vagrant's debug mode")
 }
 
 func (c *UpCommand) Run(args []string) int {
@@ -63,6 +65,10 @@ func (c *UpCommand) Run(args []string) int {
 
 	if c.noProvision {
 		vagrantArgs = append(vagrantArgs, "--no-provision")
+	}
+
+	if c.debug {
+		vagrantArgs = append(vagrantArgs, "--debug")
 	}
 
 	vagrantUp := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("vagrant", vagrantArgs)
@@ -106,9 +112,14 @@ Start VM and skip Galaxy install:
 
   $ trellis up --no-galaxy
 
+Start VM and display debug output:
+
+  $ trellis up --debug
+
 Options:
       --no-provision (default: false) Skip provisioning
       --no-galaxy    (default: false) Skip Ansible Galaxy install
+      --debug        (default: false) Enable vagrant's debug mode
   -h, --help         show this help
 `
 
@@ -123,5 +134,6 @@ func (c *UpCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--no-provision": complete.PredictNothing,
 		"--no-galaxy":    complete.PredictNothing,
+		"--debug":        complete.PredictNothing,
 	}
 }
