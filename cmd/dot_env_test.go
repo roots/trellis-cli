@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -141,10 +140,10 @@ func TestIntegrationDotEnv(t *testing.T) {
 		t.Error(".env file not generated")
 	}
 
-	actualByte, _ := ioutil.ReadFile(actualPath)
+	actualByte, _ := os.ReadFile(actualPath)
 	actual := string(actualByte)
 
-	expectedByte, _ := ioutil.ReadFile("./testdata/expected/dot_env/.env")
+	expectedByte, _ := os.ReadFile("./testdata/expected/dot_env/.env")
 	expected := string(expectedByte)
 
 	if actual != expected {

@@ -3,7 +3,6 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"text/template"
 	"time"
@@ -20,7 +19,7 @@ type DBOpenerSequelAce struct {
 var sequelAceSpfTemplate string
 
 func (o *DBOpenerSequelAce) Open(c DBCredentials) (err error) {
-	sequelAceSpf, sequelAceSpfErr := ioutil.TempFile("", "*.spf")
+	sequelAceSpf, sequelAceSpfErr := os.CreateTemp("", "*.spf")
 	if sequelAceSpfErr != nil {
 		return fmt.Errorf("Error creating temporary SequelAce SPF file: %s", sequelAceSpfErr)
 	}

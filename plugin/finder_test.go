@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -161,7 +160,7 @@ func TestIsExecutable(t *testing.T) {
 	tempDir := t.TempDir()
 
 	createTempFile := func(mode os.FileMode) (*os.File, error) {
-		file, err := ioutil.TempFile(tempDir, "trellis-")
+		file, err := os.CreateTemp(tempDir, "trellis-")
 		if err != nil {
 			return nil, err
 		}

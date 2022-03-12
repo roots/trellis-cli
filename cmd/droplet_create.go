@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -309,7 +308,7 @@ func checkSSHKey(ui cli.Ui, keyString string, publicKey ssh.PublicKey) error {
 
 func loadSSHKey(path string) (keyString string, publicKey ssh.PublicKey, err error) {
 	path, err = homedir.Expand(path)
-	key, err := ioutil.ReadFile(path)
+	key, err := os.ReadFile(path)
 	if err != nil {
 		return "", nil, err
 	}

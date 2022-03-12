@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,7 +97,7 @@ func TestKeyGenerateExistingPrivateKey(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	privateKeyPath := filepath.Join(tmpDir, "trellis_example_com_ed25519")
-	ioutil.WriteFile(privateKeyPath, []byte{}, 0666)
+	os.WriteFile(privateKeyPath, []byte{}, 0666)
 
 	ui := cli.NewMockUi()
 	keyGenerateCommand := NewKeyGenerateCommand(ui, trellis)
@@ -125,7 +124,7 @@ func TestKeyGenerateExistingPublicKey(t *testing.T) {
 
 	os.Mkdir(filepath.Join(trellis.Path, "public_keys"), os.ModePerm)
 	publicKeyPath := filepath.Join(trellis.Path, "public_keys", "trellis_example_com_ed25519.pub")
-	err := ioutil.WriteFile(publicKeyPath, []byte{}, 0666)
+	err := os.WriteFile(publicKeyPath, []byte{}, 0666)
 
 	if err != nil {
 		t.Fatal(err)

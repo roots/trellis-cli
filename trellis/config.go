@@ -2,10 +2,11 @@ package trellis
 
 import (
 	"fmt"
-	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
+	"os"
+
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 )
 
 const DefaultSiteName = "example.com"
@@ -50,7 +51,7 @@ type Config struct {
 }
 
 func (t *Trellis) ParseConfig(path string) *Config {
-	configYaml, err := ioutil.ReadFile(path)
+	configYaml, err := os.ReadFile(path)
 
 	if err != nil {
 		log.Fatalln(err)

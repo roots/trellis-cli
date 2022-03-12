@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -91,10 +90,10 @@ func TestIntegrationAlias(t *testing.T) {
 		t.Error("wp-cli.trellis-alias.yml file not generated")
 	}
 
-	actualByte, _ := ioutil.ReadFile(actualPath)
+	actualByte, _ := os.ReadFile(actualPath)
 	actual := string(actualByte)
 
-	expectedByte, _ := ioutil.ReadFile("./testdata/expected/alias/wp-cli.trellis-alias.yml")
+	expectedByte, _ := os.ReadFile("./testdata/expected/alias/wp-cli.trellis-alias.yml")
 	expected := string(expectedByte)
 
 	if actual != expected {

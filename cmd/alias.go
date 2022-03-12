@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,7 +99,7 @@ func (c *AliasCommand) Run(args []string) int {
 		}
 	}
 
-	tempDir, tempDirErr := ioutil.TempDir("", "trellis-alias-")
+	tempDir, tempDirErr := os.MkdirTemp("", "trellis-alias-")
 	if tempDirErr != nil {
 		spinner.StopFail()
 		c.UI.Error(tempDirErr.Error())
@@ -129,7 +128,7 @@ func (c *AliasCommand) Run(args []string) int {
 
 	combined := ""
 	for _, environment := range remoteEnvironments {
-		part, err := ioutil.ReadFile(filepath.Join(tempDir, environment+".yml.part"))
+		part, err := os.ReadFile(filepath.Join(tempDir, environment+".yml.part"))
 		if err != nil {
 			spinner.StopFail()
 			c.UI.Error(err.Error())
@@ -139,7 +138,7 @@ func (c *AliasCommand) Run(args []string) int {
 	}
 
 	combinedYmlPath := filepath.Join(tempDir, "/combined.yml")
-	writeFileErr := ioutil.WriteFile(combinedYmlPath, []byte(combined), 0644)
+	writeFileErr := os.WriteFile(combinedYmlPath, []byte(combined), 0644)
 	if writeFileErr != nil {
 		spinner.StopFail()
 		c.UI.Error(writeFileErr.Error())

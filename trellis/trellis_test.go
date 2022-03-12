@@ -2,7 +2,6 @@ package trellis
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -332,7 +331,7 @@ func TestLoadCliConfigWhenFileExists(t *testing.T) {
 	configFilePath := filepath.Join(tp.ConfigPath(), ConfigFile)
 	configContents := ``
 
-	if err := ioutil.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
+	if err := os.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
 		t.Fatal(err)
 	}
 

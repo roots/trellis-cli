@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -248,7 +247,7 @@ func (c *NewCommand) YamlHeader(doc string) string {
 
 func addTrellisFile(path string) error {
 	path = filepath.Join(path, ".trellis.yml")
-	return ioutil.WriteFile(path, []byte{}, 0666)
+	return os.WriteFile(path, []byte{}, 0666)
 }
 
 func askDomain(ui cli.Ui, path string) (host string, err error) {

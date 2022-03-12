@@ -2,7 +2,6 @@ package update
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -215,7 +214,7 @@ latest_release:
 		cacheDir := t.TempDir()
 
 		if tc.stateEntry != "" {
-			_ = ioutil.WriteFile(filepath.Join(cacheDir, "state.yml"), []byte(tc.stateEntry), 0600)
+			_ = os.WriteFile(filepath.Join(cacheDir, "state.yml"), []byte(tc.stateEntry), 0600)
 		}
 
 		if tc.githubResponse != "" {
