@@ -2,7 +2,6 @@ package update
 
 import (
 	"github.com/roots/trellis-cli/github"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,7 +95,7 @@ func (n *Notifier) getLatestReleaseInfo(stateFilePath string) (*github.Release, 
 }
 
 func getStateEntry(stateFilePath string) (*StateEntry, error) {
-	content, err := ioutil.ReadFile(stateFilePath)
+	content, err := os.ReadFile(stateFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +120,7 @@ func setStateEntry(stateFilePath string, t time.Time, r *github.Release) error {
 		return err
 	}
 
-	_ = ioutil.WriteFile(stateFilePath, content, 0600)
+	_ = os.WriteFile(stateFilePath, content, 0600)
 
 	return nil
 }

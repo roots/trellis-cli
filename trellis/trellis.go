@@ -3,7 +3,6 @@ package trellis
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -259,7 +258,7 @@ func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteNam
 
 func (t *Trellis) LoadCliConfig() *CliConfig {
 	config := &CliConfig{}
-	configYaml, err := ioutil.ReadFile(filepath.Join(t.ConfigPath(), ConfigFile))
+	configYaml, err := os.ReadFile(filepath.Join(t.ConfigPath(), ConfigFile))
 
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatalln(err)
@@ -303,7 +302,7 @@ func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error
 	path = filepath.Join(t.Path, path)
 	data = append([]byte(header), data...)
 
-	if err := ioutil.WriteFile(path, data, 0666); err != nil {
+	if err := os.WriteFile(path, data, 0666); err != nil {
 		log.Fatal(err)
 	}
 

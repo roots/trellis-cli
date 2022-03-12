@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -122,7 +121,7 @@ func (t *Trellis) GenerateVaultPassFile(path string) error {
 	randomString := RandomStringGenerator{Length: 64}
 
 	vaultPass := randomString.Generate()
-	return ioutil.WriteFile(path, []byte(vaultPass), 0600)
+	return os.WriteFile(path, []byte(vaultPass), 0600)
 }
 
 func assertAvailablePRNG() {

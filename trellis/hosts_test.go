@@ -1,7 +1,7 @@
 package trellis
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -20,7 +20,7 @@ func TestUpdateHosts(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	content, err := ioutil.ReadFile(hostsFile)
+	content, err := os.ReadFile(hostsFile)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

@@ -1,7 +1,6 @@
 package trellis
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +13,7 @@ func LoadFixtureProject(t *testing.T) func() {
 		t.Fatalf("err: %s", err)
 	}
 
-	tempDir, err := ioutil.TempDir("", "trellis")
+	tempDir, err := os.MkdirTemp("", "trellis")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

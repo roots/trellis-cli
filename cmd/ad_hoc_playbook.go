@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -16,7 +15,7 @@ func (p *AdHocPlaybook) DumpFiles() func() {
 		destination := filepath.Join(p.path, fileName)
 		contentByte := []byte(content)
 
-		if err := ioutil.WriteFile(destination, contentByte, 0644); err != nil {
+		if err := os.WriteFile(destination, contentByte, 0644); err != nil {
 			panic("Could not write temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}

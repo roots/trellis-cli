@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -144,7 +143,7 @@ func (v *Virtualenv) UpdateBinShebangs(binGlob string) error {
 		permissions := fileInfo.Mode()
 		defer f.Close()
 
-		tmp, err := ioutil.TempFile("", "replace-"+filepath.Base(path))
+		tmp, err := os.CreateTemp("", "replace-"+filepath.Base(path))
 		if err != nil {
 			return err
 		}

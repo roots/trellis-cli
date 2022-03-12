@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -105,7 +104,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	// Prepare JSON file for db credentials
-	dbCredentialsJson, dbCredentialsErr := ioutil.TempFile("", "*.json")
+	dbCredentialsJson, dbCredentialsErr := os.CreateTemp("", "*.json")
 	if dbCredentialsErr != nil {
 		c.UI.Error(fmt.Sprintf("Error creating temporary db credentials JSON file: %s", dbCredentialsErr))
 	}
@@ -128,7 +127,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	// Read db credentials from JSON file.
-	dbCredentialsByte, readErr := ioutil.ReadFile(dbCredentialsJson.Name())
+	dbCredentialsByte, readErr := os.ReadFile(dbCredentialsJson.Name())
 	if readErr != nil {
 		c.UI.Error(fmt.Sprintf("Error reading db credentials JSON file: %s", readErr))
 		return 1
