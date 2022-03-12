@@ -174,7 +174,7 @@ func TestKeyGenerateKeyscan(t *testing.T) {
 	ui := cli.NewMockUi()
 	keyGenerateCommand := NewKeyGenerateCommand(ui, trellis)
 
-	code := keyGenerateCommand.Run([]string{"--path", tmpDir})
+	code := keyGenerateCommand.Run([]string{"--path", tmpDir, "--known-hosts", "example.test,example.com"})
 
 	if code != 0 {
 		t.Errorf("expected code %d to be %d", code, 0)
@@ -207,14 +207,6 @@ func TestKeyGenerateHelperProcess(t *testing.T) {
 	}
 
 	switch os.Args[3] {
-	case "ansible":
-		hosts := `
-good_host
-bad_host
-your_server_hostname
-`
-		fmt.Fprintf(os.Stdout, hosts)
-		os.Exit(0)
 	case "ssh-keyscan":
 		switch os.Args[len(os.Args)-1] {
 		case "good_host":

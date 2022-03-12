@@ -38,6 +38,7 @@ type KeyGenerateCommand struct {
 	Trellis      *trellis.Trellis
 	flags        *flag.FlagSet
 	keyName      string
+	knownHosts   string
 	noGithub     bool
 	path         string
 	provisionEnv string
@@ -48,6 +49,7 @@ func (c *KeyGenerateCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGithub, "no-github", false, "Skips creating a GitHub secret and deploy key")
 	c.flags.StringVar(&c.keyName, "key-name", "", "Name of SSH key (Default: trellis_<site_name>_ed25519).")
+	c.flags.StringVar(&c.knownHosts, "known-hosts", "", "Comma-separated list of SSH known hosts (optional)")
 	c.flags.StringVar(&c.path, "path", "", "Path of private key (Default: $HOME/.ssh)")
 	c.flags.StringVar(&c.provisionEnv, "provision", "", "Environment to provision after key is generated")
 }
@@ -191,18 +193,35 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	}
 	c.UI.Info(fmt.Sprintf("%s GitHub deploy key added [%s]", color.GreenString("[✓]"), deployKeyName))
 
-	hosts, err := getAnsibleHosts()
-	if err != nil {
-		c.UI.Error("Error: could not get hosts to set known hosts secret")
-		c.UI.Error(err.Error())
-		return 1
+	if c.knownHosts == "" {
+		hosts, err := getAnsibleHosts()
+		if err != nil {
+			c.UI.Warn("Warning: could not get Ansible hosts as defaults for known hosts")
+		}
+
+		c.UI.Info("\nBefore the new SSH key can be used, GitHub's action runner also needs one or more SSH known hosts.")
+		c.UI.Info(fmt.Sprintf("The following hosts were automatically detected: %s", strings.Join(hosts, ", ")))
+		c.UI.Info("If that list of hosts is correct, you can accept the default. Or provide a comma-separated list of hosts instead.\n")
+
+		prompt := promptui.Prompt{
+			Label:   "SSH known hosts (comma-separated list)",
+			Default: strings.Join(hosts, ", "),
+		}
+
+		hostsInput, err := prompt.Run()
+		c.knownHosts = hostsInput
+
+		if err != nil {
+			c.UI.Error("Aborting: no known hosts provided")
+			return 1
+		}
 	}
 
-	knownHosts := keyscanHosts(hosts)
+	knownHosts := keyscanHosts(strings.Split(c.knownHosts, ","))
 
 	if len(knownHosts) == 0 {
 		c.UI.Error("Error: could not set SSH known hosts.")
-		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", hosts))
+		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", c.knownHosts))
 		return 1
 	}
 
@@ -280,11 +299,12 @@ Generate private key in a specific path:
   $ trellis key generate --path ~/my_keys
 
 Options:
-      --name       Name of SSH key (Default: trellis_<site_name>_ed25519)
-      --no-github  Skips creating a GitHub secret and deploy key
-      --path       Path for private key (Default: $HOME/.ssh)
-      --provision  Name of environment to provision after key is generated
-  -h, --help       show this help
+      --known-hosts Comma-separated list of SSH known hosts (optional)
+      --name        Name of SSH key (Default: trellis_<site_name>_ed25519)
+      --no-github   Skips creating a GitHub secret and deploy key
+      --path        Path for private key (Default: $HOME/.ssh)
+      --provision   Name of environment to provision after key is generated
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -369,6 +389,7 @@ func parseAnsibleHosts(output string) (hosts []string) {
 
 func keyscanHosts(hosts []string) (knownHosts []string) {
 	for _, host := range hosts {
+		host = strings.TrimSpace(host)
 		output, err := command.Cmd("ssh-keyscan", []string{"-t", "ed25519", "-H", "-T", "1", host}).Output()
 
 		if err == nil {
