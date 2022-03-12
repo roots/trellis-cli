@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -130,21 +129,14 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 1
 	}
 
-	keygenArgs := []string{"-t", "ed25519", "-C", deployKeyName, "-f", keyPath, "-P", ""}
-	sshKeygen := command.Cmd("ssh-keygen", keygenArgs)
-	sshKeygen.Stdout = io.Discard
-	sshKeygen.Stderr = os.Stderr
-	err := sshKeygen.Run()
-
-	if err != nil {
-		c.UI.Error("Error: could not generate SSH key")
+	if err := generateKey(deployKeyName, keyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	c.UI.Info(fmt.Sprintf("%s Generated SSH key [%s]", color.GreenString("[✓]"), keyPath))
 
-	err = os.Rename(publicKeyPath, trellisPublicKeyPath)
+	err := os.Rename(publicKeyPath, trellisPublicKeyPath)
 
 	if err != nil {
 		c.UI.Error("Error: could not move public key")
@@ -155,42 +147,22 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("%s Moved public key [%s]", color.GreenString("[✓]"), trellisPublicKeyPath))
 
 	if c.noGithub {
+		// the rest of the command is all GitHub integration
 		return 0
 	}
 
-	privateKeyContent, err := ioutil.ReadFile(keyPath)
-	if err != nil {
-		c.UI.Error("Error: could not read SSH private key file")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
-	if err != nil {
-		c.UI.Error("Error: could not set GitHub secret")
+	if err := setPrivateKeySecret(keyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	c.UI.Info(fmt.Sprintf("%s GitHub private key secret set [%s]", color.GreenString("[✓]"), sshKeySecret))
 
-	publicKeyContent, err := ioutil.ReadFile(trellisPublicKeyPath)
-	if err != nil {
-		c.UI.Error("Error: could not read SSH public key file")
+	if err := setDeployKey(deployKeyName, trellisPublicKeyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
-	title := fmt.Sprintf("title=%s", deployKeyName)
-	key := fmt.Sprintf("key=%s", string(publicKeyContent))
-
-	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
-	if err != nil {
-		c.UI.Error("Error: could not create GitHub deploy key")
-		c.UI.Error(err.Error())
-		return 1
-	}
 	c.UI.Info(fmt.Sprintf("%s GitHub deploy key added [%s]", color.GreenString("[✓]"), deployKeyName))
 
 	if c.knownHosts == "" {
@@ -322,10 +294,11 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 	}
 
 	return complete.Flags{
-		"--name":      complete.PredictNothing,
-		"--no-github": complete.PredictNothing,
-		"--path":      complete.PredictDirs(""),
-		"--provision": complete.PredictSet(environmentNames...),
+		"--known-hosts": complete.PredictNothing,
+		"--name":        complete.PredictNothing,
+		"--no-github":   complete.PredictNothing,
+		"--path":        complete.PredictDirs(""),
+		"--provision":   complete.PredictSet(environmentNames...),
 	}
 }
 
@@ -335,6 +308,20 @@ func githubCLI(args ...string) error {
 	ghCmd.Stderr = os.Stderr
 
 	return ghCmd.Run()
+}
+
+func generateKey(name string, path string) error {
+	keygenArgs := []string{"-t", "ed25519", "-C", name, "-f", path, "-P", ""}
+	sshKeygen := command.Cmd("ssh-keygen", keygenArgs)
+	sshKeygen.Stdout = io.Discard
+	sshKeygen.Stderr = os.Stderr
+	err := sshKeygen.Run()
+
+	if err != nil {
+		return fmt.Errorf("Error: could not generate SSH key\n%v", err)
+	}
+
+	return nil
 }
 
 func getAnsibleHosts() (hosts []string, err error) {
@@ -398,4 +385,36 @@ func keyscanHosts(hosts []string) (knownHosts []string) {
 	}
 
 	return knownHosts
+}
+
+func setDeployKey(name string, path string) error {
+	publicKeyContent, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Error: could not read SSH public key file\n%v", err)
+	}
+
+	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
+	title := fmt.Sprintf("title=%s", name)
+	key := fmt.Sprintf("key=%s", string(publicKeyContent))
+
+	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
+	if err != nil {
+		return fmt.Errorf("Error: could not create GitHub deploy key\n%v", err)
+	}
+
+	return nil
+}
+
+func setPrivateKeySecret(path string) error {
+	privateKeyContent, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Error: could not read SSH private key file\n%v", err)
+	}
+
+	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
+	if err != nil {
+		return fmt.Errorf("could not set GitHub secret\n%v", err)
+	}
+
+	return nil
 }
