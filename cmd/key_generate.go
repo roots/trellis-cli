@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +37,7 @@ type KeyGenerateCommand struct {
 	Trellis      *trellis.Trellis
 	flags        *flag.FlagSet
 	keyName      string
+	knownHosts   string
 	noGithub     bool
 	path         string
 	provisionEnv string
@@ -48,6 +48,7 @@ func (c *KeyGenerateCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGithub, "no-github", false, "Skips creating a GitHub secret and deploy key")
 	c.flags.StringVar(&c.keyName, "key-name", "", "Name of SSH key (Default: trellis_<site_name>_ed25519).")
+	c.flags.StringVar(&c.knownHosts, "known-hosts", "", "Comma-separated list of SSH known hosts (optional)")
 	c.flags.StringVar(&c.path, "path", "", "Path of private key (Default: $HOME/.ssh)")
 	c.flags.StringVar(&c.provisionEnv, "provision", "", "Environment to provision after key is generated")
 }
@@ -128,21 +129,14 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 1
 	}
 
-	keygenArgs := []string{"-t", "ed25519", "-C", deployKeyName, "-f", keyPath, "-P", ""}
-	sshKeygen := command.Cmd("ssh-keygen", keygenArgs)
-	sshKeygen.Stdout = io.Discard
-	sshKeygen.Stderr = os.Stderr
-	err := sshKeygen.Run()
-
-	if err != nil {
-		c.UI.Error("Error: could not generate SSH key")
+	if err := generateKey(deployKeyName, keyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	c.UI.Info(fmt.Sprintf("%s Generated SSH key [%s]", color.GreenString("[✓]"), keyPath))
 
-	err = os.Rename(publicKeyPath, trellisPublicKeyPath)
+	err := os.Rename(publicKeyPath, trellisPublicKeyPath)
 
 	if err != nil {
 		c.UI.Error("Error: could not move public key")
@@ -153,56 +147,53 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("%s Moved public key [%s]", color.GreenString("[✓]"), trellisPublicKeyPath))
 
 	if c.noGithub {
+		// the rest of the command is all GitHub integration
 		return 0
 	}
 
-	privateKeyContent, err := ioutil.ReadFile(keyPath)
-	if err != nil {
-		c.UI.Error("Error: could not read SSH private key file")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
-	if err != nil {
-		c.UI.Error("Error: could not set GitHub secret")
+	if err := setPrivateKeySecret(keyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	c.UI.Info(fmt.Sprintf("%s GitHub private key secret set [%s]", color.GreenString("[✓]"), sshKeySecret))
 
-	publicKeyContent, err := ioutil.ReadFile(trellisPublicKeyPath)
-	if err != nil {
-		c.UI.Error("Error: could not read SSH public key file")
+	if err := setDeployKey(deployKeyName, trellisPublicKeyPath); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
-	title := fmt.Sprintf("title=%s", deployKeyName)
-	key := fmt.Sprintf("key=%s", string(publicKeyContent))
-
-	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
-	if err != nil {
-		c.UI.Error("Error: could not create GitHub deploy key")
-		c.UI.Error(err.Error())
-		return 1
-	}
 	c.UI.Info(fmt.Sprintf("%s GitHub deploy key added [%s]", color.GreenString("[✓]"), deployKeyName))
 
-	hosts, err := getAnsibleHosts()
-	if err != nil {
-		c.UI.Error("Error: could not get hosts to set known hosts secret")
-		c.UI.Error(err.Error())
-		return 1
+	if c.knownHosts == "" {
+		hosts, err := getAnsibleHosts()
+		if err != nil {
+			c.UI.Warn("Warning: could not get Ansible hosts as defaults for known hosts")
+		}
+
+		c.UI.Info("\nBefore the new SSH key can be used, GitHub's action runner also needs one or more SSH known hosts.")
+		c.UI.Info(fmt.Sprintf("The following hosts were automatically detected: %s", strings.Join(hosts, ", ")))
+		c.UI.Info("If that list of hosts is correct, you can accept the default. Or provide a comma-separated list of hosts instead.\n")
+
+		prompt := promptui.Prompt{
+			Label:   "SSH known hosts (comma-separated list)",
+			Default: strings.Join(hosts, ", "),
+		}
+
+		hostsInput, err := prompt.Run()
+		c.knownHosts = hostsInput
+
+		if err != nil {
+			c.UI.Error("Aborting: no known hosts provided")
+			return 1
+		}
 	}
 
-	knownHosts := keyscanHosts(hosts)
+	knownHosts := keyscanHosts(strings.Split(c.knownHosts, ","))
 
 	if len(knownHosts) == 0 {
 		c.UI.Error("Error: could not set SSH known hosts.")
-		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", hosts))
+		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", c.knownHosts))
 		return 1
 	}
 
@@ -280,11 +271,12 @@ Generate private key in a specific path:
   $ trellis key generate --path ~/my_keys
 
 Options:
-      --name       Name of SSH key (Default: trellis_<site_name>_ed25519)
-      --no-github  Skips creating a GitHub secret and deploy key
-      --path       Path for private key (Default: $HOME/.ssh)
-      --provision  Name of environment to provision after key is generated
-  -h, --help       show this help
+      --known-hosts Comma-separated list of SSH known hosts (optional)
+      --name        Name of SSH key (Default: trellis_<site_name>_ed25519)
+      --no-github   Skips creating a GitHub secret and deploy key
+      --path        Path for private key (Default: $HOME/.ssh)
+      --provision   Name of environment to provision after key is generated
+  -h, --help        show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -302,10 +294,11 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 	}
 
 	return complete.Flags{
-		"--name":      complete.PredictNothing,
-		"--no-github": complete.PredictNothing,
-		"--path":      complete.PredictDirs(""),
-		"--provision": complete.PredictSet(environmentNames...),
+		"--known-hosts": complete.PredictNothing,
+		"--name":        complete.PredictNothing,
+		"--no-github":   complete.PredictNothing,
+		"--path":        complete.PredictDirs(""),
+		"--provision":   complete.PredictSet(environmentNames...),
 	}
 }
 
@@ -315,6 +308,20 @@ func githubCLI(args ...string) error {
 	ghCmd.Stderr = os.Stderr
 
 	return ghCmd.Run()
+}
+
+func generateKey(name string, path string) error {
+	keygenArgs := []string{"-t", "ed25519", "-C", name, "-f", path, "-P", ""}
+	sshKeygen := command.Cmd("ssh-keygen", keygenArgs)
+	sshKeygen.Stdout = io.Discard
+	sshKeygen.Stderr = os.Stderr
+	err := sshKeygen.Run()
+
+	if err != nil {
+		return fmt.Errorf("Error: could not generate SSH key\n%v", err)
+	}
+
+	return nil
 }
 
 func getAnsibleHosts() (hosts []string, err error) {
@@ -369,6 +376,7 @@ func parseAnsibleHosts(output string) (hosts []string) {
 
 func keyscanHosts(hosts []string) (knownHosts []string) {
 	for _, host := range hosts {
+		host = strings.TrimSpace(host)
 		output, err := command.Cmd("ssh-keyscan", []string{"-t", "ed25519", "-H", "-T", "1", host}).Output()
 
 		if err == nil {
@@ -377,4 +385,36 @@ func keyscanHosts(hosts []string) (knownHosts []string) {
 	}
 
 	return knownHosts
+}
+
+func setDeployKey(name string, path string) error {
+	publicKeyContent, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Error: could not read SSH public key file\n%v", err)
+	}
+
+	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
+	title := fmt.Sprintf("title=%s", name)
+	key := fmt.Sprintf("key=%s", string(publicKeyContent))
+
+	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
+	if err != nil {
+		return fmt.Errorf("Error: could not create GitHub deploy key\n%v", err)
+	}
+
+	return nil
+}
+
+func setPrivateKeySecret(path string) error {
+	privateKeyContent, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Error: could not read SSH private key file\n%v", err)
+	}
+
+	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
+	if err != nil {
+		return fmt.Errorf("could not set GitHub secret\n%v", err)
+	}
+
+	return nil
 }
