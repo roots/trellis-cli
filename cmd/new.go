@@ -109,7 +109,7 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	trellisPath := filepath.Join(path, "trellis")
-	trellisVersion, err := github.DownloadRelease("roots/trellis", c.trellisVersion, path, trellisPath)
+	trellisRelease, err := github.DownloadRelease("roots/trellis", c.trellisVersion, path, trellisPath)
 	if err != nil {
 		c.UI.Error("Aborting: error while downloading Trellis")
 		c.UI.Error(err.Error())
@@ -117,7 +117,7 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	bedrockVersion, err := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
+	bedrockRelease, err := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
 	if err != nil {
 		c.UI.Error("Aborting: error while downloading Bedrock")
 		c.UI.Error(err.Error())
@@ -180,8 +180,8 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
-	fmt.Printf("  Trellis %s\n", trellisVersion)
-	fmt.Printf("  Bedrock v%s\n", bedrockVersion)
+	fmt.Printf("  Trellis %s\n", trellisRelease.Version)
+	fmt.Printf("  Bedrock v%s\n", bedrockRelease.Version)
 
 	return 0
 }
