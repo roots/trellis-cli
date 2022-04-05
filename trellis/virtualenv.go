@@ -148,25 +148,20 @@ func (v *Virtualenv) UpdateBinShebangs(binGlob string) error {
 			return err
 		}
 		defer tmp.Close()
+		defer os.Remove(tmp.Name())
 
 		if err = v.replaceShebang(f, tmp); err != nil {
 			return err
 		}
 
-		if err := tmp.Close(); err != nil {
-			return err
-		}
-
-		if err := f.Close(); err != nil {
-			return err
-		}
-
 		// overwrite the original bin file with the fixed version
-		if err := os.Rename(tmp.Name(), path); err != nil {
+		if _, err = io.Copy(tmp, f); err != nil {
 			return err
 		}
 
-		os.Chmod(path, permissions)
+		if err = os.Chmod(path, permissions); err != nil {
+			return err
+		}
 	}
 
 	return nil
