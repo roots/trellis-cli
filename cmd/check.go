@@ -16,7 +16,7 @@ type CheckCommand struct {
 var Requirements = []trellis.Requirement{
 	{
 		Name:              "Python",
-		Command:           "python",
+		Command:           "python3",
 		Optional:          false,
 		Url:               "https://www.python.org/",
 		VersionConstraint: ">= 3.8.0",
