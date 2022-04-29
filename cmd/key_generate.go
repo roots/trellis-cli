@@ -41,6 +41,7 @@ type KeyGenerateCommand struct {
 	noGithub     bool
 	path         string
 	provisionEnv string
+	repo         string
 }
 
 func (c *KeyGenerateCommand) init() {
@@ -51,6 +52,7 @@ func (c *KeyGenerateCommand) init() {
 	c.flags.StringVar(&c.knownHosts, "known-hosts", "", "Comma-separated list of SSH known hosts (optional)")
 	c.flags.StringVar(&c.path, "path", "", "Path of private key (Default: $HOME/.ssh)")
 	c.flags.StringVar(&c.provisionEnv, "provision", "", "Environment to provision after key is generated")
+	c.flags.StringVar(&c.repo, "repo", "", "Repository to add the GitHub secret and deploy key to. Format: OWNER/REPO")
 }
 
 func (c *KeyGenerateCommand) Run(args []string) int {
@@ -151,14 +153,14 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		return 0
 	}
 
-	if err := setPrivateKeySecret(keyPath); err != nil {
+	if err := setPrivateKeySecret(keyPath, c.repo); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
 	c.UI.Info(fmt.Sprintf("%s GitHub private key secret set [%s]", color.GreenString("[✓]"), sshKeySecret))
 
-	if err := setDeployKey(deployKeyName, trellisPublicKeyPath); err != nil {
+	if err := setDeployKey(deployKeyName, trellisPublicKeyPath, c.repo); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -270,12 +272,17 @@ Generate private key in a specific path:
 
   $ trellis key generate --path ~/my_keys
 
+Specify a repository to add the GitHub secret and deploy key to:
+
+  $ trellis key generate --repo MyOrg/MyBedrockRepo
+
 Options:
       --known-hosts Comma-separated list of SSH known hosts (optional)
       --name        Name of SSH key (Default: trellis_<site_name>_ed25519)
       --no-github   Skips creating a GitHub secret and deploy key
       --path        Path for private key (Default: $HOME/.ssh)
       --provision   Name of environment to provision after key is generated
+      --repo        Repository to add the GitHub secret and deploy key to (Format: OWNER/REPO)
   -h, --help        show this help
 `
 
@@ -299,6 +306,7 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 		"--no-github":   complete.PredictNothing,
 		"--path":        complete.PredictDirs(""),
 		"--provision":   complete.PredictSet(environmentNames...),
+		"--repo":        complete.PredictNothing,
 	}
 }
 
@@ -387,7 +395,7 @@ func keyscanHosts(hosts []string) (knownHosts []string) {
 	return knownHosts
 }
 
-func setDeployKey(name string, path string) error {
+func setDeployKey(name string, path string, repo string) error {
 	publicKeyContent, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("Error: could not read SSH public key file\n%v", err)
@@ -396,8 +404,12 @@ func setDeployKey(name string, path string) error {
 	publicKeyContent = bytes.TrimSuffix(publicKeyContent, []byte("\n"))
 	title := fmt.Sprintf("title=%s", name)
 	key := fmt.Sprintf("key=%s", string(publicKeyContent))
+	endpoint := "repos/{owner}/{repo}/keys"
+	if repo != "" {
+		endpoint = strings.Replace(endpoint, "{owner}/{repo}", repo, 1)
+	}
 
-	err = githubCLI("api", "repos/{owner}/{repo}/keys", "-f", title, "-f", key, "-f", "read_only=true")
+	err = githubCLI("api", endpoint, "-f", title, "-f", key, "-f", "read_only=true")
 	if err != nil {
 		return fmt.Errorf("Error: could not create GitHub deploy key\n%v", err)
 	}
@@ -405,13 +417,18 @@ func setDeployKey(name string, path string) error {
 	return nil
 }
 
-func setPrivateKeySecret(path string) error {
+func setPrivateKeySecret(path string, repo string) error {
 	privateKeyContent, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("Error: could not read SSH private key file\n%v", err)
 	}
 
-	err = githubCLI("secret", "set", sshKeySecret, "--body", string(privateKeyContent))
+	ghCLIArgs := []string{"secret", "set", sshKeySecret, "--body", string(privateKeyContent)}
+	if repo != "" {
+		ghCLIArgs = append(ghCLIArgs, "--repo", repo)
+	}
+
+	err = githubCLI(ghCLIArgs...)
 	if err != nil {
 		return fmt.Errorf("could not set GitHub secret\n%v", err)
 	}
