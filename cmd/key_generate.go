@@ -39,6 +39,7 @@ type KeyGenerateCommand struct {
 	keyName      string
 	knownHosts   string
 	noGithub     bool
+	noProvision  bool
 	path         string
 	provisionEnv string
 	repo         string
@@ -48,6 +49,7 @@ func (c *KeyGenerateCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGithub, "no-github", false, "Skips creating a GitHub secret and deploy key")
+	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skips provisioning the environment after key is generated")
 	c.flags.StringVar(&c.keyName, "key-name", "", "Name of SSH key (Default: trellis_<site_name>_ed25519).")
 	c.flags.StringVar(&c.knownHosts, "known-hosts", "", "Comma-separated list of SSH known hosts (optional)")
 	c.flags.StringVar(&c.path, "path", "", "Path of private key (Default: $HOME/.ssh)")
@@ -208,6 +210,11 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 
 	c.UI.Info(fmt.Sprintf("%s GitHub known hosts secret set [%s]", color.GreenString("[✓]"), sshKnownHostsSecret))
 
+	if c.noProvision {
+		// the rest of the command is environment provisioning
+		return 0
+	}
+
 	if c.provisionEnv == "" {
 		c.UI.Info("\nThe public key will not be usable until it's added to your server.")
 		prompt := promptui.Prompt{
@@ -276,14 +283,18 @@ Specify a repository to add the GitHub secret and deploy key to:
 
   $ trellis key generate --repo MyOrg/MyBedrockRepo
 
+To skip provisioning, use the --no-provision option:
+  
+  $ trellis key generate --no-provision
+
 Options:
-      --known-hosts Comma-separated list of SSH known hosts (optional)
-      --name        Name of SSH key (Default: trellis_<site_name>_ed25519)
-      --no-github   Skips creating a GitHub secret and deploy key
-      --path        Path for private key (Default: $HOME/.ssh)
-      --provision   Name of environment to provision after key is generated
-      --repo        Repository to add the GitHub secret and deploy key to (Format: OWNER/REPO)
-  -h, --help        show this help
+      --known-hosts    Comma-separated list of SSH known hosts (optional)
+      --name           Name of SSH key (Default: trellis_<site_name>_ed25519)
+      --no-github      Skips creating a GitHub secret and deploy key
+      --path           Path for private key (Default: $HOME/.ssh)
+      --[no-]provision Name of environment to provision after key is generated
+      --repo           Repository to add the GitHub secret and deploy key to (Format: OWNER/REPO)
+  -h, --help           show this help
 `
 
 	return strings.TrimSpace(helpText)
