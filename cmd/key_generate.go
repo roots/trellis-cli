@@ -193,18 +193,9 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		}
 	}
 
-	knownHosts := keyscanHosts(strings.Split(c.knownHosts, ","))
-
-	if len(knownHosts) == 0 {
+	if err := setSshKnownHostsSecret(sshKnownHostsSecret, c.knownHosts, c.repo); err != nil {
 		c.UI.Error("Error: could not set SSH known hosts.")
-		c.UI.Error(fmt.Sprintf("ssh-keyscan command failed for all hosts: %s", c.knownHosts))
-		return 1
-	}
-
-	err = githubCLI("secret", "set", sshKnownHostsSecret, "--body", strings.Join(knownHosts, "\n"))
-	if err != nil {
-		c.UI.Error("Error: could not set GitHub secret")
-		c.UI.Error(err.Error())
+    c.UI.Error(err.Error())
 		return 1
 	}
 
@@ -442,6 +433,25 @@ func setPrivateKeySecret(path string, repo string) error {
 	err = githubCLI(ghCLIArgs...)
 	if err != nil {
 		return fmt.Errorf("could not set GitHub secret\n%v", err)
+	}
+
+	return nil
+}
+
+func setSshKnownHostsSecret(sshKnownHostsSecret string, knownHosts string, repo string) error {
+	sshKnownHosts := keyscanHosts(strings.Split(knownHosts, ","))
+	if len(sshKnownHosts) == 0 {
+		return fmt.Errorf("ssh-keyscan command failed for all hosts: %s", sshKnownHosts)
+	}
+
+	ghCLIArgs := []string{"secret", "set", sshKnownHostsSecret, "--body", strings.Join(sshKnownHosts, "\n")}
+	if repo != "" {
+		ghCLIArgs = append(ghCLIArgs, "--repo", repo)
+	}
+
+	err := githubCLI(ghCLIArgs...)
+	if err != nil {
+		return fmt.Errorf("Error: could not set GitHub secret\n%v", err)
 	}
 
 	return nil
