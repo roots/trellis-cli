@@ -17,7 +17,7 @@ type UpCommand struct {
 	flags       *flag.FlagSet
 	noGalaxy    bool
 	noProvision bool
-        debug       bool
+	debug       bool
 }
 
 func NewUpCommand(ui cli.Ui, trellis *trellis.Trellis) *UpCommand {
@@ -31,7 +31,7 @@ func (c *UpCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGalaxy, "no-galaxy", false, "Skip Ansible Galaxy install")
 	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skip provisioning")
-        c.flags.BoolVar(&c.debug, "debug", false, "Enable vagrant's debug mode")
+	c.flags.BoolVar(&c.debug, "debug", false, "Enable vagrant's debug mode")
 }
 
 func (c *UpCommand) Run(args []string) int {
