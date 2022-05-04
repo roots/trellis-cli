@@ -195,7 +195,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 
 	if err := setSshKnownHostsSecret(sshKnownHostsSecret, c.knownHosts, c.repo); err != nil {
 		c.UI.Error("Error: could not set SSH known hosts.")
-    c.UI.Error(err.Error())
+		c.UI.Error(err.Error())
 		return 1
 	}
 
