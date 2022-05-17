@@ -270,9 +270,7 @@ next line
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := strings.NewReader(tc.input)
-			var b bytes.Buffer
-
-			venv.replaceShebang(r, &b)
+			b, _ := venv.replaceShebang(r)
 
 			if b.String() != tc.output {
 				t.Errorf("%s\n expected output: %s\ngot: %s", tc.name, tc.output, b.String())
