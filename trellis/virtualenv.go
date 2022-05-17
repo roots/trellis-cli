@@ -2,6 +2,7 @@ package trellis
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -134,32 +135,7 @@ func (v *Virtualenv) UpdateBinShebangs(binGlob string) error {
 	binPaths, _ := filepath.Glob(v.BinPath + "/" + binGlob)
 
 	for _, path := range binPaths {
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-
-		fileInfo, _ := f.Stat()
-		permissions := fileInfo.Mode()
-		defer f.Close()
-
-		tmp, err := os.CreateTemp("", "replace-"+filepath.Base(path))
-		if err != nil {
-			return err
-		}
-		defer tmp.Close()
-		defer os.Remove(tmp.Name())
-
-		if err = v.replaceShebang(f, tmp); err != nil {
-			return err
-		}
-
-		// overwrite the original bin file with the fixed version
-		if _, err = io.Copy(tmp, f); err != nil {
-			return err
-		}
-
-		if err = os.Chmod(path, permissions); err != nil {
+		if err := v.updateFile(path); err != nil {
 			return err
 		}
 	}
@@ -167,7 +143,31 @@ func (v *Virtualenv) UpdateBinShebangs(binGlob string) error {
 	return nil
 }
 
-func (v *Virtualenv) replaceShebang(r io.Reader, w io.Writer) error {
+func (v *Virtualenv) updateFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("Could not open file %s: %w", path, err)
+	}
+
+	fileInfo, _ := f.Stat()
+	permissions := fileInfo.Mode()
+	defer f.Close()
+
+	contents, err := v.replaceShebang(f)
+	if err != nil {
+		return fmt.Errorf("Error replacing shebang in file %s: %w", path, err)
+	}
+
+	// overwrite the original bin file with the fixed version
+	if err = os.WriteFile(f.Name(), contents.Bytes(), permissions); err != nil {
+		return fmt.Errorf("Error writing file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func (v *Virtualenv) replaceShebang(r io.Reader) (*bytes.Buffer, error) {
+	var contents bytes.Buffer
 	sc := bufio.NewScanner(r)
 	lineNumber := 1
 
@@ -178,18 +178,18 @@ func (v *Virtualenv) replaceShebang(r io.Reader, w io.Writer) error {
 		if lineNumber == 1 && strings.HasPrefix(line, "#!"+v.BinPath) {
 			shebang := fmt.Sprintf("#!/bin/sh\n'''exec' \"%s/python\" \"$0\" \"$@\"\n' '''", v.BinPath)
 			// write new shebang lines to tmp file
-			if _, err := io.WriteString(w, shebang+"\n"); err != nil {
-				return err
+			if _, err := contents.WriteString(shebang + "\n"); err != nil {
+				return nil, err
 			}
 		} else {
 			// write original line to tmp file
-			if _, err := io.WriteString(w, line+"\n"); err != nil {
-				return err
+			if _, err := contents.WriteString(line + "\n"); err != nil {
+				return nil, err
 			}
 		}
 
 		lineNumber++
 	}
 
-	return nil
+	return &contents, nil
 }
