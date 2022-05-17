@@ -22,17 +22,17 @@ func (c *VenvHookCommand) Run(args []string) int {
 	if c.Trellis.ActivateProject() {
 		if !ok {
 			fmt.Fprintf(color.Error, "[trellis] \x1b[1;32mactivated env\x1b[0m\n")
-			c.UI.Output(fmt.Sprintf("export %s=\"%s\"", trellis.VenvEnvName, shellescape.Quote(c.Trellis.Virtualenv.Path)))
-			c.UI.Output(fmt.Sprintf("export %s=\"%s\"", trellis.OldPathEnvName, shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
-			c.UI.Output(fmt.Sprintf("export %s=\"%s\":\"%s\"", trellis.PathEnvName, shellescape.Quote(c.Trellis.Virtualenv.BinPath), shellescape.Quote(c.Trellis.Virtualenv.OldPath)))
+			c.exportEnv(trellis.VenvEnvName, c.Trellis.Virtualenv.Path)
+			c.exportEnv(trellis.OldPathEnvName, c.Trellis.Virtualenv.OldPath)
+			newPath := fmt.Sprintf("%s:%s", c.Trellis.Virtualenv.BinPath, c.Trellis.Virtualenv.OldPath)
+			c.exportEnv(trellis.PathEnvName, newPath)
 		}
 	} else {
 		if ok {
 			fmt.Fprintf(color.Error, "[trellis] \x1b[1;31mdeactivated env\x1b[0m\n")
-			path := os.Getenv(trellis.OldPathEnvName)
 			c.UI.Output(fmt.Sprintf("unset %s", trellis.VenvEnvName))
 			c.UI.Output(fmt.Sprintf("unset %s", trellis.OldPathEnvName))
-			c.UI.Output(fmt.Sprintf("export %s=%s", trellis.PathEnvName, shellescape.Quote(path)))
+			c.exportEnv(trellis.PathEnvName, os.Getenv(trellis.OldPathEnvName))
 		}
 	}
 
@@ -56,4 +56,8 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func (c *VenvHookCommand) exportEnv(key string, value string) {
+	c.UI.Output(fmt.Sprintf("export %s=%s", key, shellescape.Quote(value)))
 }

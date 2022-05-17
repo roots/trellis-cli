@@ -12,6 +12,7 @@ import (
 func TestVenvHookRunActivatesEnv(t *testing.T) {
 	os.Unsetenv(trellis.OldPathEnvName)
 	defer trellis.LoadFixtureProject(t)()
+	t.Setenv(trellis.PathEnvName, "/path/to folder")
 
 	ui := cli.NewMockUi()
 	tp := trellis.NewTrellis()
@@ -25,9 +26,9 @@ func TestVenvHookRunActivatesEnv(t *testing.T) {
 
 	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-	venv := fmt.Sprintf("export %s=\"%s\"", trellis.VenvEnvName, tp.Virtualenv.Path)
-	oldPath := fmt.Sprintf("export %s=\"%s\"", trellis.OldPathEnvName, tp.Virtualenv.OldPath)
-	path := fmt.Sprintf("export %s=\"%s\":\"%s\"", trellis.PathEnvName, tp.Virtualenv.BinPath, tp.Virtualenv.OldPath)
+	venv := fmt.Sprintf("export %s=%s", trellis.VenvEnvName, tp.Virtualenv.Path)
+	oldPath := fmt.Sprintf("export %s='%s'", trellis.OldPathEnvName, tp.Virtualenv.OldPath)
+	path := fmt.Sprintf("export %s='%s:%s'", trellis.PathEnvName, tp.Virtualenv.BinPath, tp.Virtualenv.OldPath)
 
 	expected := fmt.Sprintf("%s\n%s\n%s\n", venv, oldPath, path)
 
@@ -37,7 +38,7 @@ func TestVenvHookRunActivatesEnv(t *testing.T) {
 }
 
 func TestVenvHookRunDeactivatesEnv(t *testing.T) {
-	t.Setenv(trellis.OldPathEnvName, "foo")
+	t.Setenv(trellis.OldPathEnvName, "foo bar")
 
 	ui := cli.NewMockUi()
 	trellis := trellis.NewMockTrellis(false)
@@ -53,7 +54,7 @@ func TestVenvHookRunDeactivatesEnv(t *testing.T) {
 
 	expected := `unset VIRTUAL_ENV
 unset PRE_TRELLIS_PATH
-export PATH=foo
+export PATH='foo bar'
 `
 
 	if combined != expected {
