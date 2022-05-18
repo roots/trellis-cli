@@ -3,7 +3,7 @@ module github.com/roots/trellis-cli
 go 1.17
 
 require (
-	github.com/digitalocean/godo v1.78.0
+	github.com/digitalocean/godo v1.79.0
 	github.com/fatih/color v1.13.0
 	github.com/google/go-cmp v0.5.8
 	github.com/hashicorp/go-version v1.4.0
@@ -18,7 +18,7 @@ require (
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.15.0
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
+	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.66.4
 	gopkg.in/yaml.v2 v2.4.0
@@ -53,9 +53,9 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
+	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
 	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 )
