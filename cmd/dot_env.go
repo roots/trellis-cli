@@ -48,6 +48,24 @@ func (c *DotEnvCommand) Run(args []string) int {
 
 	spinner := NewSpinner(
 		SpinnerCfg{
+			Message:     "Validating ansible-vault usability",
+			StopMessage: "ansible-vault is ready to use",
+			FailMessage: "ansible-vault is not ready to use",
+		},
+	)
+
+	spinner.Start()
+
+	if err := validateAnsibleVaultUsable(c.Trellis.Path); err != nil {
+		spinner.StopFail()
+		c.UI.Error(fmt.Sprintf("Error validating ansible-vault usability: %s", err))
+		return 1
+	}
+
+	spinner.Stop()
+
+	spinner = NewSpinner(
+		SpinnerCfg{
 			Message:     "Generating .env file",
 			StopMessage: "Generated .env file",
 			FailMessage: "Error templating .env file",
