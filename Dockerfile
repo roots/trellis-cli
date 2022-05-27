@@ -1,6 +1,6 @@
 # This docker image is for integration testing only.
 
-FROM golang:1.17-bullseye
+FROM golang:1.18-bullseye
 
 ARG DEBIAN_FRONTEND=noninteractive
 
