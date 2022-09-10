@@ -1,0 +1,9 @@
+{% if include_local_env | default(false) %}
+@{{ env }}:
+  ssh: "{{ local_hostname_alias }}"
+  path: "{{ project_root | default(www_root + '/' + item.key) | regex_replace('^~\/','') }}/{{ item.current_path | default('current') }}/web/wp"
+{% else %}
+@{{ env }}:
+  ssh: "{{ web_user }}@{{ ansible_host }}:{{ ansible_port | default('22') }}"
+  path: "{{ project_root | default(www_root + '/' + item.key) | regex_replace('^~\/','') }}/{{ item.current_path | default('current') }}/web/wp"
+{% endif %}

@@ -19,6 +19,7 @@ type AliasCommand struct {
 	flags             *flag.FlagSet
 	Trellis           *trellis.Trellis
 	local             string
+	skipLocal         bool
 	aliasPlaybook     *AdHocPlaybook
 	aliasCopyPlaybook *AdHocPlaybook
 }
@@ -26,11 +27,8 @@ type AliasCommand struct {
 //go:embed files/playbooks/alias.yml
 var aliasYml string
 
-const aliasYmlJ2 = `
-@{{ env }}:
-  ssh: "{{ web_user }}@{{ ansible_host }}:{{ ansible_port | default('22') }}"
-  path: "{{ project_root | default(www_root + '/' + item.key) | regex_replace('^~\/','') }}/{{ item.current_path | default('current') }}/web/wp"
-`
+//go:embed files/playbooks/alias_template.yml.j2
+var aliasYmlJ2 string
 
 //go:embed files/playbooks/alias_copy.yml
 var aliasCopyYml string
@@ -40,7 +38,7 @@ func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
 		path: trellis.Path,
 		files: map[string]string{
 			"alias.yml":    aliasYml,
-			"alias.yml.j2": strings.TrimSpace(aliasYmlJ2) + "\n",
+			"alias.yml.j2": aliasYmlJ2,
 		},
 	}
 
@@ -59,7 +57,8 @@ func NewAliasCommand(ui cli.Ui, trellis *trellis.Trellis) *AliasCommand {
 func (c *AliasCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.local, "local", "development", "local environment name, default: development")
+	c.flags.StringVar(&c.local, "local", "development", "Local environment name (default: development)")
+	c.flags.BoolVar(&c.skipLocal, "skip-local", false, "Skip local environment in aliases (default: false)")
 }
 
 func (c *AliasCommand) Run(args []string) int {
@@ -92,11 +91,13 @@ func (c *AliasCommand) Run(args []string) int {
 	spinner.Start()
 
 	environments := c.Trellis.EnvironmentNames()
-	var remoteEnvironments []string
+	var envsToAlias []string
 	for _, environment := range environments {
-		if environment != c.local {
-			remoteEnvironments = append(remoteEnvironments, environment)
+		if c.skipLocal && environment == c.local {
+			continue
 		}
+
+		envsToAlias = append(envsToAlias, environment)
 	}
 
 	tempDir, tempDirErr := os.MkdirTemp("", "trellis-alias-")
@@ -109,7 +110,7 @@ func (c *AliasCommand) Run(args []string) int {
 
 	defer c.aliasPlaybook.DumpFiles()()
 
-	for _, environment := range remoteEnvironments {
+	for _, environment := range envsToAlias {
 		args := []string{
 			"alias.yml",
 			"-vvv",
@@ -117,6 +118,14 @@ func (c *AliasCommand) Run(args []string) int {
 			"-e", "trellis_alias_j2=alias.yml.j2",
 			"-e", "trellis_alias_temp_dir=" + tempDir,
 		}
+
+		if !c.skipLocal && c.local == environment {
+			siteName, _ := c.Trellis.FindSiteNameFromEnvironment(environment, "")
+			mainHost := c.Trellis.SiteFromEnvironmentAndName(environment, siteName).MainHost()
+			args = append(args, "-e", "include_local_env=true")
+			args = append(args, "-e", "local_hostname_alias="+mainHost)
+		}
+
 		aliasPlaybook := command.Cmd("ansible-playbook", args)
 
 		if err := aliasPlaybook.Run(); err != nil {
@@ -127,7 +136,7 @@ func (c *AliasCommand) Run(args []string) int {
 	}
 
 	combined := ""
-	for _, environment := range remoteEnvironments {
+	for _, environment := range envsToAlias {
 		part, err := os.ReadFile(filepath.Join(tempDir, environment+".yml.part"))
 		if err != nil {
 			spinner.StopFail()
@@ -178,9 +187,14 @@ Usage: trellis alias [options]
 
 Generate WP CLI aliases for remote environments
 
+Don't include local env (useful for non-Vagrant users):
+
+  $ trellis alias --skip-local
+
 Options:
-      --local Local environment name (default: development)
-  -h, --help  show this help
+      --local         Local environment name (default: development)
+      --skip-local    Skip local environment in aliases (default: false)
+  -h, --help          Show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -188,6 +202,7 @@ Options:
 
 func (c *AliasCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--local": complete.PredictNothing,
+		"--local":      complete.PredictNothing,
+		"--skip-local": complete.PredictNothing,
 	}
 }
