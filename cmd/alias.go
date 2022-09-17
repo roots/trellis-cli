@@ -3,7 +3,6 @@ package cmd
 import (
 	_ "embed"
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,11 +125,15 @@ func (c *AliasCommand) Run(args []string) int {
 			args = append(args, "-e", "local_hostname_alias="+mainHost)
 		}
 
-		aliasPlaybook := command.Cmd("ansible-playbook", args)
+		mockUi := cli.NewMockUi()
+		aliasPlaybook := command.WithOptions(
+			command.WithUiOutput(mockUi),
+		).Cmd("ansible-playbook", args)
 
 		if err := aliasPlaybook.Run(); err != nil {
 			spinner.StopFail()
-			c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias.yml: %s", err))
+			c.UI.Error("Error creating WP-CLI aliases. Temporary playbook failed to execute:")
+			c.UI.Error(mockUi.ErrorWriter.String())
 			return 1
 		}
 	}
@@ -156,11 +159,15 @@ func (c *AliasCommand) Run(args []string) int {
 
 	defer c.aliasCopyPlaybook.DumpFiles()()
 
-	aliasCopyPlaybook := command.Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
+	mockUi := cli.NewMockUi()
+	aliasCopyPlaybook := command.WithOptions(
+		command.WithUiOutput(mockUi),
+	).Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
 
 	if err := aliasCopyPlaybook.Run(); err != nil {
 		spinner.StopFail()
-		c.UI.Error(fmt.Sprintf("Error running ansible-playbook alias-copy.yml: %s", err))
+		c.UI.Error("Error creating WP-CLI aliases. Temporary playbook failed to execute:")
+		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
 

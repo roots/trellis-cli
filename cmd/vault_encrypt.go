@@ -113,11 +113,18 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 	vaultArgs := []string{"encrypt"}
 	vaultArgs = append(vaultArgs, filesToEncrypt...)
 
-	vaultEncrypt := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", vaultArgs)
+	mockUi := cli.NewMockUi()
+	vaultEncrypt := command.WithOptions(
+		command.WithUiOutput(mockUi),
+		command.WithLogging(c.UI),
+	).Cmd("ansible-vault", vaultArgs)
 
-	if err := vaultEncrypt.Run(); err == nil {
-		c.UI.Info(color.GreenString("Encryption successful"))
+	if err := vaultEncrypt.Run(); err != nil {
+		c.UI.Error(mockUi.ErrorWriter.String())
+		return 1
 	}
+
+	c.UI.Info(color.GreenString("Encryption successful"))
 
 	return 0
 }

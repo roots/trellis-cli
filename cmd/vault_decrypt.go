@@ -87,11 +87,18 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 
 	vaultArgs = append(vaultArgs, filesToDecrypt...)
 
-	vaultDecrypt := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", vaultArgs)
+	mockUi := cli.NewMockUi()
+	vaultDecrypt := command.WithOptions(
+		command.WithUiOutput(mockUi),
+		command.WithLogging(c.UI),
+	).Cmd("ansible-vault", vaultArgs)
 
-	if err := vaultDecrypt.Run(); err == nil {
-		c.UI.Info(color.GreenString("Decryption successful"))
+	if err := vaultDecrypt.Run(); err != nil {
+		c.UI.Error(mockUi.ErrorWriter.String())
+		return 1
 	}
+
+	c.UI.Info(color.GreenString("Decryption successful"))
 
 	return 0
 }

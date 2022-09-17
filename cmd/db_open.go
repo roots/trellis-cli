@@ -119,10 +119,15 @@ func (c *DBOpenCommand) Run(args []string) int {
 		"-e", "site=" + siteName,
 		"-e", "dest=" + dbCredentialsJson.Name(),
 	}
-	dumpDbCredentials := command.Cmd("ansible-playbook", playbookArgs)
+
+	mockUi := cli.NewMockUi()
+	dumpDbCredentials := command.WithOptions(
+		command.WithUiOutput(mockUi),
+	).Cmd("ansible-playbook", playbookArgs)
 
 	if err := dumpDbCredentials.Run(); err != nil {
-		c.UI.Error(fmt.Sprintf("Error running ansible-playbook dump_db_credentials.yml: %s", err))
+		c.UI.Error("Error opening database. Temporary playbook failed to execute:")
+		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
 
