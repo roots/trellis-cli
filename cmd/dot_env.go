@@ -2,10 +2,12 @@ package cmd
 
 import (
 	_ "embed"
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -89,10 +91,24 @@ func (c *DotEnvCommand) Help() string {
 Usage: trellis dotenv [options] [ENVIRONMENT=development]
 
 Template .env files to local system
+Template the production .env file:
+
+  $ trellis dotenv production
+
+Arguments:
+  ENVIRONMENT Name of environment (default: development)
 
 Options:
   -h, --help  show this help
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func (c *DotEnvCommand) AutocompleteArgs() complete.Predictor {
+	return c.Trellis.AutocompleteEnvironment(flag.NewFlagSet("", flag.ContinueOnError))
+}
+
+func (c *DotEnvCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{}
 }
