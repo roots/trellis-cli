@@ -154,7 +154,7 @@ func (t *Trellis) LoadProject() error {
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Fatal error getting current working directory: %v", err)
 	}
 
 	path, ok := t.Detect(wd)
@@ -163,7 +163,11 @@ func (t *Trellis) LoadProject() error {
 		return errors.New("No Trellis project detected in the current directory or any of its parent directories.")
 	}
 
-	t.CliConfig = t.LoadCliConfig()
+	t.CliConfig, err = t.LoadCliConfig()
+	if err != nil {
+		return err
+	}
+
 	t.Path = path
 	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
@@ -256,21 +260,26 @@ func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteNam
 	return sites[0], nil
 }
 
-func (t *Trellis) LoadCliConfig() *CliConfig {
-	config := &CliConfig{}
-	configYaml, err := os.ReadFile(filepath.Join(t.ConfigPath(), ConfigFile))
+func (t *Trellis) LoadCliConfig() (config *CliConfig, err error) {
+	config = &CliConfig{}
+	path := filepath.Join(t.ConfigPath(), ConfigFile)
+	configYaml, err := os.ReadFile(path)
 
 	if err != nil && !os.IsNotExist(err) {
-		log.Fatalln(err)
+		return config, fmt.Errorf("Error reading CLI config file %s: %v", path, err)
 	}
 
 	if err == nil {
 		if err = yaml.UnmarshalStrict(configYaml, &config); err != nil {
-			log.Fatalln(err)
+			return config, fmt.Errorf("Error parsing CLI config file: %v", err)
 		}
 	}
 
-	return config
+	if err = config.Init(); err != nil {
+		return config, fmt.Errorf("Error initializing CLI config: %v", err)
+	}
+
+	return config, nil
 }
 
 func (t *Trellis) SiteFromEnvironmentAndName(environment string, name string) *Site {
