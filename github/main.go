@@ -46,11 +46,11 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	os.Chdir(path)
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
-	err = DownloadFile(archivePath, release.ZipUrl)
+	err = DownloadFile(archivePath, release.ZipUrl, Client)
 	defer os.Remove(archivePath)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error deleting the temporary archive path: %v", err)
+		return nil, err
 	}
 
 	if err := archiver.Unarchive(archivePath, path); err != nil {
@@ -81,7 +81,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	resp, err := client.Get(url)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching %s: %v", url, err)
+		return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -89,33 +89,43 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error reading API response: %v", err)
+		return nil, fmt.Errorf("failed reading API response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(string(body))
 	}
 
 	release := &Release{}
 
 	if err = json.Unmarshal(body, release); err != nil {
-		return nil, fmt.Errorf("Error parsing JSON response: %v", err)
+		return nil, fmt.Errorf("failed parsing JSON response: %v", err)
 	}
 
 	return release, nil
 }
 
-func DownloadFile(filepath string, url string) error {
+func DownloadFile(filepath string, url string, client *http.Client) error {
 	out, err := os.Create(filepath)
 	if err != nil {
 		return fmt.Errorf("Could not create file %s: %v", filepath, err)
 	}
 	defer out.Close()
 
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("Could not download file %s: %v", url, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("URL not found %s: %v", url, err)
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+
+		if err != nil {
+			return fmt.Errorf("Failed reading API response: %v", err)
+		}
+
+		return fmt.Errorf("Could not download file %s: %s", url, string(body))
 	}
 
 	_, err = io.Copy(out, resp.Body)

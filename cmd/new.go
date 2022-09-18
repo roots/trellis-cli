@@ -113,7 +113,7 @@ func (c *NewCommand) Run(args []string) int {
 	if err != nil {
 		c.UI.Error("Aborting: error while downloading Trellis")
 		c.UI.Error(err.Error())
-		c.UI.Error("This might just be a network error. Please delete this project folder and try again.")
+		c.UI.Error("\nThis could be a temporary network error. Please delete this project folder and try again.")
 		return 1
 	}
 
@@ -121,7 +121,7 @@ func (c *NewCommand) Run(args []string) int {
 	if err != nil {
 		c.UI.Error("Aborting: error while downloading Bedrock")
 		c.UI.Error(err.Error())
-		c.UI.Error("This might just be a network error. Please delete this project folder and try again.")
+		c.UI.Error("\nThis could be a temporary network error. Please delete this project folder and try again.")
 		return 1
 	}
 
