@@ -3,7 +3,6 @@ package cmd
 import (
 	_ "embed"
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -70,11 +69,14 @@ func (c *DotEnvCommand) Run(args []string) int {
 
 	defer c.playbook.DumpFiles()()
 
-	dotenv := command.Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
+	mockUi := cli.NewMockUi()
+	dotenv := command.WithOptions(
+		command.WithUiOutput(mockUi),
+	).Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
 
 	if err := dotenv.Run(); err != nil {
 		spinner.StopFail()
-		c.UI.Error(fmt.Sprintf("Error running ansible-playbook: %s", err))
+		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
 
