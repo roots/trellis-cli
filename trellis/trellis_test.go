@@ -316,7 +316,7 @@ func TestLoadProjectForProjects(t *testing.T) {
 func TestLoadCliConfigWhenFileDoesNotExist(t *testing.T) {
 	tp := NewTrellis()
 
-	config := tp.LoadCliConfig()
+	config, _ := tp.LoadCliConfig()
 
 	if config == nil {
 		t.Error("expected config object")
@@ -335,7 +335,7 @@ func TestLoadCliConfigWhenFileExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config := tp.LoadCliConfig()
+	config, _ := tp.LoadCliConfig()
 
 	if !reflect.DeepEqual(config, &CliConfig{}) {
 		t.Error("expected open object")
