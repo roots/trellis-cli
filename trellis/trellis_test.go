@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/roots/trellis-cli/app_paths"
 )
 
 func TestCreateConfigDir(t *testing.T) {
@@ -296,16 +298,6 @@ func TestLoadProjectForProjects(t *testing.T) {
 		t.Errorf("expected %s to be %s", tp.Path, wd)
 	}
 
-	expectedConfig := &CliConfig{
-		Open: map[string]string{
-			"sentry": "https://myapp.sentry.io",
-		},
-	}
-
-	if !reflect.DeepEqual(tp.CliConfig, expectedConfig) {
-		t.Errorf("expected config not equal")
-	}
-
 	expectedEnvNames := []string{"development", "production", "valet-link"}
 
 	if !reflect.DeepEqual(tp.EnvironmentNames(), expectedEnvNames) {
@@ -314,30 +306,83 @@ func TestLoadProjectForProjects(t *testing.T) {
 }
 
 func TestLoadCliConfigWhenFileDoesNotExist(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
+
 	tp := NewTrellis()
+	err := tp.LoadCliConfig()
 
-	config, _ := tp.LoadCliConfig()
+	if err != nil {
+		t.Error("expected no error")
+	}
 
-	if config == nil {
-		t.Error("expected config object")
+	if !reflect.DeepEqual(tp.CliConfig, DefaultCliConfig) {
+		t.Errorf("expected default CLI config %v, got %v", DefaultCliConfig, tp.CliConfig)
 	}
 }
 
-func TestLoadCliConfigWhenFileExists(t *testing.T) {
-	defer LoadFixtureProject(t)()
-
+func TestLoadGlobalCliConfig(t *testing.T) {
 	tp := NewTrellis()
 
-	configFilePath := filepath.Join(tp.ConfigPath(), ConfigFile)
-	configContents := ``
+	tempDir := t.TempDir()
+	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
+
+	configFilePath := app_paths.ConfigPath(cliConfigFile)
+	configContents := `
+ask_vault_pass: true
+`
 
 	if err := os.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
 		t.Fatal(err)
 	}
 
-	config, _ := tp.LoadCliConfig()
+	err := tp.LoadCliConfig()
 
-	if !reflect.DeepEqual(config, &CliConfig{}) {
-		t.Error("expected open object")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if tp.CliConfig.AskVaultPass != true {
+		t.Errorf("expected global CLI config to get AskVaultPass to true")
+	}
+}
+
+func TestLoadProjectCliConfig(t *testing.T) {
+	defer LoadFixtureProject(t)()
+
+	tp := NewTrellis()
+
+	tempDir := t.TempDir()
+	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
+
+	configFilePath := app_paths.ConfigPath(cliConfigFile)
+	configContents := `
+ask_vault_pass: true
+`
+
+	if err := os.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	err := tp.LoadCliConfig()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	projectConfigContents := `
+ask_vault_pass: false
+`
+
+	if err := os.WriteFile(filepath.Join(tp.ConfigPath(), cliConfigFile), []byte(projectConfigContents), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tp.LoadProjectCliConfig(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if tp.CliConfig.AskVaultPass != false {
+		t.Errorf("expected project CLI config to override AskVaultPass to false")
 	}
 }

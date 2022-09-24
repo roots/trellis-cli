@@ -1,7 +1,6 @@
 package update
 
 import (
-	"github.com/roots/trellis-cli/github"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,12 +8,14 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/mattn/go-isatty"
+	"github.com/roots/trellis-cli/github"
 	"gopkg.in/yaml.v2"
 )
 
 type Notifier struct {
 	CacheDir   string
 	ForceCheck bool
+	SkipCheck  bool
 	Repo       string
 	Version    string
 	Client     *http.Client
@@ -48,16 +49,16 @@ func (n *Notifier) shouldCheckForUpdate() bool {
 		return true
 	}
 
+	if n.SkipCheck {
+		return false
+	}
+
 	if n.Repo == "" || n.CacheDir == "" {
 		return false
 	}
 
 	// skip completion commands
 	if os.Getenv("COMP_LINE") != "" {
-		return false
-	}
-
-	if os.Getenv("TRELLIS_NO_UPDATE_NOTIFIER") != "" {
 		return false
 	}
 

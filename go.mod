@@ -13,7 +13,6 @@ require (
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/cli v1.1.4
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/muesli/go-app-paths v0.2.2
 	github.com/posener/complete v1.2.3
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.20.0

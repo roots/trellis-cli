@@ -10,13 +10,18 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/app_paths"
+	"github.com/roots/trellis-cli/cli_config"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 )
 
-const ConfigDir = ".trellis"
-const ConfigFile = "cli.yml"
-const GlobPattern = "group_vars/*/wordpress_sites.yml"
+const (
+	ConfigDir   = ".trellis"
+	GlobPattern = "group_vars/*/wordpress_sites.yml"
+)
+
+const cliConfigFile = "cli.yml"
 
 type Options struct {
 	Detector  Detector
@@ -25,8 +30,16 @@ type Options struct {
 
 type TrellisOption func(*Trellis)
 
+var DefaultCliConfig = cli_config.Config{
+	AskVaultPass:          false,
+	CheckForUpdates:       true,
+	LoadPlugins:           true,
+	Open:                  make(map[string]string),
+	VirtualenvIntegration: true,
+}
+
 type Trellis struct {
-	CliConfig       *CliConfig
+	CliConfig       cli_config.Config
 	ConfigDir       string
 	Detector        Detector
 	Environments    map[string]*Config
@@ -44,8 +57,9 @@ func NewTrellis(opts ...TrellisOption) *Trellis {
 	)
 
 	t := &Trellis{
-		Detector:        &ProjectDetector{},
+		CliConfig:       cli_config.NewConfig(DefaultCliConfig),
 		ConfigDir:       defaultConfigDir,
+		Detector:        &ProjectDetector{},
 		VenvInitialized: defaultVenvInitialized,
 		venvWarned:      defaultVenvWarned,
 	}
@@ -95,7 +109,7 @@ func (t *Trellis) CreateConfigDir() error {
 
 func (t *Trellis) CheckVirtualenv(ui cli.Ui) {
 	if !t.venvWarned && !t.VenvInitialized {
-		ui.Warn(fmt.Sprintf(`
+		ui.Warn(`
 WARNING: This project has not been initialized with trellis-cli and may not work as expected.
 
 You may see this warning if you are using trellis-cli on an existing project (previously created without the CLI).
@@ -104,9 +118,9 @@ To ensure you have the required dependencies, initialize the project with the fo
   $ trellis init
 
 If you want to manage dependencies yourself manually, you can ignore this warning.
-To disable this automated check, set the %s environment variable to 'false': export %s=false
+To disable this automated check, set the 'virtualenv_integration' configuration setting to 'false'.
 
-  `, TrellisVenvEnvName, TrellisVenvEnvName))
+  `)
 	}
 
 	t.venvWarned = true
@@ -163,8 +177,7 @@ func (t *Trellis) LoadProject() error {
 		return errors.New("No Trellis project detected in the current directory or any of its parent directories.")
 	}
 
-	t.CliConfig, err = t.LoadCliConfig()
-	if err != nil {
+	if err = t.LoadProjectCliConfig(); err != nil {
 		return err
 	}
 
@@ -173,7 +186,7 @@ func (t *Trellis) LoadProject() error {
 
 	os.Chdir(t.Path)
 
-	if os.Getenv(TrellisVenvEnvName) != "false" {
+	if t.CliConfig.VirtualenvIntegration {
 		if t.Virtualenv.Initialized() {
 			t.VenvInitialized = true
 			t.Virtualenv.Activate()
@@ -260,26 +273,35 @@ func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteNam
 	return sites[0], nil
 }
 
-func (t *Trellis) LoadCliConfig() (config *CliConfig, err error) {
-	config = &CliConfig{}
-	path := filepath.Join(t.ConfigPath(), ConfigFile)
-	configYaml, err := os.ReadFile(path)
+func (t *Trellis) LoadCliConfig() error {
+	path := app_paths.ConfigPath(cliConfigFile)
 
-	if err != nil && !os.IsNotExist(err) {
-		return config, fmt.Errorf("Error reading CLI config file %s: %v", path, err)
+	if err := t.CliConfig.LoadFile(path); err != nil {
+		return fmt.Errorf("Error loading CLI config %s\n\n%v", path, err)
 	}
 
-	if err == nil {
-		if err = yaml.UnmarshalStrict(configYaml, &config); err != nil {
-			return config, fmt.Errorf("Error parsing CLI config file: %v", err)
-		}
+	if err := t.CliConfig.LoadEnv("TRELLIS_"); err != nil {
+		return fmt.Errorf("Error loading CLI config\n\n%v", err)
 	}
 
-	if err = config.Init(); err != nil {
-		return config, fmt.Errorf("Error initializing CLI config: %v", err)
+	return nil
+}
+
+func (t *Trellis) LoadProjectCliConfig() error {
+	path := filepath.Join(t.ConfigPath(), cliConfigFile)
+
+	if err := t.CliConfig.LoadFile(path); err != nil {
+		return fmt.Errorf("Error loading CLI config %s\n%v", path, err)
 	}
 
-	return config, nil
+	t.CliConfig.LoadEnv("TRELLIS_")
+
+	if t.CliConfig.AskVaultPass {
+		// https://docs.ansible.com/ansible/latest/reference_appendices/config.html#default-ask-vault-pass
+		os.Setenv("ANSIBLE_ASK_VAULT_PASS", "true")
+	}
+
+	return nil
 }
 
 func (t *Trellis) SiteFromEnvironmentAndName(environment string, name string) *Site {
