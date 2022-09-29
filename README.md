@@ -64,7 +64,11 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 4. Make sure the above path is in your `$PATH`
 
 ## Windows Install
-For windows you also need to setup environment variables to perfectly work with windows terminal
+trellis-cli does offer a native Windows exe but we [recommend you use
+WSL](https://docs.roots.io/trellis/master/installation/#local-development-requirements) for Trellis. The above install methods will work for WSL as well.
+
+If you do want to use the native Windows exe, you'll need to do the following
+setup after downloading the Windows build:
 
 1. Open system properties
 2. Open environment variables
