@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-const testDir = "tmp"
-
 func TestDetect(t *testing.T) {
 	testDir := t.TempDir()
 
@@ -69,10 +67,8 @@ func TestDetectTrellisProjectStructure(t *testing.T) {
 
 	trellisDir := filepath.Join(testDir, "trellis")
 	siteDir := filepath.Join(testDir, "site")
-
 	os.Mkdir(trellisDir, 0700)
 	os.Mkdir(siteDir, 0700)
-
 	os.Mkdir(filepath.Join(trellisDir, ConfigDir), 0700)
 
 	devDir := filepath.Join(trellisDir, "group_vars", "development")
