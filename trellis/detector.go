@@ -19,46 +19,41 @@ or stop at the root and give up.
 func (p *ProjectDetector) Detect(path string) (projectPath string, ok bool) {
 	configPaths, _ := filepath.Glob(filepath.Join(path, GlobPattern))
 
-	if len(configPaths) == 0 {
-		if p.detectTrellisCLIProject(path) {
-			return filepath.Join(path, "trellis"), true
-		}
-
-		parent := filepath.Dir(path)
-
-		if len(parent) == 1 && (parent == "." || os.IsPathSeparator(parent[0])) {
-			return "", false
-		}
-
-		return p.Detect(parent)
+	if len(configPaths) > 0 {
+		return path, true
 	}
 
-	return path, true
+	trellisPath, ok := p.detectTrellisCLIProject(path)
+	if ok {
+		return trellisPath, true
+	}
+
+	parent := filepath.Dir(path)
+
+	if len(parent) == 1 && (parent == "." || os.IsPathSeparator(parent[0])) {
+		return "", false
+	}
+
+	return p.Detect(parent)
 }
 
-func (p *ProjectDetector) detectTrellisCLIProject(path string) bool {
-	trellisPath := filepath.Join(path, "trellis")
-	sitePath := filepath.Join(path, "site")
+func (p *ProjectDetector) detectTrellisCLIProject(path string) (trellisPath string, ok bool) {
+	trellisPath = filepath.Join(path, "trellis")
 	configPath := filepath.Join(trellisPath, ConfigDir)
 
 	trellisDir, err := os.Stat(trellisPath)
 	if err != nil {
-		return false
+		return "", false
 	}
 
 	configDir, err := os.Stat(configPath)
 	if err != nil {
-		return false
+		return "", false
 	}
 
-	siteDir, err := os.Stat(sitePath)
-	if err != nil {
-		return false
+	if trellisDir.Mode().IsDir() && configDir.Mode().IsDir() {
+		return trellisPath, true
 	}
 
-	if trellisDir.Mode().IsDir() && siteDir.Mode().IsDir() && configDir.Mode().IsDir() {
-		return true
-	}
-
-	return false
+	return "", false
 }
