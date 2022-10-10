@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
+	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cmd"
-	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/plugin"
 	"github.com/roots/trellis-cli/trellis"
@@ -22,21 +21,6 @@ var version = "canary"
 var updaterRepo = ""
 
 func main() {
-	cacheDir, _ := config.Scope.CacheDir()
-
-	updateNotifier := &update.Notifier{
-		CacheDir: cacheDir,
-		Client:   github.Client,
-		Repo:     updaterRepo,
-		Version:  version,
-	}
-
-	updateMessageChan := make(chan *github.Release)
-	go func() {
-		release, _ := updateNotifier.CheckForUpdate()
-		updateMessageChan <- release
-	}()
-
 	c := cli.NewCLI("trellis", version)
 	c.Args = os.Args[1:]
 
@@ -51,6 +35,24 @@ func main() {
 	}
 
 	trellis := trellis.NewTrellis()
+	if err := trellis.LoadCliConfig(); err != nil {
+		ui.Error(err.Error())
+		os.Exit(1)
+	}
+
+	updateNotifier := &update.Notifier{
+		CacheDir:  app_paths.CacheDir(),
+		Client:    github.Client,
+		Repo:      updaterRepo,
+		SkipCheck: !trellis.CliConfig.CheckForUpdates,
+		Version:   version,
+	}
+
+	updateMessageChan := make(chan *github.Release)
+	go func() {
+		release, _ := updateNotifier.CheckForUpdate()
+		updateMessageChan <- release
+	}()
 
 	c.Commands = map[string]cli.CommandFactory{
 		"alias": func() (cli.Command, error) {
@@ -180,7 +182,7 @@ func main() {
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
 
-	if shouldSkipPlugins, _ := strconv.ParseBool(os.Getenv("TRELLIS_NO_PLUGINS")); !shouldSkipPlugins {
+	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
 		plugin.Register(c, pluginPaths, []string{"trellis"})
 	}

@@ -149,6 +149,54 @@ Supported commands so far:
 | `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
 
+## Configuration
+There are three ways to set configuration settings for trellis-cli and they are
+loaded in this order of precedence:
+
+1. global config
+2. project config
+3. env variables
+
+The global CLI config (defaults to `$HOME/.config/trellis/cli.yml`)
+and will be loaded first (if it exists).
+
+Next, if a project is detected, the project CLI config will be loaded if it
+exists at `.trellis/cli.yml`.
+
+Finally, env variables prefixed with `TRELLIS_` will be used as
+overrides if they match a supported configuration setting. The prefix will be
+stripped and the rest is lowercased to determine the setting key.
+
+Note: only string, numeric, and boolean values are supported when using environment
+variables.
+
+Current supported settings:
+
+| Setting | Description | Type | Default |
+| --- | --- | -- | -- |
+| `ask_vault_pass` | Set Ansible to always ask for the vault pass | boolean | false |
+| `check_for_updates` | Whether to check for new versions of trellis-cli | boolean | true |
+| `load_plugins` | Load external CLI plugins | boolean | true |
+| `open` | List of name -> URL shortcuts | map[string]string | none |
+| `virtualenv_integration` | Enable automated virtualenv integration | boolean | true |
+
+Example config:
+
+```yaml
+ask_vault_pass: false
+check_for_updates: true
+load_plugins: true
+open:
+  site: "https://mysite.com"
+  admin: "https://mysite.com/wp/wp-admin"
+virtualenv_integration: true
+```
+
+Example env var usage:
+```bash
+TRELLIS_ASK_VAULT_PASS=true trellis provision production
+```
+
 ## Development
 
 trellis-cli requires Go >= 1.18 (`brew install go` on macOS)

@@ -25,49 +25,69 @@ func TestDoesNotCheckForUpdate(t *testing.T) {
 		name          string
 		repo          string
 		cacheDir      string
-		env           []Env
+		skipCheck     bool
+		env           Env
 		latestRelease *github.Release
 	}{
 		{
 			"no_repo",
 			"",
 			cacheDir,
-			nil,
+			false,
+			Env{},
 			nil,
 		},
 		{
 			"no_cache_dir",
 			"roots/trellis-cli",
 			"",
-			nil,
+			false,
+			Env{},
 			nil,
 		},
 		{
 			"completion_command",
 			"roots/trellis-cli",
 			cacheDir,
-			[]Env{{"COMP_LINE", "foo"}},
-			nil,
-		},
-		{
-			"TRELLIS_NO_UPDATE_NOTIFIER set",
-			"roots/trellis-cli",
-			cacheDir,
-			[]Env{{"TRELLIS_NO_UPDATE_NOTIFIER", "1"}},
+			false,
+			Env{"COMP_LINE", "foo"},
 			nil,
 		},
 		{
 			"CI set",
 			"roots/trellis-cli",
 			cacheDir,
-			[]Env{{"CI", "1"}},
+			false,
+			Env{"CI", "1"},
+			nil,
+		},
+		{
+			"SkipCheck set",
+			"roots/trellis-cli",
+			cacheDir,
+			true,
+			Env{},
 			nil,
 		},
 	}
 
 	for _, tc := range cases {
-		updateNotifier := &Notifier{CacheDir: tc.cacheDir, Repo: tc.repo, Version: "1.0"}
+		updateNotifier := &Notifier{
+			CacheDir:  tc.cacheDir,
+			SkipCheck: tc.skipCheck,
+			Repo:      tc.repo,
+			Version:   "1.0",
+		}
+
+		if tc.env.key != "" {
+			t.Setenv(tc.env.key, tc.env.value)
+		}
+
 		release, err := updateNotifier.CheckForUpdate()
+
+		if tc.env.key != "" {
+			os.Unsetenv(tc.env.key)
+		}
 
 		if err != nil {
 			t.Errorf("expected no error, but got %q", err)
@@ -228,11 +248,11 @@ latest_release:
 		}
 
 		updateNotifier := &Notifier{
-			ForceCheck: true,
 			CacheDir:   cacheDir,
+			Client:     client,
+			ForceCheck: true,
 			Repo:       "roots/trellis-cli",
 			Version:    tc.version,
-			Client:     client,
 		}
 
 		release, _ := updateNotifier.CheckForUpdate()

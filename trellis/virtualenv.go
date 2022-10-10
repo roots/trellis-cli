@@ -13,7 +13,6 @@ import (
 	"github.com/roots/trellis-cli/command"
 )
 
-const TrellisVenvEnvName string = "TRELLIS_VENV"
 const VenvEnvName string = "VIRTUAL_ENV"
 const PathEnvName string = "PATH"
 const OldPathEnvName string = "PRE_TRELLIS_PATH"
