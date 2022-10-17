@@ -23,6 +23,7 @@ import (
 )
 
 var client *digitalocean.Client
+var defaultSshKeys = []string{"~/.ssh/id_ed25519.pub", "~/.ssh/id_rsa.pub"}
 
 func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreateCommand {
 	c := &DropletCreateCommand{UI: ui, Trellis: trellis}
@@ -44,7 +45,7 @@ type DropletCreateCommand struct {
 func (c *DropletCreateCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.sshKey, "ssh-key", "~/.ssh/id_rsa.pub", "Path to SSH public key to automatically add to new server")
+	c.flags.StringVar(&c.sshKey, "ssh-key", "", "Path to SSH public key to automatically add to new server")
 	c.flags.StringVar(&c.region, "region", "", "Region to create the server in")
 	c.flags.StringVar(&c.image, "image", "ubuntu-20-04-x64", "Server image")
 	c.flags.StringVar(&c.size, "size", "", "Server size/type to create")
@@ -94,23 +95,19 @@ func (c *DropletCreateCommand) Run(args []string) int {
 
 	client = digitalocean.NewClient(accessToken)
 
-	if c.sshKey == "" {
-		c.UI.Error("Error: --ssh-key option is empty")
-		return 1
+	sshKeyPath, contents, publicKey, err := c.loadSSHKey(defaultSshKeys)
+	if err == nil {
+		err = c.checkSSHKey(sshKeyPath, contents, publicKey)
 	}
 
-	keyString, publicKey, err := loadSSHKey(c.sshKey)
 	if err != nil {
-		c.UI.Error(fmt.Sprintf("Error: no valid SSH public key found at %s", c.sshKey))
-		return 1
-	}
-
-	err = checkSSHKey(c.UI, keyString, publicKey)
-
-	if err != nil {
+		c.UI.Error("Error: can't continue without an SSH key")
 		c.UI.Error(err.Error())
+		c.UI.Error("\nThe --ssh-key option can be used to specify the path of a valid SSH key.")
 		return 1
 	}
+
+	c.UI.Info(fmt.Sprintf("Using SSH key at %s\n", sshKeyPath))
 
 	var region *godo.Region
 
@@ -170,6 +167,69 @@ func (c *DropletCreateCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *DropletCreateCommand) Synopsis() string {
+	return "Creates a DigitalOcean Droplet server and provisions it"
+}
+
+func (c *DropletCreateCommand) Help() string {
+	helpText := `
+Usage: trellis droplet create [options] ENVIRONMENT
+
+Creates a droplet (server) on DigitalOcean for the environment specified.
+
+Only remote servers (for staging and production) are currently supported.
+Development should be managed separately through Vagrant.
+
+This command requires a DigitalOcean personal access token.
+Link: https://cloud.digitalocean.com/account/api/tokens/new
+
+If the DIGITALOCEAN_ACCESS_TOKEN environment variable is not set, the command
+will prompt for one.
+
+Create a production server (region and size will be prompted):
+
+  $ trellis droplet create production
+
+Create a 1gb server in the nyc3 region:
+
+  $ trellis droplet create --region=nyc3 --size=s-1vcpu-1gb production
+
+Create a 1gb server with a specific Ubuntu image:
+
+  $ trellis droplet create --region=nyc3 --image=ubuntu-18-04-x64 --size=s-1vcpu-1gb production
+
+Create a server but skip provisioning:
+
+  $ trellis droplet create --skip-provision production
+
+Arguments:
+  ENVIRONMENT Name of environment (ie: production)
+
+Options:
+      --region          Region to create the server in
+      --image           (default: ubuntu-20-04-x64) Server image (ie: Linux distribution)
+      --size            Server size/type
+      --skip-provision  Skip provision after server is created
+      --ssh-key         (default: ~/.ssh/id_rsa.pub or ~/.ssh/id_ed25519.pub) path to SSH public key to be added on the server
+  -h, --help            show this help
+`
+
+	return strings.TrimSpace(helpText)
+}
+
+func (c *DropletCreateCommand) AutocompleteArgs() complete.Predictor {
+	return c.Trellis.PredictEnvironment(c.flags)
+}
+
+func (c *DropletCreateCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"--region":          complete.PredictNothing,
+		"--size":            complete.PredictNothing,
+		"--skip--provision": complete.PredictNothing,
+		"--ssh-key":         complete.PredictFiles("*.pub"),
+	}
 }
 
 func askDropletName(ui cli.Ui, siteName string) (name string, err error) {
@@ -280,12 +340,33 @@ func checkSSH(host string, ctx context.Context) (err error) {
 	}
 }
 
-func checkSSHKey(ui cli.Ui, keyString string, publicKey ssh.PublicKey) error {
+func (c *DropletCreateCommand) loadSSHKey(sshKeys []string) (keyPath string, contents []byte, publicKey ssh.PublicKey, err error) {
+	if c.sshKey != "" {
+		sshKeys = []string{c.sshKey}
+	}
+
+	for _, path := range sshKeys {
+		keyPath = path
+		contents, publicKey, err = loadPublicKey(path)
+
+		if err == nil {
+			break
+		}
+	}
+
+	if publicKey == nil {
+		return "", nil, nil, fmt.Errorf("No valid SSH public key found. Attempted paths: %s", strings.Join(sshKeys, ", "))
+	}
+
+	return keyPath, contents, publicKey, err
+}
+
+func (c *DropletCreateCommand) checkSSHKey(path string, contents []byte, publicKey ssh.PublicKey) error {
 	response, err := client.GetSSHKey(publicKey)
 
 	switch response.StatusCode {
 	case 404:
-		ui.Info("SSH Key does not exist in DigitalOcean.")
+		c.UI.Info(fmt.Sprintf("SSH Key [%s] does not exist in DigitalOcean.", path))
 
 		prompt := promptui.Prompt{
 			Label:     "Add SSH key to account",
@@ -298,29 +379,27 @@ func checkSSHKey(ui cli.Ui, keyString string, publicKey ssh.PublicKey) error {
 			return errors.New("Can't continue without an SSH key on your account.")
 		}
 
-		return client.CreateSSHKey(keyString)
+		return client.CreateSSHKey(string(contents))
 	case 200:
 		return nil
 	default:
-		return err
+		return fmt.Errorf("Could not create SSH key on DigitalOcean: %v", err)
 	}
 }
 
-func loadSSHKey(path string) (keyString string, publicKey ssh.PublicKey, err error) {
+func loadPublicKey(path string) (contents []byte, publicKey ssh.PublicKey, err error) {
 	path, err = homedir.Expand(path)
 	key, err := os.ReadFile(path)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	publicKey, _, _, _, err = ssh.ParseAuthorizedKey(key)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
-	keyString = string(key)
-
-	return keyString, publicKey, nil
+	return key, publicKey, nil
 }
 
 func selectRegion() (region *godo.Region, err error) {
@@ -381,67 +460,4 @@ func selectSize(region *godo.Region) (size string, err error) {
 	}
 
 	return sizes[i].Slug, nil
-}
-
-func (c *DropletCreateCommand) Synopsis() string {
-	return "Creates a DigitalOcean Droplet server and provisions it"
-}
-
-func (c *DropletCreateCommand) Help() string {
-	helpText := `
-Usage: trellis droplet create [options] ENVIRONMENT
-
-Creates a droplet (server) on DigitalOcean for the environment specified.
-
-Only remote servers (for staging and production) are currently supported.
-Development should be managed separately through Vagrant.
-
-This command requires a DigitalOcean personal access token.
-Link: https://cloud.digitalocean.com/account/api/tokens/new
-
-If the DIGITALOCEAN_ACCESS_TOKEN environment variable is not set, the command
-will prompt for one.
-
-Create a production server (region and size will be prompted):
-
-  $ trellis droplet create production
-
-Create a 1gb server in the nyc3 region:
-
-  $ trellis droplet create --region=nyc3 --size=s-1vcpu-1gb production
-
-Create a 1gb server with a specific Ubuntu image:
-
-  $ trellis droplet create --region=nyc3 --image=ubuntu-18-04-x64 --size=s-1vcpu-1gb production
-
-Create a server but skip provisioning:
-
-  $ trellis droplet create --skip-provision production
-
-Arguments:
-  ENVIRONMENT Name of environment (ie: production)
-
-Options:
-      --region          Region to create the server in
-      --image           (default: ubuntu-20-04-x64) Server image (ie: Linux distribution)
-      --size            Server size/type
-      --skip-provision  Skip provision after server is created
-      --ssh-key         (default: ~/.ssh/id_rsa.pub) path to SSH public key to be added on the server
-  -h, --help            show this help
-`
-
-	return strings.TrimSpace(helpText)
-}
-
-func (c *DropletCreateCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.PredictEnvironment(c.flags)
-}
-
-func (c *DropletCreateCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"--region":          complete.PredictNothing,
-		"--size":            complete.PredictNothing,
-		"--skip--provision": complete.PredictNothing,
-		"--ssh-key":         complete.PredictFiles("*.pub"),
-	}
 }

@@ -2,6 +2,7 @@ package digitalocean
 
 import (
 	"context"
+	"fmt"
 	"os/user"
 	"sort"
 	"strings"
@@ -70,7 +71,7 @@ func (do *Client) CreateSSHKey(key string) error {
 	_, _, err = do.Client.Keys.Create(ctx, createRequest)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not create SSH key on DigitalOcean: %v", err)
 	}
 
 	return nil
