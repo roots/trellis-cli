@@ -2,14 +2,23 @@ package digitalocean
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os/user"
 	"sort"
 	"strings"
 
 	"github.com/digitalocean/godo"
+	"github.com/roots/trellis-cli/dns"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
+)
+
+const baseTag = "trellis"
+
+var (
+	ErrNotFound = errors.New("Not found")
 )
 
 type Client struct {
@@ -25,6 +34,37 @@ func NewClient(accessToken string) *Client {
 	return &Client{client}
 }
 
+func (do *Client) CreateDomain(name string) (domain *godo.Domain, err error) {
+	createRequest := &godo.DomainCreateRequest{Name: name}
+	ctx := context.TODO()
+	domain, _, err = do.Client.Domains.Create(ctx, createRequest)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return domain, nil
+}
+
+func (do *Client) CreateDomainRecord(domain string, hostName string, ip string) (domainRecord *godo.DomainRecord, err error) {
+	createRequest := &godo.DomainRecordEditRequest{
+		Type: "A",
+		Name: hostName,
+		Data: ip,
+		TTL:  300,
+	}
+
+	ctx := context.TODO()
+
+	domainRecord, _, err = do.Client.Domains.CreateRecord(ctx, domain, createRequest)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return domainRecord, nil
+}
+
 func (do *Client) CreateDroplet(region string, size string, image string, publicKey ssh.PublicKey, name string, env string) (newDroplet *godo.Droplet, monitorUri string, err error) {
 	createRequest := &godo.DropletCreateRequest{
 		Name:   name,
@@ -36,7 +76,7 @@ func (do *Client) CreateDroplet(region string, size string, image string, public
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{Fingerprint: ssh.FingerprintLegacyMD5(publicKey)},
 		},
-		Tags: []string{"trellis", env},
+		Tags: []string{baseTag, env},
 	}
 
 	ctx := context.TODO()
@@ -75,6 +115,13 @@ func (do *Client) CreateSSHKey(key string) error {
 	}
 
 	return nil
+}
+
+func (do *Client) DeleteDomainRecord(record godo.DomainRecord, domain string) (err error) {
+	ctx := context.TODO()
+
+	_, err = do.Client.Domains.DeleteRecord(ctx, domain, record.ID)
+	return err
 }
 
 func (do *Client) GetAvailableRegions() ([]godo.Region, error) {
@@ -154,4 +201,87 @@ func (do *Client) GetDroplet(droplet *godo.Droplet) (*godo.Droplet, string, erro
 	}
 
 	return droplet, ip, err
+}
+
+func (do *Client) GetDroplets() (droplets []godo.Droplet, err error) {
+	ctx := context.TODO()
+	droplets, _, err = do.Client.Droplets.List(ctx, &godo.ListOptions{Page: 1, PerPage: 100})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return droplets, err
+}
+
+func (do *Client) GetDropletByIP(ip string) (droplet *godo.Droplet, err error) {
+	droplets, err := do.GetDroplets()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range droplets {
+		dropletIP, err := d.PublicIPv4()
+		if err != nil {
+			continue
+		}
+
+		if ip == dropletIP {
+			droplet = &d
+			break
+		}
+	}
+
+	return droplet, err
+}
+
+func (do *Client) GetHostRecords(hostsMap map[string][]dns.Host) []Host {
+	allHosts := []Host{}
+
+	for domain, hosts := range hostsMap {
+		existingRecords, err := do.ListDomainRecords(domain)
+
+		for _, host := range hosts {
+			var hostRecord *godo.DomainRecord
+			domainExists := true
+
+			if errors.Is(err, ErrNotFound) {
+				domainExists = false
+			}
+
+			for _, record := range existingRecords {
+				if record.Name == host.Name {
+					hostRecord = &record
+					break
+				}
+			}
+
+			host := Host{
+				Name:   host.Name,
+				Fqdn:   host.Fqdn,
+				Error:  err,
+				Record: hostRecord,
+				Domain: Domain{Name: domain, Exists: domainExists},
+			}
+
+			allHosts = append(allHosts, host)
+		}
+	}
+
+	return allHosts
+}
+
+func (do *Client) ListDomainRecords(domain string) (records []godo.DomainRecord, err error) {
+	ctx := context.TODO()
+	records, resp, err := do.Client.Domains.Records(ctx, domain, &godo.ListOptions{Page: 1, PerPage: 100})
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%w: %v", ErrNotFound, err)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return records, err
 }

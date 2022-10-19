@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/roots/trellis-cli/dns"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 )
 
@@ -21,24 +22,6 @@ type Site struct {
 	Multisite       map[string]interface{} `yaml:"multisite"`
 	Ssl             map[string]interface{} `yaml:"ssl"`
 	Cache           map[string]interface{} `yaml:"cache"`
-}
-
-func (s *Site) SslEnabled() bool {
-	return s.Ssl["enabled"] == true
-}
-
-func (s *Site) MainHost() string {
-	return s.SiteHosts[0].Canonical
-}
-
-func (s *Site) MainUrl() string {
-	var protocol string = "http"
-
-	if s.SslEnabled() {
-		protocol = "https"
-	}
-
-	return fmt.Sprintf("%s://%s", protocol, s.SiteHosts[0].Canonical)
 }
 
 type SiteHost struct {
@@ -96,7 +79,12 @@ func (t *Trellis) HostsFromDomain(domain string, env string) (canonical *publics
 		canonical.TLD = "test"
 	}
 
-	redirect = &publicsuffix.DomainName{canonical.TLD, canonical.SLD, canonical.TRD, &publicsuffix.Rule{}}
+	redirect = &publicsuffix.DomainName{
+		TLD:  canonical.TLD,
+		SLD:  canonical.SLD,
+		TRD:  canonical.TRD,
+		Rule: &publicsuffix.Rule{},
+	}
 
 	switch canonical.TRD {
 	// no subdomain
@@ -121,4 +109,49 @@ func (t *Trellis) UpdateDefaultConfig(config *Config, name string, host string, 
 	}
 
 	t.GenerateSite(config.WordPressSites[name], host, env)
+}
+
+func (s *Site) SslEnabled() bool {
+	return s.Ssl["enabled"] == true
+}
+
+func (s *Site) MainHost() string {
+	return s.SiteHosts[0].Canonical
+}
+
+func (s *Site) MainUrl() string {
+	var protocol string = "http"
+
+	if s.SslEnabled() {
+		protocol = "https"
+	}
+
+	return fmt.Sprintf("%s://%s", protocol, s.SiteHosts[0].Canonical)
+}
+
+func (c *Config) AllHosts() []string {
+	hosts := []string{}
+
+	for _, site := range c.WordPressSites {
+		for _, siteHost := range site.SiteHosts {
+			hosts = append(hosts, siteHost.Canonical)
+
+			for _, redirect := range siteHost.Redirects {
+				hosts = append(hosts, redirect)
+			}
+		}
+	}
+
+	return hosts
+}
+
+func (c *Config) AllHostsByDomain() map[string][]dns.Host {
+	hostsByDomain := map[string][]dns.Host{}
+
+	for _, host := range c.AllHosts() {
+		record, _ := dns.ParseHost(host)
+		hostsByDomain[record.Domain] = append(hostsByDomain[record.Domain], *record)
+	}
+
+	return hostsByDomain
 }
