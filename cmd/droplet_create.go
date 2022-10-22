@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"time"
@@ -15,14 +14,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
-	"github.com/mitchellh/go-homedir"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/digitalocean"
 	"github.com/roots/trellis-cli/trellis"
 	"golang.org/x/crypto/ssh"
 )
 
-var client *digitalocean.Client
 var defaultSshKeys = []string{"~/.ssh/id_ed25519.pub", "~/.ssh/id_rsa.pub"}
 
 func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreateCommand {
@@ -34,6 +31,7 @@ func NewDropletCreateCommand(ui cli.Ui, trellis *trellis.Trellis) *DropletCreate
 type DropletCreateCommand struct {
 	UI            cli.Ui
 	Trellis       *trellis.Trellis
+	doClient      *digitalocean.Client
 	flags         *flag.FlagSet
 	sshKey        string
 	region        string
@@ -87,15 +85,20 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	accessToken, err := getAccessToken(c.UI)
+	accessToken, err := c.getAccessToken()
 	if err != nil {
 		c.UI.Error("Error: DIGITALOCEAN_ACCESS_TOKEN is required.")
 		return 1
 	}
 
-	client = digitalocean.NewClient(accessToken)
+	c.doClient = digitalocean.NewClient(accessToken)
 
-	sshKeyPath, contents, publicKey, err := c.loadSSHKey(defaultSshKeys)
+	sshKeys := defaultSshKeys
+	if c.sshKey != "" {
+		sshKeys = []string{c.sshKey}
+	}
+
+	sshKeyPath, contents, publicKey, err := digitalocean.LoadSSHKey(sshKeys)
 	if err == nil {
 		err = c.checkSSHKey(sshKeyPath, contents, publicKey)
 	}
@@ -112,7 +115,7 @@ func (c *DropletCreateCommand) Run(args []string) int {
 	var region *godo.Region
 
 	if c.region == "" {
-		region, err = selectRegion()
+		region, err = c.selectRegion()
 
 		if err != nil {
 			c.UI.Error(err.Error())
@@ -123,7 +126,7 @@ func (c *DropletCreateCommand) Run(args []string) int {
 	}
 
 	if c.size == "" {
-		c.size, err = selectSize(region)
+		c.size, err = c.selectSize(region)
 
 		if err != nil {
 			c.UI.Error(err.Error())
@@ -132,17 +135,17 @@ func (c *DropletCreateCommand) Run(args []string) int {
 	}
 
 	siteNames := c.Trellis.SiteNamesFromEnvironment(environment)
-	name, err := askDropletName(c.UI, siteNames[0])
+	name, err := c.askDropletName(siteNames[0])
 	if err != nil {
 		return 1
 	}
 
-	droplet, err := createDroplet(c.UI, c.region, c.size, c.image, publicKey, name, environment)
+	droplet, err := c.createDroplet(c.region, c.size, c.image, publicKey, name, environment)
 	if err != nil {
 		return 1
 	}
 
-	droplet, err = waitForSSH(droplet)
+	droplet, err = c.waitForSSH(droplet)
 	if err != nil {
 		return 1
 	}
@@ -232,8 +235,8 @@ func (c *DropletCreateCommand) AutocompleteFlags() complete.Flags {
 	}
 }
 
-func askDropletName(ui cli.Ui, siteName string) (name string, err error) {
-	name, err = ui.Ask(fmt.Sprintf("Droplet name [%s]:", color.GreenString(siteName)))
+func (c *DropletCreateCommand) askDropletName(siteName string) (name string, err error) {
+	name, err = c.UI.Ask(fmt.Sprintf("Droplet name [%s]:", color.GreenString(siteName)))
 	if err != nil {
 		return "", err
 	}
@@ -245,12 +248,42 @@ func askDropletName(ui cli.Ui, siteName string) (name string, err error) {
 	return name, nil
 }
 
-func getAccessToken(ui cli.Ui) (accessToken string, err error) {
+func (c *DropletCreateCommand) createDroplet(region string, size string, image string, publicKey ssh.PublicKey, name string, env string) (droplet *godo.Droplet, err error) {
+	droplet, monitorUri, err := c.doClient.CreateDroplet(region, size, image, publicKey, name, env)
+	if err != nil {
+		return nil, err
+	}
+
+	c.UI.Info(fmt.Sprintf("\n%s Server created => https://cloud.digitalocean.com/droplets/%d", color.GreenString("[✓]"), droplet.ID))
+
+	s := NewSpinner(
+		SpinnerCfg{
+			Message:     "Waiting for server to boot (this may take a minute)",
+			StopMessage: "Server booted",
+			FailMessage: "Server did not become active (or timed out)",
+		},
+	)
+
+	s.Start()
+	err = util.WaitForActive(context.TODO(), c.doClient.Client, monitorUri)
+
+	if err != nil {
+		s.StopFail()
+		c.UI.Error(err.Error())
+		return nil, err
+	}
+
+	s.Stop()
+
+	return droplet, nil
+}
+
+func (c *DropletCreateCommand) getAccessToken() (accessToken string, err error) {
 	accessToken = os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
 
 	if accessToken == "" {
-		ui.Info("DIGITALOCEAN_ACCESS_TOKEN environment variable not set.")
-		accessToken, err = ui.Ask("Enter Access token:")
+		c.UI.Info("DIGITALOCEAN_ACCESS_TOKEN environment variable not set.")
+		accessToken, err = c.UI.Ask("Enter Access token:")
 
 		if err != nil {
 			return "", err
@@ -262,107 +295,8 @@ func getAccessToken(ui cli.Ui) (accessToken string, err error) {
 	return accessToken, nil
 }
 
-func createDroplet(ui cli.Ui, region string, size string, image string, publicKey ssh.PublicKey, name string, env string) (droplet *godo.Droplet, err error) {
-	droplet, monitorUri, err := client.CreateDroplet(region, size, image, publicKey, name, env)
-	if err != nil {
-		return nil, err
-	}
-
-	ui.Info(fmt.Sprintf("\n%s Server created => https://cloud.digitalocean.com/droplets/%d", color.GreenString("[✓]"), droplet.ID))
-
-	s := NewSpinner(
-		SpinnerCfg{
-			Message:     "Waiting for server to boot (this may take a minute)",
-			StopMessage: "Server booted",
-			FailMessage: "Server did not become active (or timed out)",
-		},
-	)
-
-	s.Start()
-	err = util.WaitForActive(context.TODO(), client.Client, monitorUri)
-
-	if err != nil {
-		s.StopFail()
-		ui.Error(err.Error())
-		return nil, err
-	}
-
-	s.Stop()
-
-	return droplet, nil
-}
-
-func waitForSSH(droplet *godo.Droplet) (*godo.Droplet, error) {
-	droplet, ip, err := client.GetDroplet(droplet)
-	if err != nil {
-		return droplet, err
-	}
-
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		3*time.Minute,
-	)
-	defer cancel()
-
-	s := NewSpinner(
-		SpinnerCfg{
-			Message:     "Waiting for SSH (this may take a minute)",
-			StopMessage: "SSH available",
-			FailMessage: "Timeout waiting for SSH",
-		},
-	)
-	s.Start()
-	err = checkSSH(ip, ctx)
-
-	if err != nil {
-		s.StopFail()
-	}
-	s.Stop()
-
-	return droplet, nil
-}
-
-func checkSSH(host string, ctx context.Context) (err error) {
-	host = net.JoinHostPort(host, "22")
-
-	for {
-		_, err = net.DialTimeout("tcp", host, 10*time.Second)
-
-		if err == nil {
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return err
-		case <-time.After(10 * time.Second):
-		}
-	}
-}
-
-func (c *DropletCreateCommand) loadSSHKey(sshKeys []string) (keyPath string, contents []byte, publicKey ssh.PublicKey, err error) {
-	if c.sshKey != "" {
-		sshKeys = []string{c.sshKey}
-	}
-
-	for _, path := range sshKeys {
-		keyPath = path
-		contents, publicKey, err = loadPublicKey(path)
-
-		if err == nil {
-			break
-		}
-	}
-
-	if publicKey == nil {
-		return "", nil, nil, fmt.Errorf("No valid SSH public key found. Attempted paths: %s", strings.Join(sshKeys, ", "))
-	}
-
-	return keyPath, contents, publicKey, err
-}
-
 func (c *DropletCreateCommand) checkSSHKey(path string, contents []byte, publicKey ssh.PublicKey) error {
-	response, err := client.GetSSHKey(publicKey)
+	response, err := c.doClient.GetSSHKey(publicKey)
 
 	switch response.StatusCode {
 	case 404:
@@ -379,7 +313,7 @@ func (c *DropletCreateCommand) checkSSHKey(path string, contents []byte, publicK
 			return errors.New("Can't continue without an SSH key on your account.")
 		}
 
-		return client.CreateSSHKey(string(contents))
+		return c.doClient.CreateSSHKey(string(contents))
 	case 200:
 		return nil
 	default:
@@ -387,23 +321,8 @@ func (c *DropletCreateCommand) checkSSHKey(path string, contents []byte, publicK
 	}
 }
 
-func loadPublicKey(path string) (contents []byte, publicKey ssh.PublicKey, err error) {
-	path, err = homedir.Expand(path)
-	key, err := os.ReadFile(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicKey, _, _, _, err = ssh.ParseAuthorizedKey(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return key, publicKey, nil
-}
-
-func selectRegion() (region *godo.Region, err error) {
-	availableRegions, err := client.GetAvailableRegions()
+func (c *DropletCreateCommand) selectRegion() (region *godo.Region, err error) {
+	availableRegions, err := c.doClient.GetAvailableRegions()
 	if err != nil {
 		return nil, err
 	}
@@ -432,8 +351,8 @@ func selectRegion() (region *godo.Region, err error) {
 	return &availableRegions[i], nil
 }
 
-func selectSize(region *godo.Region) (size string, err error) {
-	sizes, err := client.GetSizesByRegion(region)
+func (c *DropletCreateCommand) selectSize(region *godo.Region) (size string, err error) {
+	sizes, err := c.doClient.GetSizesByRegion(region)
 	if err != nil {
 		return "", err
 	}
@@ -460,4 +379,34 @@ func selectSize(region *godo.Region) (size string, err error) {
 	}
 
 	return sizes[i].Slug, nil
+}
+
+func (c *DropletCreateCommand) waitForSSH(droplet *godo.Droplet) (*godo.Droplet, error) {
+	droplet, ip, err := c.doClient.GetDroplet(droplet)
+	if err != nil {
+		return droplet, err
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		3*time.Minute,
+	)
+	defer cancel()
+
+	s := NewSpinner(
+		SpinnerCfg{
+			Message:     "Waiting for SSH (this may take a minute)",
+			StopMessage: "SSH available",
+			FailMessage: "Timeout waiting for SSH",
+		},
+	)
+	s.Start()
+	err = digitalocean.CheckSSH(ip, ctx)
+
+	if err != nil {
+		s.StopFail()
+	}
+	s.Stop()
+
+	return droplet, nil
 }
