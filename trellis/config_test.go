@@ -270,9 +270,9 @@ wordpress_sites:
 
 	expectedHosts := []string{
 		"site1.com",
-		"www.site1.com",
-		"sub.site1.com",
 		"site2.com",
+		"sub.site1.com",
+		"www.site1.com",
 		"www.site2.com",
 	}
 
@@ -325,8 +325,8 @@ wordpress_sites:
 	expectedHosts := map[string][]dns.Host{
 		"site1.com": {
 			{Name: "@", Fqdn: "site1.com", Domain: "site1.com"},
-			{Name: "www", Fqdn: "www.site1.com", Domain: "site1.com"},
 			{Name: "sub", Fqdn: "sub.site1.com", Domain: "site1.com"},
+			{Name: "www", Fqdn: "www.site1.com", Domain: "site1.com"},
 		},
 		"site2.com": {
 			{Name: "@", Fqdn: "site2.com", Domain: "site2.com"},

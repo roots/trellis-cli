@@ -5,6 +5,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"sort"
 
 	"github.com/roots/trellis-cli/dns"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -142,6 +143,7 @@ func (c *Config) AllHosts() []string {
 		}
 	}
 
+	sort.Strings(hosts)
 	return hosts
 }
 
