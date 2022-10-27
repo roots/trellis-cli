@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -85,9 +84,9 @@ func (c *DropletCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	accessToken, err := c.getAccessToken()
+	accessToken, err := digitalocean.GetAccessToken(c.UI)
 	if err != nil {
-		c.UI.Error("Error: DIGITALOCEAN_ACCESS_TOKEN is required.")
+		c.UI.Error("Error: DigitalOcean access token is required.")
 		return 1
 	}
 
@@ -276,23 +275,6 @@ func (c *DropletCreateCommand) createDroplet(region string, size string, image s
 	s.Stop()
 
 	return droplet, nil
-}
-
-func (c *DropletCreateCommand) getAccessToken() (accessToken string, err error) {
-	accessToken = os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
-
-	if accessToken == "" {
-		c.UI.Info("DIGITALOCEAN_ACCESS_TOKEN environment variable not set.")
-		accessToken, err = c.UI.Ask("Enter Access token:")
-
-		if err != nil {
-			return "", err
-		}
-
-		_ = os.Setenv("DIGITALOCEAN_ACCESS_TOKEN", accessToken)
-	}
-
-	return accessToken, nil
 }
 
 func (c *DropletCreateCommand) checkSSHKey(path string, contents []byte, publicKey ssh.PublicKey) error {

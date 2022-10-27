@@ -2,9 +2,12 @@ package trellis
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/roots/trellis-cli/dns"
+	"gopkg.in/yaml.v2"
 )
 
 func TestUpdateDefaultConfig(t *testing.T) {
@@ -223,5 +226,117 @@ wordpress_sites:
 		if output != expected {
 			t.Errorf("%s => expected yaml output \n%s\n but got \n%s", tc.name, expected, output)
 		}
+	}
+}
+
+func TestAllhosts(t *testing.T) {
+	configYaml := `
+wordpress_sites:
+  site1:
+    site_hosts:
+    - canonical: site1.com
+      redirects:
+      - www.site1.com
+      - sub.site1.com
+    local_path: ../site
+    admin_email: admin@testsite.test
+    multisite:
+      enabled: false
+    ssl:
+      enabled: false
+      provider: self-signed
+    cache:
+      enabled: false
+  site2:
+    site_hosts:
+    - canonical: site2.com
+      redirects:
+      - www.site2.com
+    local_path: ../site
+    admin_email: admin@testsite.test
+    multisite:
+      enabled: false
+    ssl:
+      enabled: false
+      provider: self-signed
+    cache:
+      enabled: false
+`
+
+	config := &Config{}
+	if err := yaml.Unmarshal([]byte(configYaml), &config); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedHosts := []string{
+		"site1.com",
+		"www.site1.com",
+		"sub.site1.com",
+		"site2.com",
+		"www.site2.com",
+	}
+
+	allHosts := config.AllHosts()
+
+	if !reflect.DeepEqual(allHosts, expectedHosts) {
+		t.Errorf("expected %s, got %s", expectedHosts, allHosts)
+	}
+}
+
+func TestAllHostsByDomain(t *testing.T) {
+	configYaml := `
+wordpress_sites:
+  site1:
+    site_hosts:
+    - canonical: site1.com
+      redirects:
+      - www.site1.com
+      - sub.site1.com
+    local_path: ../site
+    admin_email: admin@testsite.test
+    multisite:
+      enabled: false
+    ssl:
+      enabled: false
+      provider: self-signed
+    cache:
+      enabled: false
+  site2:
+    site_hosts:
+    - canonical: site2.com
+      redirects:
+      - www.site2.com
+    local_path: ../site
+    admin_email: admin@testsite.test
+    multisite:
+      enabled: false
+    ssl:
+      enabled: false
+      provider: self-signed
+    cache:
+      enabled: false
+`
+
+	config := &Config{}
+	if err := yaml.Unmarshal([]byte(configYaml), &config); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedHosts := map[string][]dns.Host{
+		"site1.com": {
+			{Name: "@", Fqdn: "site1.com", Domain: "site1.com"},
+			{Name: "www", Fqdn: "www.site1.com", Domain: "site1.com"},
+			{Name: "sub", Fqdn: "sub.site1.com", Domain: "site1.com"},
+		},
+		"site2.com": {
+			{Name: "@", Fqdn: "site2.com", Domain: "site2.com"},
+			{Name: "www", Fqdn: "www.site2.com", Domain: "site2.com"},
+		},
+	}
+
+	allHosts := config.AllHostsByDomain()
+
+	if !reflect.DeepEqual(allHosts, expectedHosts) {
+		t.Errorf("expected %v, got %v", expectedHosts, allHosts)
 	}
 }

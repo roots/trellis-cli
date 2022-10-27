@@ -88,6 +88,9 @@ func main() {
 		"droplet create": func() (cli.Command, error) {
 			return cmd.NewDropletCreateCommand(ui, trellis), nil
 		},
+		"droplet dns": func() (cli.Command, error) {
+			return cmd.NewDropletDnsCommand(ui, trellis), nil
+		},
 		"exec": func() (cli.Command, error) {
 			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
 		},
