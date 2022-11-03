@@ -58,6 +58,18 @@ func main() {
 		"alias": func() (cli.Command, error) {
 			return cmd.NewAliasCommand(ui, trellis), nil
 		},
+		"certificate": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis certificate <subcommand> [<args>]",
+				SynopsisText: "Commands for TLS certificates",
+			}, nil
+		},
+		"certificate install": func() (cli.Command, error) {
+			return cmd.NewCertificateInstallCommand(ui, trellis), nil
+		},
+		"certificate uninstall": func() (cli.Command, error) {
+			return cmd.NewCertificateUninstallCommand(ui, trellis), nil
+		},
 		"check": func() (cli.Command, error) {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
