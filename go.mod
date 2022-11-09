@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-isatty v0.0.16
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/mholt/archiver v3.1.1+incompatible
-	github.com/mitchellh/cli v1.1.4
+	github.com/mitchellh/cli v1.1.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/posener/complete v1.2.3
 	github.com/theckman/yacspin v0.13.12
