@@ -49,14 +49,14 @@ func TestDeployRunValidations(t *testing.T) {
 		{
 			"invalid_site",
 			true,
-			[]string{"development", "nosite"},
+			[]string{"production", "nosite"},
 			"Error: nosite is not a valid site",
 			1,
 		},
 		{
 			"too_many_args",
 			true,
-			[]string{"development", "site", "foo"},
+			[]string{"production", "site", "foo"},
 			"Error: too many arguments",
 			1,
 		},
@@ -95,32 +95,32 @@ func TestDeployRun(t *testing.T) {
 	}{
 		{
 			"default",
-			[]string{"development", "example.com"},
-			"ansible-playbook deploy.yml -e env=development site=example.com",
+			[]string{"production", "example.com"},
+			"ansible-playbook deploy.yml -e env=production site=example.com",
 			0,
 		},
 		{
 			"site_not_needed_in_default_case",
-			[]string{"development"},
-			"ansible-playbook deploy.yml -e env=development site=example.com",
+			[]string{"production"},
+			"ansible-playbook deploy.yml -e env=production site=example.com",
 			0,
 		},
 		{
 			"with_extra_vars",
-			[]string{"-extra-vars", "k=v foo=bar", "development"},
-			"ansible-playbook deploy.yml -e env=development site=example.com k=v foo=bar",
+			[]string{"-extra-vars", "k=v foo=bar", "production"},
+			"ansible-playbook deploy.yml -e env=production site=example.com k=v foo=bar",
 			0,
 		},
 		{
 			"with_branch",
-			[]string{"-branch", "feature-123", "development"},
-			"ansible-playbook deploy.yml -e env=development site=example.com branch=feature-123",
+			[]string{"-branch", "feature-123", "production"},
+			"ansible-playbook deploy.yml -e env=production site=example.com branch=feature-123",
 			0,
 		},
 		{
 			"with_verbose",
-			[]string{"--verbose", "development"},
-			"ansible-playbook deploy.yml -e env=development site=example.com -vvvv",
+			[]string{"--verbose", "production"},
+			"ansible-playbook deploy.yml -e env=production site=example.com -vvvv",
 			0,
 		},
 	}
@@ -143,5 +143,46 @@ func TestDeployRun(t *testing.T) {
 				t.Errorf("expected output %q to contain %q", combined, tc.out)
 			}
 		})
+	}
+}
+
+func TestDeployNotAllowedForDevelopment(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+
+	ui := cli.NewMockUi()
+	trellis := trellis.NewMockTrellis(true)
+	deployCommand := NewDeployCommand(ui, trellis)
+
+	code := deployCommand.Run([]string{"development"})
+
+	if code != 1 {
+		t.Errorf("expected code %d to be 1", code)
+	}
+
+	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+
+	expected := "allow_development_deploys"
+
+	if !strings.Contains(combined, expected) {
+		t.Errorf("expected output %q to contain %q", combined, expected)
+	}
+}
+
+func TestDeployAllowedForDevelopmentWhenEnabled(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+
+	ui := cli.NewMockUi()
+	trellis := trellis.NewMockTrellis(true)
+	trellis.CliConfig.AllowDevelopmentDeploys = true
+	deployCommand := NewDeployCommand(ui, trellis)
+
+	deployCommand.Run([]string{"development"})
+
+	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+
+	expected := "allow_development_deploys"
+
+	if strings.Contains(combined, expected) {
+		t.Errorf("expected output %q to NOT contain %q", combined, expected)
 	}
 }

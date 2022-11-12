@@ -31,11 +31,12 @@ type Options struct {
 type TrellisOption func(*Trellis)
 
 var DefaultCliConfig = cli_config.Config{
-	AskVaultPass:          false,
-	CheckForUpdates:       true,
-	LoadPlugins:           true,
-	Open:                  make(map[string]string),
-	VirtualenvIntegration: true,
+	AllowDevelopmentDeploys: false,
+	AskVaultPass:            false,
+	CheckForUpdates:         true,
+	LoadPlugins:             true,
+	Open:                    make(map[string]string),
+	VirtualenvIntegration:   true,
 }
 
 type Trellis struct {

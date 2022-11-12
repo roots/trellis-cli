@@ -12,11 +12,12 @@ import (
 )
 
 type Config struct {
-	AskVaultPass          bool              `yaml:"ask_vault_pass"`
-	CheckForUpdates       bool              `yaml:"check_for_updates"`
-	LoadPlugins           bool              `yaml:"load_plugins"`
-	Open                  map[string]string `yaml:"open"`
-	VirtualenvIntegration bool              `yaml:"virtualenv_integration"`
+	AllowDevelopmentDeploys bool              `yaml:"allow_development_deploys"`
+	AskVaultPass            bool              `yaml:"ask_vault_pass"`
+	CheckForUpdates         bool              `yaml:"check_for_updates"`
+	LoadPlugins             bool              `yaml:"load_plugins"`
+	Open                    map[string]string `yaml:"open"`
+	VirtualenvIntegration   bool              `yaml:"virtualenv_integration"`
 }
 
 var (
