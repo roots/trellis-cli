@@ -11,9 +11,24 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
+func NewSshCommand(ui cli.Ui, trellis *trellis.Trellis) *SshCommand {
+	c := &SshCommand{UI: ui, Trellis: trellis}
+	c.init()
+	return c
+}
+
 type SshCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
+	flags   *flag.FlagSet
+	user    string
+}
+
+func (c *SshCommand) init() {
+	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.StringVar(&c.user, "u", "", "User to connect as")
+	c.flags.StringVar(&c.user, "user", "", "User to connect as")
 }
 
 func (c *SshCommand) Run(args []string) int {
@@ -47,21 +62,14 @@ func (c *SshCommand) Run(args []string) int {
 		return 1
 	}
 
-	host := c.Trellis.SiteFromEnvironmentAndName(environment, siteName).MainHost()
+	sshHost := c.Trellis.SshHost(environment, siteName, c.user)
 
-	var user string
-	if environment == "development" {
-		user = "vagrant"
-	} else {
-		user = "admin"
-	}
+	ssh := command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(c.UI),
+	).Cmd("ssh", []string{sshHost})
 
-	host = fmt.Sprintf("%s@%s", user, host)
-
-	ssh := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ssh", []string{host})
-	err := ssh.Run()
-
-	if err != nil {
+	if err := ssh.Run(); err != nil {
 		c.UI.Error(fmt.Sprintf("Error running ssh: %s", err))
 		return 1
 	}
@@ -83,11 +91,13 @@ Connects to main production site host:
 
   $ trellis ssh production
 
-  Note: production always connects with 'admin' user
-
 Connects to non-main production site host:
 
   $ trellis ssh production mysite.com
+
+Connects to production as web user:
+
+  $ trellis ssh -u web production
 
 Connects to main development site host:
 
@@ -100,7 +110,8 @@ Arguments:
   SITE        Name of the site (ie: example.com)
 
 Options:
-  -h, --help  show this help
+  -u, --user  User to connect as
+  -h, --help  Show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -111,5 +122,7 @@ func (c *SshCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *SshCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{}
+	return complete.Flags{
+		"--user": complete.PredictNothing,
+	}
 }

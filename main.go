@@ -118,6 +118,9 @@ func main() {
 		"key generate": func() (cli.Command, error) {
 			return cmd.NewKeyGenerateCommand(ui, trellis), nil
 		},
+		"logs": func() (cli.Command, error) {
+			return cmd.NewLogsCommand(ui, trellis), nil
+		},
 		"new": func() (cli.Command, error) {
 			return cmd.NewNewCommand(ui, trellis, c.Version), nil
 		},
@@ -134,7 +137,7 @@ func main() {
 			return &cmd.ShellInitCommand{ui}, nil
 		},
 		"ssh": func() (cli.Command, error) {
-			return &cmd.SshCommand{ui, trellis}, nil
+			return cmd.NewSshCommand(ui, trellis), nil
 		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil

@@ -68,7 +68,7 @@ func TestSshRunValidations(t *testing.T) {
 			defer MockUiExec(t, ui)()
 
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
-			sshCommand := &SshCommand{ui, trellis}
+			sshCommand := NewSshCommand(ui, trellis)
 
 			code := sshCommand.Run(tc.args)
 
@@ -114,7 +114,7 @@ func TestSshRun(t *testing.T) {
 			ui := cli.NewMockUi()
 			defer MockUiExec(t, ui)()
 
-			sshCommand := &SshCommand{ui, trellis}
+			sshCommand := NewSshCommand(ui, trellis)
 			code := sshCommand.Run(tc.args)
 
 			if code != tc.code {
