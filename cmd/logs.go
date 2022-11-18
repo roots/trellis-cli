@@ -144,7 +144,7 @@ func (c *LogsCommand) Help() string {
 	helpText := `
 Usage: trellis logs [options] ENVIRONMENT [SITE]
 
-Tails the Nginx log files (access and error) for an environment.
+Tails the Nginx log files for an environment.
 
 Automatically integrates with https://goaccess.io/ when the --goaccess option is used.
 

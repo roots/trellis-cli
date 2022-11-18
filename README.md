@@ -141,13 +141,17 @@ Supported commands so far:
 | `galaxy` | Commands for Ansible Galaxy |
 | `info` | Displays information about this Trellis project |
 | `init` | Initializes an existing Trellis project |
+| `key` | Commands for managing SSH keys |
+| `logs` | Tails the Nginx log files |
 | `new` | Creates a new Trellis project |
+| `open` | Opens user-defined URLs (and more) which can act as shortcuts/bookmarks specific to your Trellis projects |
 | `provision` | Provisions the specified environment |
 | `rollback` | Rollsback the last deploy of the site on the specified environment |
 | `ssh` | Connects to host via SSH |
 | `up` | Starts and provisions the Vagrant environment by running `vagrant up` |
 | `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
+| `xdebug-tunnel` | Commands for managing Xdebug tunnels |
 
 ## Configuration
 There are three ways to set configuration settings for trellis-cli and they are
