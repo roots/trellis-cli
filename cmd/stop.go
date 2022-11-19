@@ -3,13 +3,11 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"github.com/roots/trellis-cli/app_paths"
+	httpProxy "github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -76,7 +74,7 @@ func (c *StopCommand) Run(args []string) int {
 		c.UI.Info("Lima instance does not exist for this project. Start it first?")
 	}
 
-	err = deleteProxyRecords(app_paths.DataDir(), c.Trellis.Environments["development"].AllHosts())
+	err = httpProxy.RemoveRecords(c.Trellis.Environments["development"].AllHosts())
 	if err != nil {
 		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
 		return 1
@@ -87,31 +85,18 @@ func (c *StopCommand) Run(args []string) int {
 }
 
 func (c *StopCommand) Synopsis() string {
-	return "Stops a VM and provisions the server with Trellis"
+	return "Stops the Trellis development virtual machine."
 }
 
 func (c *StopCommand) Help() string {
 	helpText := `
 Usage: trellis stop [options]
 
-Stops a VM
+Stops the Trellis development virtual machine.
 
 Options:
   -h, --help show this help
 `
 
 	return strings.TrimSpace(helpText)
-}
-
-func deleteProxyRecords(dataDir string, hosts []string) (err error) {
-	for _, host := range hosts {
-		path := filepath.Join(dataDir, host)
-		err = os.Remove(path)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

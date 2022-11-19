@@ -96,6 +96,8 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
+	sites := c.Trellis.Environments["development"].WordPressSites
+
 	if err := httpProxy.Install(); err != nil {
 		c.UI.Error("Error installing reverse HTTP proxy.")
 
@@ -113,20 +115,16 @@ func (c *StartCommand) Run(args []string) int {
 	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
 	os.MkdirAll(limaConfigPath, 0755)
 
-	var firstRun bool = false
-	var instance *lima.Instance
+	instance := lima.NewInstance(siteName, limaConfigPath, sites)
 
-	if lima.InstanceExists(siteName) {
-		instance = lima.NewInstance(siteName, limaConfigPath)
+	if instance.Exists() {
 		if err := instance.Start(); err != nil {
-			c.UI.Error("Error starting VM.")
+			c.UI.Error("Error starting virtual machine.")
 			c.UI.Error(err.Error())
 			return 1
 		}
 	} else {
 		c.UI.Info("Creating new Lima VM...")
-		instance = lima.NewInstance(siteName, limaConfigPath)
-		firstRun = true
 		if err := instance.Create(); err != nil {
 			c.UI.Error("Error creating VM.")
 			c.UI.Error(err.Error())
@@ -134,7 +132,7 @@ func (c *StartCommand) Run(args []string) int {
 		}
 	}
 
-	instance, err = lima.HydrateInstance(siteName, limaConfigPath)
+	instance, err = lima.HydrateInstance(siteName, limaConfigPath, sites)
 	if err != nil {
 		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
@@ -146,9 +144,11 @@ func (c *StartCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
 	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
-	err = writeProxyRecords(dataDir, instance, c.Trellis.Environments["development"].AllHosts())
-	if err != nil {
-		c.UI.Error("Error writing hosts files for HTTP proxy. This is a trellis-cli bug; please report it.")
+	hostNames := c.Trellis.Environments["development"].AllHosts()
+	proxyHost := fmt.Sprintf("http://127.0.0.1:%d", instance.HttpForwardPort)
+
+	if err := httpProxy.AddRecords(proxyHost, hostNames); err != nil {
+		c.UI.Error("Error writing hosts files for HTTP proxy. This is probably a trellis-cli bug; please report it.")
 		return 1
 	}
 
@@ -172,7 +172,7 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if firstRun {
+	if instance.Provision {
 		c.UI.Info("\nProvisioning VM...")
 
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
@@ -187,14 +187,14 @@ func (c *StartCommand) Run(args []string) int {
 }
 
 func (c *StartCommand) Synopsis() string {
-	return "Starts a VM and provisions the server with Trellis"
+	return "Starts a Trellis development virtual machine."
 }
 
 func (c *StartCommand) Help() string {
 	helpText := `
 Usage: trellis start [options]
 
-Starts a VM and provisions the server with Trellis
+Starts a Trellis development virtual machine.
 
 Options:
   -h, --help show this help
@@ -272,20 +272,6 @@ func createSshConfig(path string, instanceName string) error {
 	err = os.WriteFile(path, []byte(contents), 0644)
 	if err != nil {
 		return fmt.Errorf("Could not write SSH config to %s: %v", path, err)
-	}
-
-	return nil
-}
-
-func writeProxyRecords(dataDir string, instance *lima.Instance, hosts []string) (err error) {
-	for _, host := range hosts {
-		path := filepath.Join(dataDir, host)
-		contents := []byte(fmt.Sprintf("http://127.0.0.1:%d", instance.HttpForwardPort))
-		err = os.WriteFile(path, contents, 0644)
-
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

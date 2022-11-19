@@ -30,6 +30,39 @@ const (
 	LaunchAgentPath string = "~/Library/LaunchAgents"
 )
 
+func AddRecords(proxyHost string, hostNames []string) (err error) {
+	// TODO: allow partial writes
+	hostsPath := app_paths.DataDir()
+
+	for _, host := range hostNames {
+		path := filepath.Join(hostsPath, host)
+		contents := []byte(proxyHost)
+		err = os.WriteFile(path, contents, 0644)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RemoveRecords(hostNames []string) (err error) {
+	// TODO: allow partial deletes
+	hostsPath := app_paths.DataDir()
+
+	for _, host := range hostNames {
+		path := filepath.Join(hostsPath, host)
+		err = os.Remove(path)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func Run() {
 	hostsPath := app_paths.DataDir()
 	if err := os.MkdirAll(hostsPath, 0744); err != nil {

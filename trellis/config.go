@@ -2,10 +2,12 @@ package trellis
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/roots/trellis-cli/dns"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -14,7 +16,9 @@ import (
 const DefaultSiteName = "example.com"
 
 type Site struct {
-	SiteHosts       []SiteHost             `yaml:"site_hosts"`
+	SiteHosts       []SiteHost `yaml:"site_hosts"`
+	AbsLocalPath    string
+	TrellisPath     string
 	LocalPath       string                 `yaml:"local_path"`
 	AdminEmail      string                 `yaml:"admin_email,omitempty"`
 	Branch          string                 `yaml:"branch,omitempty"`
@@ -45,6 +49,11 @@ func (t *Trellis) ParseConfig(path string) *Config {
 
 	if err = yaml.Unmarshal(configYaml, &config); err != nil {
 		log.Fatalln(err)
+	}
+
+	for _, site := range config.WordPressSites {
+		site.AbsLocalPath = filepath.Join(t.Path, site.LocalPath)
+		site.TrellisPath = t.Path
 	}
 
 	return config
