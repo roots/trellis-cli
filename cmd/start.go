@@ -16,8 +16,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
+	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
-	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
@@ -63,13 +63,7 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
-	dataDirs, err := config.Scope.DataDirs()
-	if err != nil {
-		c.UI.Error("could not determine XDG data dir. This is a trellis-cli bug.")
-		return 1
-	}
-
-	dataDir := dataDirs[0]
+	dataDir := app_paths.DataDir()
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		c.UI.Error("Error creating trellis-cli data dir.")
 		c.UI.Error(err.Error())

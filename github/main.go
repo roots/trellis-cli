@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -83,14 +82,13 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	return release, nil
 }
 
-func DownloadAsset(repo string, version string, path string, dest string, pattern string) (asset *Asset, archivePath string) {
-	var err error
+func DownloadAsset(repo string, version string, path string, dest string, pattern string) (asset *Asset, err error) {
 	var release *Release
 
 	if version == "latest" {
 		release, err = FetchLatestRelease(repo, Client)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("Error fetching release information from the GitHub API: %v", err)
 		}
 	} else if version == "dev" {
 		release = NewReleaseFromVersion(repo, "master")
@@ -99,18 +97,19 @@ func DownloadAsset(repo string, version string, path string, dest string, patter
 	}
 
 	asset = findAsset(release.Assets, pattern)
-	err = downloadFile(filepath.Join(path, asset.Name), asset.Url, Client)
+	archivePath := filepath.Join(path, asset.Name)
+	err = downloadFile(archivePath, release.ZipUrl, Client)
+	defer os.Remove(archivePath)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	archivePath = filepath.Join(path, asset.Name)
 	if err := archiver.Unarchive(archivePath, path); err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error extracting the asset archive: %v", err)
 	}
 
-	return asset, archivePath
+	return asset, err
 }
 
 func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
