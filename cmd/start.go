@@ -4,12 +4,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"text/template"
 
@@ -18,7 +16,6 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
-	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
@@ -82,26 +79,6 @@ func (c *StartCommand) Run(args []string) int {
 		)
 		spinner.Start()
 		err := lima.Install(dataDir)
-
-		if err != nil {
-			spinner.StopFail()
-			c.UI.Error(err.Error())
-
-			return 1
-		}
-
-		spinner.Stop()
-	}
-
-	if _, err := exec.LookPath("mutagen"); err != nil {
-		spinner := NewSpinner(
-			SpinnerCfg{
-				Message:     "Installing mutagen",
-				FailMessage: "Error installing mutagen",
-			},
-		)
-		spinner.Start()
-		installMutagen(dataDir)
 
 		if err != nil {
 			spinner.StopFail()
@@ -189,31 +166,6 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = command.Cmd("mutagen", []string{"sync", "list", instance.Name}).Run()
-
-	if err != nil {
-		site, _ := c.Trellis.Environments["development"].WordPressSites[siteName]
-		sitePath := fmt.Sprintf("/srv/www/%s/current", siteName)
-
-		mutagenArgs := []string{
-			"sync",
-			"create",
-			site.LocalPath,
-			fmt.Sprintf("lima-%s-%s:%s", instance.Name, "web", sitePath),
-			"--name=" + instance.Name,
-			"--default-owner-beta=web",
-			"--default-group-beta=www-data",
-			"--default-file-mode-beta=0644",
-			"--default-directory-mode-beta=0755",
-		}
-
-		err = command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("mutagen", mutagenArgs).Run()
-		if err != nil {
-			c.UI.Error(fmt.Sprintf("Error creating mutagen sync: %v", err))
-			return 1
-		}
-	}
-
 	hostsPath := filepath.Join(limaConfigPath, "inventory")
 	if err = createInventoryFile(hostsPath, instance.SshLocalPort); err != nil {
 		c.UI.Error(err.Error())
@@ -249,35 +201,6 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
-}
-
-func installMutagen(installPath string) error {
-	tempDir, _ := ioutil.TempDir("", "trellis-mutagen")
-	defer os.RemoveAll(tempDir)
-
-	pattern := fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH)
-
-	github.DownloadAsset(
-		"mutagen-io/mutagen",
-		"latest",
-		tempDir,
-		tempDir,
-		pattern,
-	)
-
-	files, err := os.ReadDir(tempDir)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		err := os.Rename(filepath.Join(tempDir, file.Name()), filepath.Join(installPath, file.Name()))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func createInventoryFile(path string, port int) error {

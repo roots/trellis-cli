@@ -10,7 +10,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/app_paths"
-	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -75,14 +74,6 @@ func (c *StopCommand) Run(args []string) int {
 		}
 	} else {
 		c.UI.Info("Lima instance does not exist for this project. Start it first?")
-	}
-
-	err = command.WithOptions(
-		command.WithTermOutput(),
-	).Cmd("mutagen", []string{"sync", "terminate", instance.Name}).Run()
-
-	if err != nil {
-		return 1
 	}
 
 	err = deleteProxyRecords(app_paths.DataDir(), c.Trellis.Environments["development"].AllHosts())
