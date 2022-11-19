@@ -9,8 +9,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
-	"github.com/roots/trellis-cli/config"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -85,13 +85,7 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 
-	dataDirs, err := config.Scope.DataDirs()
-	if err != nil {
-		c.UI.Error("could not determine XDG data dir. This is a trellis-cli bug.")
-		return 1
-	}
-
-	err = deleteProxyRecords(dataDirs[0], c.Trellis.Environments["development"].AllHosts())
+	err = deleteProxyRecords(app_paths.DataDir(), c.Trellis.Environments["development"].AllHosts())
 	if err != nil {
 		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
 		return 1

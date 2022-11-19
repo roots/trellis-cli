@@ -31,19 +31,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	updateNotifier := &update.Notifier{
-		CacheDir: app_paths.CacheDir(),
-		Client:   github.Client,
-		Repo:     updaterRepo,
-		Version:  version,
-	}
-
-	updateMessageChan := make(chan *github.Release)
-	go func() {
-		release, _ := updateNotifier.CheckForUpdate()
-		updateMessageChan <- release
-	}()
-
 	c := cli.NewCLI("trellis", version)
 	c.Args = os.Args[1:]
 

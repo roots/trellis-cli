@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
-	"github.com/roots/trellis-cli/config"
 )
 
 //go:embed files/service.plist
@@ -31,8 +31,7 @@ const (
 )
 
 func Run() {
-	dirs, _ := config.Scope.DataDirs()
-	hostsPath := dirs[0]
+	hostsPath := app_paths.DataDir()
 	if err := os.MkdirAll(hostsPath, 0744); err != nil {
 		log.Fatalln(err)
 	}
