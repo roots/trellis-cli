@@ -115,6 +115,7 @@ func (c *StartCommand) Run(args []string) int {
 	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
 	os.MkdirAll(limaConfigPath, 0755)
 
+	var firstRun bool = false
 	instance := lima.NewInstance(siteName, limaConfigPath, sites)
 
 	if instance.Exists() {
@@ -125,6 +126,7 @@ func (c *StartCommand) Run(args []string) int {
 		}
 	} else {
 		c.UI.Info("Creating new Lima VM...")
+		firstRun = true
 		if err := instance.Create(); err != nil {
 			c.UI.Error("Error creating VM.")
 			c.UI.Error(err.Error())
@@ -172,12 +174,12 @@ func (c *StartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if instance.Provision {
+	if firstRun {
 		c.UI.Info("\nProvisioning VM...")
 
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-		return provisionCmd.Run([]string{"--extra-vars", "web_user=web", "development"})
+		return provisionCmd.Run([]string{"--extra-vars", "web_user=scottwalkinshaw remote_user=scottwalkinshaw", "development"})
 	} else {
 		c.UI.Info("\nSkipping provisioning. VM already created.")
 		c.UI.Info("To provision again, run: trellis provision development")
@@ -206,10 +208,10 @@ Options:
 func createInventoryFile(path string, port int) error {
 	const hostsTemplate string = `
 [development]
-127.0.0.1 ansible_port={{ .Port }}
+127.0.0.1 ansible_port={{ .Port }} ansible_user=scottwalkinshaw
 
 [web]
-127.0.0.1 ansible_port={{ .Port }}
+127.0.0.1 ansible_port={{ .Port }} ansible_user=scottwalkinshaw
 `
 
 	tpl := template.Must(template.New("hosts").Parse(hostsTemplate))

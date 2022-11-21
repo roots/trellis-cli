@@ -1,8 +1,10 @@
 package httpProxy
 
 import (
+	"bytes"
 	_ "embed"
 	"errors"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -32,6 +34,7 @@ const (
 
 func AddRecords(proxyHost string, hostNames []string) (err error) {
 	// TODO: allow partial writes
+	// TODO: use a subdir just for host records
 	hostsPath := app_paths.DataDir()
 
 	for _, host := range hostNames {
@@ -78,10 +81,8 @@ func Run() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func Install() error {
-	err := createPlistFile()
-
-	if err != nil {
+func Install() (err error) {
+	if err = createPlistFile(); err != nil {
 		return err
 	}
 
@@ -102,8 +103,12 @@ func Install() error {
 		return PortInUseError
 	}
 
-	err = command.Cmd("launchctl", []string{"load", plistPath()}).Run()
-	if err != nil {
+	var stderr bytes.Buffer
+	err = command.WithOptions(
+		command.WithCaptureOutput(io.Discard, &stderr),
+	).Cmd("launchctl", []string{"load", "-w", plistPath()}).Run()
+
+	if stderr.String() != "" {
 		return LaunchDaemonError
 	}
 

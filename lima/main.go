@@ -47,7 +47,6 @@ type Instance struct {
 	Disk            int    `json:"disk"`
 	SshLocalPort    int    `json:"sshLocalPort"`
 	HttpForwardPort int
-	Provision       bool
 }
 
 func NewInstance(name string, configPath string, sites map[string]*trellis.Site) *Instance {
@@ -113,7 +112,6 @@ func GetInstance(name string) (Instance, bool) {
 }
 
 func (i *Instance) Create() error {
-	i.Provision = true
 	rand.Seed(time.Now().UnixNano())
 	// TODO: we should check that the port is available first
 	i.HttpForwardPort = rand.Intn(65534-60000) + 60000

@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -76,6 +77,13 @@ func WithUiOutput(ui cli.Ui) CommandOption {
 	return func(cmd *exec.Cmd) {
 		cmd.Stdout = &cli.UiWriter{Ui: ui}
 		cmd.Stderr = &UiErrorWriter{ui}
+	}
+}
+
+func WithCaptureOutput(stdout io.Writer, stderr io.Writer) CommandOption {
+	return func(cmd *exec.Cmd) {
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
 	}
 }
 
