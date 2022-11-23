@@ -49,10 +49,10 @@ type Instance struct {
 	HttpForwardPort int
 }
 
-func NewInstance(name string, configPath string, sites map[string]*trellis.Site) *Instance {
-	name = ConvertToInstanceName(name)
+func NewInstance(name string, configPath string, sites map[string]*trellis.Site) Instance {
+	name = convertToInstanceName(name)
 
-	instance := &Instance{
+	instance := Instance{
 		Name:       name,
 		ConfigPath: configPath,
 		ConfigFile: filepath.Join(configPath, name+".yml"),
@@ -66,27 +66,14 @@ func NewInstance(name string, configPath string, sites map[string]*trellis.Site)
 	return instance
 }
 
-func HydrateInstance(name string, configPath string, sites map[string]*trellis.Site) (*Instance, error) {
-	instance := NewInstance(name, configPath, sites)
+func GetInstance(name string) (Instance, bool) {
+	instances := Instances()
+	instance, ok := instances[convertToInstanceName(name)]
 
-	if err := instance.hydrateFromConfig(); err != nil {
-		return nil, err
-	}
-	if err := instance.hydrateFromLima(); err != nil {
-		return nil, err
-	}
-
-	return instance, nil
+	return instance, ok
 }
 
-func InstanceExists(name string) bool {
-	name = ConvertToInstanceName(name)
-	_, ok := GetInstance(name)
-
-	return ok
-}
-
-func ConvertToInstanceName(value string) string {
+func convertToInstanceName(value string) string {
 	return strings.ReplaceAll(value, ".", "-")
 }
 
@@ -102,13 +89,6 @@ func Instances() (instances map[string]Instance) {
 	}
 
 	return instances
-}
-
-func GetInstance(name string) (Instance, bool) {
-	instances := Instances()
-	instance, ok := instances[ConvertToInstanceName(name)]
-
-	return instance, ok
 }
 
 func (i *Instance) Create() error {
@@ -151,12 +131,6 @@ func (i *Instance) CreateConfig() error {
 	return nil
 }
 
-func (i *Instance) Exists() bool {
-	_, ok := GetInstance(i.Name)
-
-	return ok
-}
-
 func (i *Instance) Start() error {
 	err := command.WithOptions(
 		command.WithTermOutput(),
@@ -175,6 +149,17 @@ func (i *Instance) Stop() error {
 
 func (i *Instance) Stopped() bool {
 	return i.Status == "Stopped"
+}
+
+func (i *Instance) Hydrate() (err error) {
+	if err = i.hydrateFromConfig(); err != nil {
+		return err
+	}
+	if err = i.hydrateFromLima(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (i *Instance) hydrateFromConfig() error {

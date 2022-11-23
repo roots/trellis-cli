@@ -116,9 +116,10 @@ func (c *StartCommand) Run(args []string) int {
 	os.MkdirAll(limaConfigPath, 0755)
 
 	var firstRun bool = false
-	instance := lima.NewInstance(siteName, limaConfigPath, sites)
+	var instance lima.Instance
+	instance, ok := lima.GetInstance(siteName)
 
-	if instance.Exists() {
+	if ok {
 		if err := instance.Start(); err != nil {
 			c.UI.Error("Error starting virtual machine.")
 			c.UI.Error(err.Error())
@@ -127,6 +128,8 @@ func (c *StartCommand) Run(args []string) int {
 	} else {
 		c.UI.Info("Creating new Lima VM...")
 		firstRun = true
+		instance = lima.NewInstance(siteName, limaConfigPath, sites)
+
 		if err := instance.Create(); err != nil {
 			c.UI.Error("Error creating VM.")
 			c.UI.Error(err.Error())
@@ -134,8 +137,7 @@ func (c *StartCommand) Run(args []string) int {
 		}
 	}
 
-	instance, err = lima.HydrateInstance(siteName, limaConfigPath, sites)
-	if err != nil {
+	if err := instance.Hydrate(); err != nil {
 		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
 		return 1
@@ -144,6 +146,7 @@ func (c *StartCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("\n%s Lima VM started\n", color.GreenString("[✓]")))
 	c.UI.Info(fmt.Sprintf("Name: %s", instance.Name))
 	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
+	// TODO: is this useful? It can't be accessed without DNS
 	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
 	hostNames := c.Trellis.Environments["development"].AllHosts()
