@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -16,29 +15,30 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/hostagent"
 	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
 
-type StartCommand struct {
+type VmStartCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
 }
 
-func NewStartCommand(ui cli.Ui, trellis *trellis.Trellis) *StartCommand {
-	c := &StartCommand{UI: ui, Trellis: trellis}
+func NewVmStartCommand(ui cli.Ui, trellis *trellis.Trellis) *VmStartCommand {
+	c := &VmStartCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
 
-func (c *StartCommand) init() {
+func (c *VmStartCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 }
 
-func (c *StartCommand) Run(args []string) int {
+func (c *VmStartCommand) Run(args []string) int {
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -69,26 +69,20 @@ func (c *StartCommand) Run(args []string) int {
 
 	osPath := os.Getenv("PATH")
 	os.Setenv("PATH", fmt.Sprintf("%s:%s", dataDir, osPath))
+	if err := c.installLima(dataDir); err != nil {
+		return 1
+	}
 
-	if _, err := exec.LookPath("limactl"); err != nil {
-		spinner := NewSpinner(
-			SpinnerCfg{
-				Message:     "Installing lima",
-				FailMessage: "Error installing lima",
-			},
-		)
-		spinner.Start()
-		err := lima.Install(dataDir)
-
-		if err != nil {
-			spinner.StopFail()
-			c.UI.Error(err.Error())
-
+	if hostagent.Running() {
+		c.UI.Info(fmt.Sprintf("%s hostagent running", color.GreenString("[✓]")))
+	} else {
+		if err := c.hostagentInstall(); err != nil {
 			return 1
 		}
-
-		spinner.Stop()
 	}
+
+	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
+	os.MkdirAll(limaConfigPath, 0755)
 
 	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
 	if err != nil {
@@ -97,23 +91,6 @@ func (c *StartCommand) Run(args []string) int {
 	}
 
 	sites := c.Trellis.Environments["development"].WordPressSites
-
-	if err := httpProxy.Install(); err != nil {
-		c.UI.Error("Error installing reverse HTTP proxy.")
-
-		if errors.Is(err, httpProxy.PortInUseError) {
-			c.UI.Error(err.Error())
-			c.UI.Error("You likely have another web server or service running on port 80. trellis-cli runs a reverse HTTP proxy on port 80 for access to Nginx on the virtual machines.")
-			c.UI.Error("Using the `lsof` command will let you know what is listening on port 80.")
-			c.UI.Error("=> sudo lsof -nP -i4TCP:80 | grep LISTEN")
-		} else {
-			c.UI.Error(err.Error())
-		}
-		return 1
-	}
-
-	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
-	os.MkdirAll(limaConfigPath, 0755)
 
 	var firstRun bool = false
 	var instance lima.Instance
@@ -146,7 +123,6 @@ func (c *StartCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("\n%s Lima VM started\n", color.GreenString("[✓]")))
 	c.UI.Info(fmt.Sprintf("Name: %s", instance.Name))
 	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
-	// TODO: is this useful? It can't be accessed without DNS
 	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
 	hostNames := c.Trellis.Environments["development"].AllHosts()
@@ -172,7 +148,7 @@ func (c *StartCommand) Run(args []string) int {
 	}
 
 	hostsPath := filepath.Join(limaConfigPath, "inventory")
-	if err = createInventoryFile(hostsPath, instance.SshLocalPort); err != nil {
+	if err = createInventoryFile(hostsPath, instance); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -182,7 +158,7 @@ func (c *StartCommand) Run(args []string) int {
 
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-		return provisionCmd.Run([]string{"--extra-vars", "web_user=scottwalkinshaw remote_user=scottwalkinshaw", "development"})
+		return provisionCmd.Run([]string{"--extra-vars", "web_user=" + instance.Username, "development"})
 	} else {
 		c.UI.Info("\nSkipping provisioning. VM already created.")
 		c.UI.Info("To provision again, run: trellis provision development")
@@ -191,13 +167,13 @@ func (c *StartCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *StartCommand) Synopsis() string {
+func (c *VmStartCommand) Synopsis() string {
 	return "Starts a Trellis development virtual machine."
 }
 
-func (c *StartCommand) Help() string {
+func (c *VmStartCommand) Help() string {
 	helpText := `
-Usage: trellis start [options]
+Usage: trellis vm start [options]
 
 Starts a Trellis development virtual machine.
 
@@ -208,13 +184,107 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
-func createInventoryFile(path string, port int) error {
+func (c *VmStartCommand) installLima(path string) error {
+	if _, err := exec.LookPath("limactl"); err != nil {
+		spinner := NewSpinner(
+			SpinnerCfg{
+				Message:     "Installing lima",
+				FailMessage: "Error installing lima",
+			},
+		)
+		spinner.Start()
+		err := lima.Install(path)
+
+		if err != nil {
+			spinner.StopFail()
+			c.UI.Error(err.Error())
+			return err
+		}
+
+		spinner.Stop()
+	}
+
+	return nil
+}
+
+func (c *VmStartCommand) hostagentInstall() error {
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Checking hostagent requirements",
+			FailMessage: "hostagent requiremnts not met",
+		},
+	)
+
+	spinner.Start()
+	portsInUse := hostagent.PortsInUse()
+
+	if len(portsInUse) > 0 {
+		spinner.StopFail()
+		c.UI.Error("The hostagent runs a reverse HTTP proxy and a local DNS resolver and requires a few ports to be free. The following ports are already in use by another service on your machine:")
+
+		for _, port := range portsInUse {
+			c.UI.Error(fmt.Sprintf("%s %d", port.Protocol, port.Number))
+		}
+
+		c.UI.Error("\nUsing the `lsof` command will let you know what process is using the port:")
+		for _, port := range portsInUse {
+			c.UI.Error(fmt.Sprintf("=> sudo lsof -nP -iTCP:%d -sTCP:LISTEN", port.Number))
+		}
+
+		return fmt.Errorf("install failed")
+	}
+
+	spinner.Stop()
+
+	if hostagent.Installed() {
+		if err := c.runHostagent(); err != nil {
+			return err
+		}
+	} else {
+		c.UI.Info(fmt.Sprintf("%s hostagent not installed", color.RedString("[✘]")))
+		c.UI.Info("\ntrellis-cli hostagent needs to be installed on your host machine for VM integration. The hostagent is a service that runs in the background with a reverse HTTP proxy and a local DNS resolver.")
+		c.UI.Info("The DNS resolver will resolve queries for the *.test domain and always respond with 127.0.0.1. Using a DNS resolver means your /etc/hosts does not need to be updated.")
+		c.UI.Info("The HTTP server runs on port 80 and proxies requests from site hosts to the VM's forward port. Example: example.test:80 -> 127.0.0.1:63208")
+		c.UI.Info("\nTwo files are created as part of the installation:")
+		c.UI.Info(" 1. " + hostagent.PlistPath())
+		c.UI.Info(" 2. " + hostagent.ResolverPath())
+		c.UI.Info("\nNote: sudo is needed to create the resolver file. The hostagent service will run under your user account, not as root.")
+
+		if err := hostagent.Install(); err != nil {
+			c.UI.Error("Error installing trellis-cli hostagent service.")
+			c.UI.Error(err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *VmStartCommand) runHostagent() error {
+	spinner := NewSpinner(
+		SpinnerCfg{
+			Message:     "Starting hostagent",
+			FailMessage: "Hostagent could not start",
+		},
+	)
+
+	spinner.Start()
+	if err := hostagent.RunServer(); err != nil {
+		spinner.StopFail()
+		return err
+	}
+
+	spinner.Stop()
+	return nil
+}
+
+func createInventoryFile(path string, instance lima.Instance) error {
 	const hostsTemplate string = `
 [development]
-127.0.0.1 ansible_port={{ .Port }} ansible_user=scottwalkinshaw
+127.0.0.1 ansible_port={{ .SshLocalPort }} ansible_user={{ .Username }}
 
 [web]
-127.0.0.1 ansible_port={{ .Port }} ansible_user=scottwalkinshaw
+127.0.0.1 ansible_port={{ .SshLocalPort }} ansible_user={{ .Username }}
 `
 
 	tpl := template.Must(template.New("hosts").Parse(hostsTemplate))
@@ -224,13 +294,7 @@ func createInventoryFile(path string, port int) error {
 		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
 	}
 
-	data := struct {
-		Port int
-	}{
-		Port: port,
-	}
-
-	err = tpl.Execute(file, data)
+	err = tpl.Execute(file, instance)
 	if err != nil {
 		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
 	}

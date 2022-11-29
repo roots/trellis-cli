@@ -6,7 +6,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>{{ .Program }}</string>
-      <string>-proxy</string>
+      <string>-hostagent</string>
     </array>
     <key>KeepAlive</key><true/>
 	</dict>

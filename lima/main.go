@@ -47,6 +47,7 @@ type Instance struct {
 	Disk            int    `json:"disk"`
 	SshLocalPort    int    `json:"sshLocalPort"`
 	HttpForwardPort int
+	Username        string
 }
 
 func NewInstance(name string, configPath string, sites map[string]*trellis.Site) Instance {
@@ -58,10 +59,6 @@ func NewInstance(name string, configPath string, sites map[string]*trellis.Site)
 		ConfigFile: filepath.Join(configPath, name+".yml"),
 		Sites:      sites,
 	}
-
-	// site, _ := c.Trellis.Environments["development"].WordPressSites[siteName]
-	// sitePath := fmt.Sprintf("/srv/www/%s/current", siteName)
-	// site.LocalPath
 
 	return instance
 }
@@ -103,7 +100,6 @@ func (i *Instance) Create() error {
 	args := []string{
 		"start",
 		"--name=" + i.Name,
-		"--debug",
 		"--tty=false",
 		i.ConfigFile,
 	}
@@ -158,6 +154,10 @@ func (i *Instance) Hydrate() (err error) {
 	if err = i.hydrateFromLima(); err != nil {
 		return err
 	}
+	user, err := command.Cmd("limactl", []string{"shell", i.Name, "whoami"}).Output()
+	if err == nil {
+		i.Username = string(user)
+	}
 
 	return nil
 }
@@ -167,6 +167,8 @@ func (i *Instance) hydrateFromConfig() error {
 
 	configYaml, err := os.ReadFile(i.ConfigFile)
 	if err != nil {
+		fmt.Println("could not read file")
+		fmt.Println(i.ConfigFile)
 		return fmt.Errorf("%v: %w", HydrationError, err)
 	}
 

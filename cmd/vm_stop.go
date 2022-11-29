@@ -12,24 +12,24 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-type StopCommand struct {
+type VmStopCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
 }
 
-func NewStopCommand(ui cli.Ui, trellis *trellis.Trellis) *StopCommand {
-	c := &StopCommand{UI: ui, Trellis: trellis}
+func NewVmStopCommand(ui cli.Ui, trellis *trellis.Trellis) *VmStopCommand {
+	c := &VmStopCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
 
-func (c *StopCommand) init() {
+func (c *VmStopCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 }
 
-func (c *StopCommand) Run(args []string) int {
+func (c *VmStopCommand) Run(args []string) int {
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -84,13 +84,13 @@ func (c *StopCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *StopCommand) Synopsis() string {
+func (c *VmStopCommand) Synopsis() string {
 	return "Stops the Trellis development virtual machine."
 }
 
-func (c *StopCommand) Help() string {
+func (c *VmStopCommand) Help() string {
 	helpText := `
-Usage: trellis stop [options]
+Usage: trellis vm stop [options]
 
 Stops the Trellis development virtual machine.
 

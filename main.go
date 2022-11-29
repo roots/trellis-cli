@@ -9,7 +9,7 @@ import (
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cmd"
 	"github.com/roots/trellis-cli/github"
-	"github.com/roots/trellis-cli/http-proxy"
+	"github.com/roots/trellis-cli/hostagent"
 	"github.com/roots/trellis-cli/plugin"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/roots/trellis-cli/update"
@@ -23,11 +23,11 @@ var version = "canary"
 var updaterRepo = ""
 
 func main() {
-	var proxyFlag = flag.Bool("proxy", false, "Run reverse HTTP proxy")
+	var agentFlag = flag.Bool("hostagent", false, "Run in host agent mode (DNS resolver and HTTP proxy)")
 	flag.Parse()
 
-	if *proxyFlag {
-		httpProxy.Run()
+	if *agentFlag {
+		hostagent.Run()
 		os.Exit(0)
 	}
 
@@ -146,12 +146,6 @@ func main() {
 		"ssh": func() (cli.Command, error) {
 			return &cmd.SshCommand{ui, trellis}, nil
 		},
-		"start": func() (cli.Command, error) {
-			return cmd.NewStartCommand(ui, trellis), nil
-		},
-		"stop": func() (cli.Command, error) {
-			return cmd.NewStopCommand(ui, trellis), nil
-		},
 		"up": func() (cli.Command, error) {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
@@ -184,6 +178,18 @@ func main() {
 		},
 		"venv hook": func() (cli.Command, error) {
 			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
+		},
+		"vm": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis vm <subcommand> [<args>]",
+				SynopsisText: "Commands for managing virtual machines",
+			}, nil
+		},
+		"vm start": func() (cli.Command, error) {
+			return cmd.NewVmStartCommand(ui, trellis), nil
+		},
+		"vm stop": func() (cli.Command, error) {
+			return cmd.NewVmStopCommand(ui, trellis), nil
 		},
 		"xdebug-tunnel": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
