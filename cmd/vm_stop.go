@@ -57,30 +57,46 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	instance, ok := lima.GetInstance(siteName)
+	sites := c.Trellis.Environments["development"].WordPressSites
+	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
 
-	if ok {
-		if instance.Stopped() {
-			c.UI.Info(fmt.Sprintf("%s Lima VM already stopped", color.GreenString("[✓]")))
-			return 0
-		} else {
-			if err := instance.Stop(); err != nil {
-				c.UI.Error("Error stopping lima instance")
-				c.UI.Error(err.Error())
-				return 1
-			}
-		}
+	if err != nil {
+		c.UI.Error("Error: " + err.Error())
+		return 1
+	}
+
+	instance, ok := manager.GetInstance(siteName)
+
+	if !ok {
+		c.UI.Info("VM does not exist for this project. Start it first.")
+		return 0
+	}
+
+	if err := instance.Hydrate(); err != nil {
+		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	if instance.Stopped() {
+		c.UI.Info(fmt.Sprintf("%s VM already stopped", color.GreenString("[✓]")))
+		return 0
 	} else {
-		c.UI.Info("Lima instance does not exist for this project. Start it first?")
+		if err := instance.Stop(); err != nil {
+			c.UI.Error("Error stopping VM")
+			c.UI.Error(err.Error())
+			return 1
+		}
 	}
 
 	err = httpProxy.RemoveRecords(c.Trellis.Environments["development"].AllHosts())
 	if err != nil {
 		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
+		c.UI.Error(err.Error())
 		return 1
 	}
 
-	c.UI.Info(fmt.Sprintf("\n%s Lima VM stopped\n", color.GreenString("[✓]")))
+	c.UI.Info(fmt.Sprintf("\n%s VM stopped\n", color.GreenString("[✓]")))
 	return 0
 }
 

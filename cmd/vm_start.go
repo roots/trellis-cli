@@ -6,15 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"github.com/mitchellh/go-homedir"
-	"github.com/roots/trellis-cli/app_paths"
-	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/hostagent"
 	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
@@ -60,30 +56,6 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	dataDir := app_paths.DataDir()
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		c.UI.Error("Error creating trellis-cli data dir.")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	osPath := os.Getenv("PATH")
-	os.Setenv("PATH", fmt.Sprintf("%s:%s", dataDir, osPath))
-	if err := c.installLima(dataDir); err != nil {
-		return 1
-	}
-
-	if hostagent.Running() {
-		c.UI.Info(fmt.Sprintf("%s hostagent running", color.GreenString("[✓]")))
-	} else {
-		if err := c.hostagentInstall(); err != nil {
-			return 1
-		}
-	}
-
-	limaConfigPath := filepath.Join(c.Trellis.ConfigPath(), "lima")
-	os.MkdirAll(limaConfigPath, 0755)
-
 	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
 	if err != nil {
 		c.UI.Error(err.Error())
@@ -91,27 +63,51 @@ func (c *VmStartCommand) Run(args []string) int {
 	}
 
 	sites := c.Trellis.Environments["development"].WordPressSites
+	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
 
-	var firstRun bool = false
-	var instance lima.Instance
-	instance, ok := lima.GetInstance(siteName)
+	if err := c.installLima(manager.DataDir); err != nil {
+		return 1
+	}
+
+	if !hostagent.Running() {
+		if err := c.hostagentInstall(); err != nil {
+			return 1
+		}
+	}
+
+	instance := manager.NewInstance(siteName)
+	_, ok := manager.GetInstance(siteName)
 
 	if ok {
-		if err := instance.Start(); err != nil {
-			c.UI.Error("Error starting virtual machine.")
+		if err := instance.Hydrate(); err != nil {
+			c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 			c.UI.Error(err.Error())
 			return 1
 		}
-	} else {
-		c.UI.Info("Creating new Lima VM...")
-		firstRun = true
-		instance = lima.NewInstance(siteName, limaConfigPath, sites)
 
-		if err := instance.Create(); err != nil {
-			c.UI.Error("Error creating VM.")
+		if instance.Running() {
+			c.UI.Info(fmt.Sprintf("%s VM already running", color.GreenString("[✓]")))
+		} else {
+			if err := instance.Start(); err != nil {
+				c.UI.Error("Error starting virtual machine.")
+				c.UI.Error(err.Error())
+				return 1
+			}
+		}
+
+		if err := c.addHostRecords(instance); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}
+
+		return 0
+	}
+
+	c.UI.Info("Creating new VM...")
+	if err := instance.Create(); err != nil {
+		c.UI.Error("Error creating VM.")
+		c.UI.Error(err.Error())
+		return 1
 	}
 
 	if err := instance.Hydrate(); err != nil {
@@ -125,46 +121,22 @@ func (c *VmStartCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
 	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
-	hostNames := c.Trellis.Environments["development"].AllHosts()
-	proxyHost := fmt.Sprintf("http://127.0.0.1:%d", instance.HttpForwardPort)
-
-	if err := httpProxy.AddRecords(proxyHost, hostNames); err != nil {
-		c.UI.Error("Error writing hosts files for HTTP proxy. This is probably a trellis-cli bug; please report it.")
-		return 1
-	}
-
-	sshConfigPath := filepath.Join(limaConfigPath, "ssh_config")
-	if err = addSshConfigInclude(sshConfigPath); err != nil {
-		c.UI.Error("Error adding include directive to ~/.ssh/config")
+	if err := c.addHostRecords(instance); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	err = createSshConfig(sshConfigPath, instance.Name)
-	if err != nil {
-		c.UI.Error("Error creating SSH config")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	hostsPath := filepath.Join(limaConfigPath, "inventory")
+	hostsPath := filepath.Join(manager.ConfigPath, "inventory")
 	if err = createInventoryFile(hostsPath, instance); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	if firstRun {
-		c.UI.Info("\nProvisioning VM...")
+	c.UI.Info("\nProvisioning VM...")
 
-		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
-		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-		return provisionCmd.Run([]string{"--extra-vars", "web_user=" + instance.Username, "development"})
-	} else {
-		c.UI.Info("\nSkipping provisioning. VM already created.")
-		c.UI.Info("To provision again, run: trellis provision development")
-	}
-
-	return 0
+	os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
+	provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
+	return provisionCmd.Run([]string{"--extra-vars", "web_user=" + instance.Username, "development"})
 }
 
 func (c *VmStartCommand) Synopsis() string {
@@ -182,6 +154,16 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
+}
+
+func (c *VmStartCommand) addHostRecords(instance lima.Instance) error {
+	hostNames := c.Trellis.Environments["development"].AllHosts()
+
+	if err := httpProxy.AddRecords(instance.HttpHost(), hostNames); err != nil {
+		return fmt.Errorf("Error writing hosts files for HTTP proxy. This is probably a trellis-cli bug; please report it.\n%v", err)
+	}
+
+	return nil
 }
 
 func (c *VmStartCommand) installLima(path string) error {
@@ -297,50 +279,6 @@ func createInventoryFile(path string, instance lima.Instance) error {
 	err = tpl.Execute(file, instance)
 	if err != nil {
 		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
-	}
-
-	return nil
-}
-
-func addSshConfigInclude(includesPath string) error {
-	includeStatement := fmt.Sprintf("Include %s\n\n", includesPath)
-	homePath, _ := homedir.Dir()
-	path := filepath.Join(homePath, ".ssh", "config")
-
-	configContents, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("Could not read ~/.ssh/config: %v", err)
-	}
-
-	if !strings.Contains(string(configContents), includeStatement) {
-		err = os.WriteFile(path, []byte(includeStatement+string(configContents)), 0644)
-		if err != nil {
-			return fmt.Errorf("Could not write ~/.ssh/config: %v", err)
-		}
-	}
-
-	return nil
-}
-
-func createSshConfig(path string, instanceName string) error {
-	sshConfig, err := command.Cmd("limactl", []string{"show-ssh", "--format=config", instanceName}).Output()
-	if err != nil {
-		return fmt.Errorf("Could not fetch lima SSH config: %v", err)
-	}
-
-	re := regexp.MustCompile(`User (.*)`)
-	sshConfigWeb := re.ReplaceAll([]byte(sshConfig), []byte("User web"))
-
-	re = regexp.MustCompile(`Host (.*)`)
-	sshConfigWeb = re.ReplaceAll([]byte(sshConfigWeb), []byte("Host $1-web"))
-
-	re = regexp.MustCompile(`[\s]+(ControlPath .*)`)
-	sshConfigWeb = re.ReplaceAll([]byte(sshConfigWeb), []byte(""))
-
-	contents := string(sshConfig) + "\n\n" + string(sshConfigWeb)
-	err = os.WriteFile(path, []byte(contents), 0644)
-	if err != nil {
-		return fmt.Errorf("Could not write SSH config to %s: %v", path, err)
 	}
 
 	return nil

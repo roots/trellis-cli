@@ -13,8 +13,11 @@ import (
 
 func AddRecords(proxyHost string, hostNames []string) (err error) {
 	// TODO: allow partial writes
-	// TODO: use a subdir just for host records
-	hostsPath := app_paths.DataDir()
+	hostsPath := hostRecordsPath()
+
+	if err = os.MkdirAll(hostsPath, os.ModePerm); err != nil {
+		return err
+	}
 
 	for _, host := range hostNames {
 		path := filepath.Join(hostsPath, host)
@@ -31,7 +34,7 @@ func AddRecords(proxyHost string, hostNames []string) (err error) {
 
 func RemoveRecords(hostNames []string) (err error) {
 	// TODO: allow partial deletes
-	hostsPath := app_paths.DataDir()
+	hostsPath := hostRecordsPath()
 
 	for _, host := range hostNames {
 		path := filepath.Join(hostsPath, host)
@@ -46,7 +49,7 @@ func RemoveRecords(hostNames []string) (err error) {
 }
 
 func Run() {
-	hostsPath := app_paths.DataDir()
+	hostsPath := hostRecordsPath()
 	if err := os.MkdirAll(hostsPath, 0744); err != nil {
 		log.Fatalln(err)
 	}
@@ -58,4 +61,9 @@ func Run() {
 	server := &http.Server{Addr: ":80", Handler: h}
 	log.Println("Reverse HTTP proxy listening on: 127.0.0.1:80")
 	log.Fatal(server.ListenAndServe())
+}
+
+func hostRecordsPath() string {
+	hostsPath := app_paths.DataDir()
+	return filepath.Join(hostsPath, "proxy_hosts")
 }

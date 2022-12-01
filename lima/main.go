@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -48,44 +47,6 @@ type Instance struct {
 	SshLocalPort    int    `json:"sshLocalPort"`
 	HttpForwardPort int
 	Username        string
-}
-
-func NewInstance(name string, configPath string, sites map[string]*trellis.Site) Instance {
-	name = convertToInstanceName(name)
-
-	instance := Instance{
-		Name:       name,
-		ConfigPath: configPath,
-		ConfigFile: filepath.Join(configPath, name+".yml"),
-		Sites:      sites,
-	}
-
-	return instance
-}
-
-func GetInstance(name string) (Instance, bool) {
-	instances := Instances()
-	instance, ok := instances[convertToInstanceName(name)]
-
-	return instance, ok
-}
-
-func convertToInstanceName(value string) string {
-	return strings.ReplaceAll(value, ".", "-")
-}
-
-func Instances() (instances map[string]Instance) {
-	instances = make(map[string]Instance)
-	output, err := command.Cmd("limactl", []string{"list", "--json"}).Output()
-
-	for _, line := range strings.Split(string(output), "\n") {
-		var instance Instance
-		if err = json.Unmarshal([]byte(line), &instance); err == nil {
-			instances[instance.Name] = instance
-		}
-	}
-
-	return instances
 }
 
 func (i *Instance) Create() error {
@@ -135,6 +96,10 @@ func (i *Instance) Start() error {
 	return err
 }
 
+func (i *Instance) Running() bool {
+	return i.Status == "Running"
+}
+
 func (i *Instance) Stop() error {
 	err := command.WithOptions(
 		command.WithTermOutput(),
@@ -145,6 +110,10 @@ func (i *Instance) Stop() error {
 
 func (i *Instance) Stopped() bool {
 	return i.Status == "Stopped"
+}
+
+func (i *Instance) HttpHost() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", i.HttpForwardPort)
 }
 
 func (i *Instance) Hydrate() (err error) {
@@ -167,9 +136,7 @@ func (i *Instance) hydrateFromConfig() error {
 
 	configYaml, err := os.ReadFile(i.ConfigFile)
 	if err != nil {
-		fmt.Println("could not read file")
-		fmt.Println(i.ConfigFile)
-		return fmt.Errorf("%v: %w", HydrationError, err)
+		return nil
 	}
 
 	if err = yaml.Unmarshal(configYaml, config); err != nil {
