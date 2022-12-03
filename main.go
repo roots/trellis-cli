@@ -119,6 +119,15 @@ func main() {
 		"init": func() (cli.Command, error) {
 			return cmd.NewInitCommand(ui, trellis), nil
 		},
+		"hostagent": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis key <subcommand> [<args>]",
+				SynopsisText: "Commands for managing SSH keys",
+			}, nil
+		},
+		"hostagent uninstall": func() (cli.Command, error) {
+			return &cmd.HostagentUninstallCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"key": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis key <subcommand> [<args>]",

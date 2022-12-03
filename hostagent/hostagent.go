@@ -70,6 +70,26 @@ func Install() (err error) {
 	return nil
 }
 
+func Uninstall() (err error) {
+	output, launchctlErr := command.Cmd("launchctl", []string{"bootout", launchdDomain(), PlistPath()}).CombinedOutput()
+
+	if launchctlErr != nil {
+		err = fmt.Errorf("Could not uninstall service: %v\n%s", launchctlErr, output)
+	}
+
+	if plistErr := os.Remove(PlistPath()); plistErr != nil {
+		err = fmt.Errorf("\nCould not remove service plist file: %v", plistErr)
+	}
+
+	output, resolverErr := command.Cmd("sudo", []string{"rm", ResolverPath()}).CombinedOutput()
+
+	if resolverErr != nil {
+		err = fmt.Errorf("\nCould not remove resolver file: %v\n%s", resolverErr, output)
+	}
+
+	return err
+}
+
 func PortsInUse() []Port {
 	portsInUse := []Port{}
 
