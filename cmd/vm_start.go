@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -65,7 +64,11 @@ func (c *VmStartCommand) Run(args []string) int {
 	sites := c.Trellis.Environments["development"].WordPressSites
 	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
 
-	if err := c.installLima(manager.DataDir); err != nil {
+	if err := lima.Installed(); err != nil {
+		c.UI.Error(err.Error())
+		c.UI.Error("Install or upgrade Lima to continue:")
+		c.UI.Error("\n  brew install lima\n")
+		c.UI.Error("See https://github.com/lima-vm/lima#getting-started for manual installation options")
 		return 1
 	}
 
@@ -161,29 +164,6 @@ func (c *VmStartCommand) addHostRecords(instance lima.Instance) error {
 
 	if err := httpProxy.AddRecords(instance.HttpHost(), hostNames); err != nil {
 		return fmt.Errorf("Error writing hosts files for HTTP proxy. This is probably a trellis-cli bug; please report it.\n%v", err)
-	}
-
-	return nil
-}
-
-func (c *VmStartCommand) installLima(path string) error {
-	if _, err := exec.LookPath("limactl"); err != nil {
-		spinner := NewSpinner(
-			SpinnerCfg{
-				Message:     "Installing lima",
-				FailMessage: "Error installing lima",
-			},
-		)
-		spinner.Start()
-		err := lima.Install(path)
-
-		if err != nil {
-			spinner.StopFail()
-			c.UI.Error(err.Error())
-			return err
-		}
-
-		spinner.Stop()
 	}
 
 	return nil

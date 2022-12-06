@@ -2,45 +2,34 @@ package lima
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"runtime"
+	"os/exec"
+	"regexp"
 
-	"github.com/roots/trellis-cli/github"
+	"github.com/mcuadros/go-version"
+	"github.com/roots/trellis-cli/command"
 )
 
-func Install(installPath string) error {
-	tempDir, _ := ioutil.TempDir("", "trellis-lima")
-	defer os.RemoveAll(tempDir)
+const (
+	VersionRequired = ">= 0.14.0"
+)
 
-	pattern := fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH)
-
-	github.DownloadAsset(
-		"lima-vm/lima",
-		"latest",
-		tempDir,
-		tempDir,
-		pattern,
-	)
-
-	path := filepath.Join(tempDir, "bin")
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return err
+func Installed() error {
+	if _, err := exec.LookPath("limactl"); err != nil {
+		return fmt.Errorf("Lima is not installed.")
 	}
 
-	for _, file := range files {
-		err := os.Rename(filepath.Join(path, file.Name()), filepath.Join(installPath, file.Name()))
-		if err != nil {
-			return err
-		}
+	output, err := command.Cmd("limactl", []string{"-v"}).Output()
+	if err != nil {
+		return fmt.Errorf("Could get determine the version of Lima.")
 	}
 
-	sharePath := filepath.Join(tempDir, "share")
-	err = os.Rename(sharePath, filepath.Join(installPath, "share"))
-	if err != nil {
-		return err
+	re := regexp.MustCompile(`.*([0-9]+\.[0-9]+\.[0-9]+(-alpha|beta)?)`)
+	v := re.FindStringSubmatch(string(output))
+	constraint := version.NewConstrainGroupFromString(VersionRequired)
+	matched := constraint.Match(v[1])
+
+	if !matched {
+		return fmt.Errorf("Lima version %s does not satisfy required version (%s).", v[1], VersionRequired)
 	}
 
 	return nil
