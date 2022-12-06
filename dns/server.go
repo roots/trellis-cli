@@ -27,7 +27,7 @@ const (
 
 type HandlerOptions struct {
 	IPv6            bool
-	StaticHosts     map[string]string
+	StaticDomains   map[string]string
 	UpstreamServers []string
 	TruncateReply   bool
 }
@@ -44,8 +44,7 @@ type Handler struct {
 	clientConfig *dns.ClientConfig
 	clients      []*dns.Client
 	ipv6         bool
-	cnameToHost  map[string]string
-	hostToIP     map[string]net.IP
+	domainToIP   map[string]net.IP
 }
 
 type Server struct {
@@ -60,23 +59,6 @@ func newStaticClientConfig(ips []string) (*dns.ClientConfig, error) {
 	}
 	r := strings.NewReader(s)
 	return dns.ClientConfigFromReader(r)
-}
-
-func (h *Handler) lookupCnameToHost(cname string) string {
-	seen := make(map[string]bool)
-	for {
-		// break cyclic definition
-		if seen[cname] {
-			break
-		}
-		if _, ok := h.cnameToHost[cname]; ok {
-			seen[cname] = true
-			cname = h.cnameToHost[cname]
-			continue
-		}
-		break
-	}
-	return cname
 }
 
 func NewHandler(opts HandlerOptions) (dns.Handler, error) {
@@ -115,15 +97,11 @@ func NewHandler(opts HandlerOptions) (dns.Handler, error) {
 		clientConfig: cc,
 		clients:      clients,
 		ipv6:         opts.IPv6,
-		cnameToHost:  make(map[string]string),
-		hostToIP:     make(map[string]net.IP),
+		domainToIP:   make(map[string]net.IP),
 	}
-	for host, address := range opts.StaticHosts {
-		cname := dns.CanonicalName(host)
+	for domain, address := range opts.StaticDomains {
 		if ip := net.ParseIP(address); ip != nil {
-			h.hostToIP[cname] = ip
-		} else {
-			h.cnameToHost[cname] = dns.CanonicalName(address)
+			h.domainToIP[dns.CanonicalName(domain)] = ip
 		}
 	}
 	return h, nil
@@ -158,15 +136,10 @@ func (h *Handler) handleQuery(w dns.ResponseWriter, req *dns.Msg) {
 			}
 			fallthrough
 		case dns.TypeA:
-			var err error
 			var addrs []net.IP
-			cname := h.lookupCnameToHost(q.Name)
-			if _, ok := h.hostToIP[cname]; ok {
-				addrs = []net.IP{h.hostToIP[cname]}
-			} else {
-				addrs, err = net.LookupIP(cname)
-				if err != nil {
-					continue
+			for domain, ip := range h.domainToIP {
+				if dns.CompareDomainName(q.Name, domain) >= 1 {
+					addrs = []net.IP{ip}
 				}
 			}
 			for _, ip := range addrs {
@@ -186,24 +159,6 @@ func (h *Handler) handleQuery(w dns.ResponseWriter, req *dns.Msg) {
 					}
 				} else {
 					continue
-				}
-				reply.Answer = append(reply.Answer, a)
-				handled = true
-			}
-		case dns.TypeCNAME:
-			cname := h.lookupCnameToHost(q.Name)
-			var err error
-			if _, ok := h.hostToIP[cname]; !ok {
-				cname, err = net.LookupCNAME(cname)
-				if err != nil {
-					continue
-				}
-			}
-			if cname != "" && cname != q.Name {
-				hdr.Rrtype = dns.TypeCNAME
-				a := &dns.CNAME{
-					Hdr:    hdr,
-					Target: cname,
 				}
 				reply.Answer = append(reply.Answer, a)
 				handled = true

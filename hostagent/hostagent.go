@@ -225,21 +225,16 @@ func ResolverPath() string {
 }
 
 func runDns() {
-	hosts := make(map[string]string)
+	domains := make(map[string]string)
 	// TODO: find a free port or allow configuration
-	// TODO: proper host support
-	// Since the /etc/resolver support already restricts to the .test TLD
-	// this can be simplified a lot? Just return 127.0.0.1 for any host?
-	// Or is that more confusing?
-	hosts["example.test"] = "127.0.0.1"
-	hosts["www.example.test"] = "127.0.0.1"
+	domains[DevDomainTld] = "127.0.0.1"
 	srvOpts := dns.ServerOptions{
 		UDPPort: 8053,
 		TCPPort: 8053,
 		Address: "127.0.0.1",
 		HandlerOptions: dns.HandlerOptions{
-			IPv6:        true,
-			StaticHosts: hosts,
+			IPv6:          true,
+			StaticDomains: domains,
 		},
 	}
 
