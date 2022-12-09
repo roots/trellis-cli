@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
+	"net"
 	"os"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
@@ -50,9 +49,12 @@ type Instance struct {
 }
 
 func (i *Instance) Create() error {
-	rand.Seed(time.Now().UnixNano())
-	// TODO: we should check that the port is available first
-	i.HttpForwardPort = rand.Intn(65534-60000) + 60000
+	httpForwardPort, err := findFreeTCPLocalPort()
+	if err != nil {
+		return fmt.Errorf("Could not find a local free port for HTTP forwarding: %v", err)
+	}
+
+	i.HttpForwardPort = httpForwardPort
 
 	if err := i.CreateConfig(); err != nil {
 		return err
@@ -65,11 +67,9 @@ func (i *Instance) Create() error {
 		i.ConfigFile,
 	}
 
-	err := command.WithOptions(
+	return command.WithOptions(
 		command.WithTermOutput(),
 	).Cmd("limactl", args).Run()
-
-	return err
 }
 
 func (i *Instance) CreateConfig() error {
@@ -88,12 +88,16 @@ func (i *Instance) CreateConfig() error {
 	return nil
 }
 
+func (i *Instance) Delete() error {
+	return command.WithOptions(
+		command.WithTermOutput(),
+	).Cmd("limactl", []string{"delete", i.Name}).Run()
+}
+
 func (i *Instance) Start() error {
-	err := command.WithOptions(
+	return command.WithOptions(
 		command.WithTermOutput(),
 	).Cmd("limactl", []string{"start", "--tty=false", i.Name}).Run()
-
-	return err
 }
 
 func (i *Instance) Running() bool {
@@ -101,11 +105,9 @@ func (i *Instance) Running() bool {
 }
 
 func (i *Instance) Stop() error {
-	err := command.WithOptions(
+	return command.WithOptions(
 		command.WithTermOutput(),
 	).Cmd("limactl", []string{"stop", i.Name}).Run()
-
-	return err
 }
 
 func (i *Instance) Stopped() bool {
@@ -161,4 +163,26 @@ func (i *Instance) hydrateFromLima() error {
 	}
 
 	return nil
+}
+
+func findFreeTCPLocalPort() (int, error) {
+	lAddr0, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	l, err := net.ListenTCP("tcp4", lAddr0)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	lAddr := l.Addr()
+	lTCPAddr, ok := lAddr.(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("expected *net.TCPAddr, got %v", lAddr)
+	}
+	port := lTCPAddr.Port
+	if port <= 0 {
+		return 0, fmt.Errorf("unexpected port %d", port)
+	}
+	return port, nil
 }

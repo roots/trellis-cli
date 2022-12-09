@@ -194,6 +194,9 @@ func main() {
 				SynopsisText: "Commands for managing virtual machines",
 			}, nil
 		},
+		"vm delete": func() (cli.Command, error) {
+			return cmd.NewVmDeleteCommand(ui, trellis), nil
+		},
 		"vm start": func() (cli.Command, error) {
 			return cmd.NewVmStartCommand(ui, trellis), nil
 		},

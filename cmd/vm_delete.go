@@ -2,34 +2,31 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	httpProxy "github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
 
-type VmStopCommand struct {
+type VmDeleteCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
 }
 
-func NewVmStopCommand(ui cli.Ui, trellis *trellis.Trellis) *VmStopCommand {
-	c := &VmStopCommand{UI: ui, Trellis: trellis}
+func NewVmDeleteCommand(ui cli.Ui, trellis *trellis.Trellis) *VmDeleteCommand {
+	c := &VmDeleteCommand{UI: ui, Trellis: trellis}
 	c.init()
 	return c
 }
 
-func (c *VmStopCommand) init() {
+func (c *VmDeleteCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 }
 
-func (c *VmStopCommand) Run(args []string) int {
+func (c *VmDeleteCommand) Run(args []string) int {
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -79,35 +76,27 @@ func (c *VmStopCommand) Run(args []string) int {
 	}
 
 	if instance.Stopped() {
-		c.UI.Info(fmt.Sprintf("%s VM already stopped", color.GreenString("[✓]")))
-		return 0
-	} else {
-		if err := instance.Stop(); err != nil {
-			c.UI.Error("Error stopping VM")
+		if err := instance.Delete(); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}
-	}
-
-	err = httpProxy.RemoveRecords(c.Trellis.Environments["development"].AllHosts())
-	if err != nil {
-		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
-		c.UI.Error(err.Error())
+	} else {
+		c.UI.Error("Error: VM is running. Please stop it first.")
 		return 1
 	}
 
 	return 0
 }
 
-func (c *VmStopCommand) Synopsis() string {
-	return "Stops the development virtual machine."
+func (c *VmDeleteCommand) Synopsis() string {
+	return "Deletes the development virtual machine."
 }
 
-func (c *VmStopCommand) Help() string {
+func (c *VmDeleteCommand) Help() string {
 	helpText := `
-Usage: trellis vm stop [options]
+Usage: trellis vm delete [options]
 
-Stops the development virtual machine.
+Delete the development virtual machine.
 
 Options:
   -h, --help show this help

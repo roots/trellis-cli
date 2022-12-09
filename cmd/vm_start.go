@@ -63,6 +63,10 @@ func (c *VmStartCommand) Run(args []string) int {
 
 	sites := c.Trellis.Environments["development"].WordPressSites
 	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
+	if err != nil {
+		c.UI.Error("Error: " + err.Error())
+		return 1
+	}
 
 	if err := lima.Installed(); err != nil {
 		c.UI.Error(err.Error())
@@ -143,14 +147,14 @@ func (c *VmStartCommand) Run(args []string) int {
 }
 
 func (c *VmStartCommand) Synopsis() string {
-	return "Starts a Trellis development virtual machine."
+	return "Starts a development virtual machine."
 }
 
 func (c *VmStartCommand) Help() string {
 	helpText := `
 Usage: trellis vm start [options]
 
-Starts a Trellis development virtual machine.
+Starts a development virtual machine.
 
 Options:
   -h, --help show this help
@@ -173,7 +177,7 @@ func (c *VmStartCommand) hostagentInstall() error {
 	spinner := NewSpinner(
 		SpinnerCfg{
 			Message:     "Checking hostagent requirements",
-			FailMessage: "hostagent requiremnts not met",
+			FailMessage: "hostagent requirements not met",
 		},
 	)
 

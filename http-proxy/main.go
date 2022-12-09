@@ -2,22 +2,25 @@ package httpProxy
 
 import (
 	_ "embed"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/roots/trellis-cli/app_paths"
 )
 
 func AddRecords(proxyHost string, hostNames []string) (err error) {
-	// TODO: allow partial writes
 	hostsPath := hostRecordsPath()
 
 	if err = os.MkdirAll(hostsPath, os.ModePerm); err != nil {
 		return err
 	}
+
+	recordsNotAdded := []string{}
 
 	for _, host := range hostNames {
 		path := filepath.Join(hostsPath, host)
@@ -25,24 +28,33 @@ func AddRecords(proxyHost string, hostNames []string) (err error) {
 		err = os.WriteFile(path, contents, 0644)
 
 		if err != nil {
-			return err
+			recordsNotAdded = append(recordsNotAdded, path)
 		}
+	}
+
+	if len(recordsNotAdded) > 0 {
+		return fmt.Errorf("Could not add the following proxy records: %s", strings.Join(recordsNotAdded, "\n"))
 	}
 
 	return nil
 }
 
 func RemoveRecords(hostNames []string) (err error) {
-	// TODO: allow partial deletes
 	hostsPath := hostRecordsPath()
+
+	recordsNotDeleted := []string{}
 
 	for _, host := range hostNames {
 		path := filepath.Join(hostsPath, host)
 		err = os.Remove(path)
 
 		if err != nil {
-			return err
+			recordsNotDeleted = append(recordsNotDeleted, path)
 		}
+	}
+
+	if len(recordsNotDeleted) > 0 {
+		return fmt.Errorf("Could not delete the following proxy records: %s", strings.Join(recordsNotDeleted, "\n"))
 	}
 
 	return nil

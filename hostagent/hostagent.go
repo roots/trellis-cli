@@ -31,9 +31,10 @@ var (
 )
 
 const (
-	ServiceName     string = "com.roots.trellis"
-	LaunchAgentPath string = "~/Library/LaunchAgents"
 	DevDomainTld    string = "test"
+	DnsResolverPort int    = 41053
+	LaunchAgentPath string = "~/Library/LaunchAgents"
+	ServiceName     string = "com.roots.trellis"
 )
 
 type Port struct {
@@ -99,10 +100,10 @@ func PortsInUse() []Port {
 		portsInUse = append(portsInUse, Port{Service: "HTTP", Protocol: "TCP", Number: 80})
 	}
 
-	conn, err = net.DialTimeout("tcp", "[::1]:8053", time.Second)
+	conn, err = net.DialTimeout("tcp", fmt.Sprintf("[::1]:%d", DnsResolverPort), time.Second)
 	if err == nil && conn != nil {
 		conn.Close()
-		portsInUse = append(portsInUse, Port{Service: "DNS", Protocol: "TCP", Number: 8053})
+		portsInUse = append(portsInUse, Port{Service: "DNS", Protocol: "TCP", Number: DnsResolverPort})
 	}
 
 	return portsInUse
@@ -185,10 +186,9 @@ func createResolverFile() (err error) {
 	}
 	defer os.Remove(f.Name())
 
-	// TODO: hardcoded port
-	resolverContents := `nameserver 127.0.0.1
-port 8053
-`
+	resolverContents := fmt.Sprintf(`nameserver 127.0.0.1
+port %d
+`, DnsResolverPort)
 
 	if _, err := f.Write([]byte(resolverContents)); err != nil {
 		return fmt.Errorf("%w: error writing tmp file\n%v", ResolverError, err)
@@ -224,13 +224,12 @@ func ResolverPath() string {
 	return filepath.Join(resolverDir, DevDomainTld)
 }
 
-func runDns() {
+func runDns() error {
 	domains := make(map[string]string)
-	// TODO: find a free port or allow configuration
 	domains[DevDomainTld] = "127.0.0.1"
 	srvOpts := dns.ServerOptions{
-		UDPPort: 8053,
-		TCPPort: 8053,
+		UDPPort: DnsResolverPort,
+		TCPPort: DnsResolverPort,
 		Address: "127.0.0.1",
 		HandlerOptions: dns.HandlerOptions{
 			IPv6:          true,
@@ -243,6 +242,8 @@ func runDns() {
 	if err != nil {
 		log.Fatalf("cannot start DNS server: %v", err)
 	}
+
+	return nil
 }
 
 func runHttpProxy() {
