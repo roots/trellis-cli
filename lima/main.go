@@ -114,14 +114,23 @@ func (i *Instance) Delete() error {
 	).Cmd("limactl", []string{"delete", i.Name}).Run()
 }
 
+func (i *Instance) Running() bool {
+	return i.Status == "Running"
+}
+
+func (i *Instance) Shell(commandArgs []string) error {
+	args := []string{"shell", i.Name}
+	args = append(args, commandArgs...)
+
+	return command.WithOptions(
+		command.WithTermOutput(),
+	).Cmd("limactl", args).Run()
+}
+
 func (i *Instance) Start() error {
 	return command.WithOptions(
 		command.WithTermOutput(),
 	).Cmd("limactl", []string{"start", "--tty=false", i.Name}).Run()
-}
-
-func (i *Instance) Running() bool {
-	return i.Status == "Running"
 }
 
 func (i *Instance) Stop() error {
