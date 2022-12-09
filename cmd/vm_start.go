@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
@@ -133,8 +131,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	hostsPath := filepath.Join(manager.ConfigPath, "inventory")
-	if err = createInventoryFile(hostsPath, instance); err != nil {
+	if err = instance.CreateInventoryFile(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -167,7 +164,7 @@ func (c *VmStartCommand) addHostRecords(instance lima.Instance) error {
 	hostNames := c.Trellis.Environments["development"].AllHosts()
 
 	if err := httpProxy.AddRecords(instance.HttpHost(), hostNames); err != nil {
-		return fmt.Errorf("Error writing hosts files for HTTP proxy. This is probably a trellis-cli bug; please report it.\n%v", err)
+		return fmt.Errorf("Error creating HTTP proxy records. This is probably a trellis-cli bug; please report it.\n%v", err)
 	}
 
 	return nil
@@ -241,29 +238,5 @@ func (c *VmStartCommand) runHostagent() error {
 	}
 
 	spinner.Stop()
-	return nil
-}
-
-func createInventoryFile(path string, instance lima.Instance) error {
-	const hostsTemplate string = `
-[development]
-127.0.0.1 ansible_port={{ .SshLocalPort }} ansible_user={{ .Username }}
-
-[web]
-127.0.0.1 ansible_port={{ .SshLocalPort }} ansible_user={{ .Username }}
-`
-
-	tpl := template.Must(template.New("hosts").Parse(hostsTemplate))
-
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
-	}
-
-	err = tpl.Execute(file, instance)
-	if err != nil {
-		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
-	}
-
 	return nil
 }

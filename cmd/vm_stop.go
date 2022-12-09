@@ -91,7 +91,7 @@ func (c *VmStopCommand) Run(args []string) int {
 
 	err = httpProxy.RemoveRecords(c.Trellis.Environments["development"].AllHosts())
 	if err != nil {
-		c.UI.Error("Error deleting HTTP proxy record. This is a trellis-cli bug.")
+		c.UI.Error("Error deleting HTTP proxy records. This is probably a trellis-cli bug; please report it.")
 		c.UI.Error(err.Error())
 		return 1
 	}

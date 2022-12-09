@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -17,6 +18,9 @@ import (
 
 //go:embed files/config.yml
 var ConfigTemplate string
+
+//go:embed files/inventory.txt
+var inventoryTemplate string
 
 var (
 	ConfigError    = errors.New("Could not write Lima config file")
@@ -83,6 +87,22 @@ func (i *Instance) CreateConfig() error {
 	err = tpl.Execute(file, i)
 	if err != nil {
 		return fmt.Errorf("%v: %w", ConfigError, err)
+	}
+
+	return nil
+}
+
+func (i *Instance) CreateInventoryFile() error {
+	tpl := template.Must(template.New("lima").Parse(inventoryTemplate))
+
+	file, err := os.Create(filepath.Join(i.ConfigPath, "inventory"))
+	if err != nil {
+		return fmt.Errorf("Could not create Ansible inventory file: %v", err)
+	}
+
+	err = tpl.Execute(file, i)
+	if err != nil {
+		return fmt.Errorf("Could not template Ansible inventory file: %v", err)
 	}
 
 	return nil

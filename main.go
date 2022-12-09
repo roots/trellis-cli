@@ -217,7 +217,7 @@ func main() {
 		},
 	}
 
-	c.HiddenCommands = []string{"venv", "venv hook"}
+	c.HiddenCommands = []string{"hostagent", "venv", "venv hook"}
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
