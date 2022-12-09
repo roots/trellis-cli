@@ -6,18 +6,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/mcuadros/go-version"
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
 
-const configDir = "lima"
+const (
+	configDir            = "lima"
+	RequiredMacOSVersion = "13.0.0"
+)
 
 var (
-	DataDirError    = errors.New("could not create data directory")
-	ConfigPathError = errors.New("could not create config directory")
+	DataDirError       = errors.New("could not create data directory")
+	ConfigPathError    = errors.New("could not create config directory")
+	UnsupportedOSError = errors.New("Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
 )
 
 type Manager struct {
@@ -27,6 +33,15 @@ type Manager struct {
 }
 
 func NewManager(configPath string, sites map[string]*trellis.Site) (manager *Manager, err error) {
+	macOSVersion, err := getMacOSVersion()
+	if err != nil {
+		return nil, fmt.Errorf("%w\n%v", UnsupportedOSError, err)
+	}
+
+	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
+		return nil, fmt.Errorf("%w", UnsupportedOSError)
+	}
+
 	limaConfigPath := filepath.Join(configPath, configDir)
 
 	manager = &Manager{
@@ -96,4 +111,19 @@ func (m *Manager) setPath() {
 
 func convertToInstanceName(value string) string {
 	return strings.ReplaceAll(value, ".", "-")
+}
+
+func getMacOSVersion() (string, error) {
+	if runtime.GOOS != "darwin" {
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+
+	cmd := command.Cmd("sw_vers", []string{"-productVersion"})
+	b, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to execute %v: %w", cmd.Args, err)
+	}
+	verTrimmed := strings.TrimSpace(string(b))
+	version := version.Normalize(verTrimmed)
+	return version, nil
 }
