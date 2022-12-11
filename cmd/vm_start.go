@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/fatih/color"
@@ -138,9 +137,8 @@ func (c *VmStartCommand) Run(args []string) int {
 
 	c.UI.Info("\nProvisioning VM...")
 
-	os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 	provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-	return provisionCmd.Run([]string{"--extra-vars", "web_user=" + instance.Username, "development"})
+	return provisionCmd.Run([]string{"development"})
 }
 
 func (c *VmStartCommand) Synopsis() string {

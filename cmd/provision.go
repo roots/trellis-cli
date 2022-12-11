@@ -88,8 +88,9 @@ func (c *ProvisionCommand) Run(args []string) int {
 	var playbookFile string = "server.yml"
 
 	if environment == "development" {
+		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		playbookFile = "dev.yml"
-		devInventoryFile := findDevHostsFile(c.Trellis.Path)
+		devInventoryFile := findDevInventory(c.Trellis.Path)
 
 		if devInventoryFile != "" {
 			playbookArgs = append(playbookArgs, "--inventory-file", devInventoryFile)
@@ -163,7 +164,7 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 	}
 }
 
-func findDevHostsFile(path string) string {
+func findDevInventory(path string) string {
 	if _, limaInventoryErr := os.Stat(filepath.Join(path, LimaInventoryFilePath)); limaInventoryErr == nil {
 		return LimaInventoryFilePath
 	}

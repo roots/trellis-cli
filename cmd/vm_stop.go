@@ -68,7 +68,7 @@ func (c *VmStopCommand) Run(args []string) int {
 	instance, ok := manager.GetInstance(siteName)
 
 	if !ok {
-		c.UI.Info("VM does not exist for this project.")
+		c.UI.Info("VM does not exist for this project. Run `trellis vm start` to create it.")
 		return 0
 	}
 

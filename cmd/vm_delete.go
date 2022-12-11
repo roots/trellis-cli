@@ -65,7 +65,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 	instance, ok := manager.GetInstance(siteName)
 
 	if !ok {
-		c.UI.Info("VM does not exist for this project.")
+		c.UI.Info("VM does not exist for this project. Run `trellis vm start` to create it.")
 		return 0
 	}
 
@@ -81,7 +81,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 			return 1
 		}
 	} else {
-		c.UI.Error("Error: VM is running. Please stop it first.")
+		c.UI.Error("Error: VM is running. Run `trellis vm stop` to stop it.")
 		return 1
 	}
 
@@ -96,7 +96,7 @@ func (c *VmDeleteCommand) Help() string {
 	helpText := `
 Usage: trellis vm delete [options]
 
-Delete the development virtual machine.
+Deletes the development virtual machine.
 
 Options:
   -h, --help show this help
