@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -34,6 +35,11 @@ type PortForward struct {
 
 type Config struct {
 	PortForwards []PortForward `yaml:"portForwards"`
+}
+
+type Networkable interface {
+	HttpHost() string
+	IP() (string, error)
 }
 
 type Instance struct {
@@ -114,6 +120,27 @@ func (i *Instance) Delete() error {
 	).Cmd("limactl", []string{"delete", i.Name}).Run()
 }
 
+// TODO Needs better error handling
+func (i *Instance) IP() (ip string, err error) {
+	output, err := command.Cmd(
+		"limactl",
+		[]string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"},
+	).CombinedOutput()
+
+	if err != nil {
+		return "", fmt.Errorf("Could not find IP address for VM instance %s", i.Name)
+	}
+
+	re := regexp.MustCompile(`([0-9\.]+)`)
+	ip = re.FindString(string(output))
+
+	if ip == "" {
+		return ip, fmt.Errorf("Could not find IP address for VM instance %s", i.Name)
+	} else {
+		return ip, nil
+	}
+}
+
 func (i *Instance) Running() bool {
 	return i.Status == "Running"
 }
@@ -147,19 +174,27 @@ func (i *Instance) HttpHost() string {
 	return fmt.Sprintf("http://127.0.0.1:%d", i.HttpForwardPort)
 }
 
-func (i *Instance) Hydrate() (err error) {
+func (i *Instance) Hydrate(hydrateUser bool) (err error) {
 	if err = i.hydrateFromConfig(); err != nil {
 		return err
 	}
 	if err = i.hydrateFromLima(); err != nil {
 		return err
 	}
-	user, err := command.Cmd("limactl", []string{"shell", i.Name, "whoami"}).Output()
-	if err == nil {
-		i.Username = string(user)
+
+	if hydrateUser {
+		user, err := i.getUsername()
+		if err == nil {
+			i.Username = string(user)
+		}
 	}
 
 	return nil
+}
+
+func (i *Instance) getUsername() ([]byte, error) {
+	user, err := command.Cmd("limactl", []string{"shell", i.Name, "whoami"}).Output()
+	return user, err
 }
 
 func (i *Instance) hydrateFromConfig() error {

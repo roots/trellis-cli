@@ -21,23 +21,13 @@ func (c *VmShellCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
-	commandArgumentErr := commandArgumentValidator.validate(args)
-	if commandArgumentErr != nil {
-		c.UI.Error(commandArgumentErr.Error())
-		c.UI.Output(c.Help())
-		return 1
-	}
-
 	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	sites := c.Trellis.Environments["development"].WordPressSites
-	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
-
+	manager, err := lima.NewManager(c.Trellis)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
@@ -50,7 +40,7 @@ func (c *VmShellCommand) Run(args []string) int {
 		return 0
 	}
 
-	if err := instance.Hydrate(); err != nil {
+	if err := instance.Hydrate(false); err != nil {
 		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
 		return 1

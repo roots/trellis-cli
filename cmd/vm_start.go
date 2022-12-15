@@ -8,7 +8,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/hostagent"
-	"github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -58,8 +57,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	sites := c.Trellis.Environments["development"].WordPressSites
-	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
+	manager, err := lima.NewManager(c.Trellis)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
@@ -73,7 +71,8 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if !hostagent.Running() {
+	// TODO: this kind of sucks?
+	if c.Trellis.CliConfig.VmHostsResolver == "hostagent" && !hostagent.Running() {
 		if err := c.hostagentInstall(); err != nil {
 			return 1
 		}
@@ -83,7 +82,7 @@ func (c *VmStartCommand) Run(args []string) int {
 	_, ok := manager.GetInstance(siteName)
 
 	if ok {
-		if err := instance.Hydrate(); err != nil {
+		if err := instance.Hydrate(true); err != nil {
 			c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 			c.UI.Error(err.Error())
 			return 1
@@ -99,7 +98,7 @@ func (c *VmStartCommand) Run(args []string) int {
 			}
 		}
 
-		if err := c.addHostRecords(instance); err != nil {
+		if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}
@@ -114,7 +113,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := instance.Hydrate(); err != nil {
+	if err := instance.Hydrate(true); err != nil {
 		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
 		return 1
@@ -125,7 +124,7 @@ func (c *VmStartCommand) Run(args []string) int {
 	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
 	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
-	if err := c.addHostRecords(instance); err != nil {
+	if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -156,16 +155,6 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
-}
-
-func (c *VmStartCommand) addHostRecords(instance lima.Instance) error {
-	hostNames := c.Trellis.Environments["development"].AllHosts()
-
-	if err := httpProxy.AddRecords(instance.HttpHost(), hostNames); err != nil {
-		return fmt.Errorf("Error creating HTTP proxy records. This is probably a trellis-cli bug; please report it.\n%v", err)
-	}
-
-	return nil
 }
 
 func (c *VmStartCommand) hostagentInstall() error {

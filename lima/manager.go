@@ -27,12 +27,13 @@ var (
 )
 
 type Manager struct {
-	DataDir    string
-	ConfigPath string
-	Sites      map[string]*trellis.Site
+	DataDir       string
+	ConfigPath    string
+	Sites         map[string]*trellis.Site
+	HostsResolver HostsResolver
 }
 
-func NewManager(configPath string, sites map[string]*trellis.Site) (manager *Manager, err error) {
+func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
 	macOSVersion, err := getMacOSVersion()
 	if err != nil {
 		return nil, fmt.Errorf("%w\n%v", UnsupportedOSError, err)
@@ -42,12 +43,15 @@ func NewManager(configPath string, sites map[string]*trellis.Site) (manager *Man
 		return nil, fmt.Errorf("%w", UnsupportedOSError)
 	}
 
-	limaConfigPath := filepath.Join(configPath, configDir)
+	limaConfigPath := filepath.Join(trellis.ConfigPath(), configDir)
+
+	hostNames := trellis.Environments["development"].AllHosts()
 
 	manager = &Manager{
-		DataDir:    app_paths.DataDir(),
-		ConfigPath: limaConfigPath,
-		Sites:      sites,
+		DataDir:       app_paths.DataDir(),
+		ConfigPath:    limaConfigPath,
+		Sites:         trellis.Environments["development"].WordPressSites,
+		HostsResolver: NewHostsResolver(trellis.CliConfig.VmHostsResolver, hostNames),
 	}
 
 	if err = manager.createDataDir(); err != nil {

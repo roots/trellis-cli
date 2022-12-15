@@ -18,6 +18,8 @@ type Config struct {
 	LoadPlugins             bool              `yaml:"load_plugins"`
 	Open                    map[string]string `yaml:"open"`
 	VirtualenvIntegration   bool              `yaml:"virtualenv_integration"`
+	VmManager               string            `yaml:"vm_manager"`
+	VmHostsResolver         string            `yaml:"vm_hosts_resolver"`
 }
 
 var (

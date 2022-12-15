@@ -37,6 +37,8 @@ var DefaultCliConfig = cli_config.Config{
 	LoadPlugins:             true,
 	Open:                    make(map[string]string),
 	VirtualenvIntegration:   true,
+	VmManager:               "lima",
+	VmHostsResolver:         "hostagent",
 }
 
 type Trellis struct {

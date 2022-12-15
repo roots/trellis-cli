@@ -11,6 +11,8 @@ mounts:
   writable: true
 {{- end }}
 mountType: "virtiofs"
+networks:
+- vzNAT: true
 portForwards:
 - guestPort: 80
   hostPort: {{ .HttpForwardPort }}

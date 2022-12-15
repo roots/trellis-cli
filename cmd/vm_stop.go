@@ -7,7 +7,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	httpProxy "github.com/roots/trellis-cli/http-proxy"
 	"github.com/roots/trellis-cli/lima"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -57,9 +56,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	sites := c.Trellis.Environments["development"].WordPressSites
-	manager, err := lima.NewManager(c.Trellis.ConfigPath(), sites)
-
+	manager, err := lima.NewManager(c.Trellis)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
@@ -72,7 +69,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 0
 	}
 
-	if err := instance.Hydrate(); err != nil {
+	if err := instance.Hydrate(false); err != nil {
 		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
 		c.UI.Error(err.Error())
 		return 1
@@ -89,8 +86,8 @@ func (c *VmStopCommand) Run(args []string) int {
 		}
 	}
 
-	err = httpProxy.RemoveRecords(c.Trellis.Environments["development"].AllHosts())
-	if err != nil {
+	if err = manager.HostsResolver.RemoveHosts(instance.Name, &instance); err != nil {
+		// TODO: fix error to not be proxy specific
 		c.UI.Error("Error deleting HTTP proxy records. This is probably a trellis-cli bug; please report it.")
 		c.UI.Error(err.Error())
 		return 1
