@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/mcuadros/go-version"
-	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -21,13 +20,11 @@ const (
 )
 
 var (
-	DataDirError       = errors.New("could not create data directory")
 	ConfigPathError    = errors.New("could not create config directory")
 	UnsupportedOSError = errors.New("Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
 )
 
 type Manager struct {
-	DataDir       string
 	ConfigPath    string
 	Sites         map[string]*trellis.Site
 	HostsResolver HostsResolver
@@ -48,20 +45,14 @@ func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
 	hostNames := trellis.Environments["development"].AllHosts()
 
 	manager = &Manager{
-		DataDir:       app_paths.DataDir(),
 		ConfigPath:    limaConfigPath,
 		Sites:         trellis.Environments["development"].WordPressSites,
 		HostsResolver: NewHostsResolver(trellis.CliConfig.VmHostsResolver, hostNames),
 	}
 
-	if err = manager.createDataDir(); err != nil {
-		return nil, fmt.Errorf("%w: %v", DataDirError, err)
-	}
 	if err = manager.createConfigPath(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ConfigPathError, err)
 	}
-
-	manager.setPath()
 
 	return manager, nil
 }
@@ -100,17 +91,8 @@ func (m *Manager) Instances() (instances map[string]Instance) {
 	return instances
 }
 
-func (m *Manager) createDataDir() error {
-	return os.MkdirAll(m.DataDir, 0755)
-}
-
 func (m *Manager) createConfigPath() error {
 	return os.MkdirAll(m.ConfigPath, 0755)
-}
-
-func (m *Manager) setPath() {
-	osPath := os.Getenv("PATH")
-	os.Setenv("PATH", fmt.Sprintf("%s:%s", m.DataDir, osPath))
 }
 
 func convertToInstanceName(value string) string {
