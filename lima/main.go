@@ -174,6 +174,7 @@ func (i *Instance) HttpHost() string {
 	return fmt.Sprintf("http://127.0.0.1:%d", i.HttpForwardPort)
 }
 
+// TODO: replace when new `lima inspect` command is available
 func (i *Instance) Hydrate(hydrateUser bool) (err error) {
 	if err = i.hydrateFromConfig(); err != nil {
 		return err

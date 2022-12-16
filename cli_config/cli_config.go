@@ -23,8 +23,9 @@ type Config struct {
 }
 
 var (
-	ErrUnsupportedType = errors.New("Invalid env var config setting: value is an unsupported type.")
-	ErrCouldNotParse   = errors.New("Invalid env var config setting: failed to parse value")
+	UnsupportedTypeErr = errors.New("Invalid env var config setting: value is an unsupported type.")
+	CouldNotParseErr   = errors.New("Invalid env var config setting: failed to parse value")
+	InvalidConfigErr   = errors.New("Invalid config file")
 )
 
 func NewConfig(defaultConfig Config) Config {
@@ -39,7 +40,16 @@ func (c *Config) LoadFile(path string) error {
 	}
 
 	if err := yaml.Unmarshal(configYaml, &c); err != nil {
-		return err
+		return fmt.Errorf("%w: %s", InvalidConfigErr, err)
+	}
+
+	// TODO: improve config validation
+	if c.VmManager != "lima" {
+		return fmt.Errorf("%w: unsupported value for `vm_manager`. Must be one of: lima", InvalidConfigErr)
+	}
+
+	if c.VmHostsResolver != "hostagent" || c.VmHostsResolver != "hosts_file" {
+		return fmt.Errorf("%w: unsupported value for `vm_hosts_resolver`. Must be one of: hostagent, hosts_file", InvalidConfigErr)
 	}
 
 	return nil
@@ -74,7 +84,7 @@ func (c *Config) LoadEnv(prefix string) error {
 					val, err := strconv.ParseBool(value)
 
 					if err != nil {
-						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as a boolean", ErrCouldNotParse, env, value)
+						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as a boolean", CouldNotParseErr, env, value)
 					}
 
 					structValue.SetBool(val)
@@ -82,19 +92,19 @@ func (c *Config) LoadEnv(prefix string) error {
 					val, err := strconv.ParseInt(value, 10, 32)
 
 					if err != nil {
-						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as an integer", ErrCouldNotParse, env, value)
+						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as an integer", CouldNotParseErr, env, value)
 					}
 
 					structValue.SetInt(val)
 				case reflect.Float32:
 					val, err := strconv.ParseFloat(value, 32)
 					if err != nil {
-						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as a float", ErrCouldNotParse, env, value)
+						return fmt.Errorf("%w '%s'\n'%s' can't be parsed as a float", CouldNotParseErr, env, value)
 					}
 
 					structValue.SetFloat(val)
 				default:
-					return fmt.Errorf("%w\n%s setting of type %s is unsupported.", ErrUnsupportedType, env, field.Type.String())
+					return fmt.Errorf("%w\n%s setting of type %s is unsupported.", UnsupportedTypeErr, env, field.Type.String())
 				}
 			}
 		}

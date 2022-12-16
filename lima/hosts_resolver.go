@@ -3,9 +3,11 @@ package lima
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/http-proxy"
 )
@@ -33,7 +35,7 @@ func NewHostsResolver(resolverType string, hosts []string) HostsResolver {
 		return &HostsFileResolver{
 			Hosts:        hosts,
 			hostsPath:    "/etc/hosts",
-			tmpHostsPath: "/Users/scottwalkinshaw/.local/state/trellis/hosts",
+			tmpHostsPath: filepath.Join(app_paths.DataDir(), "hosts"),
 		}
 	default:
 		return &HostagentResolver{Hosts: hosts}
@@ -93,6 +95,8 @@ func (h *HostsFileResolver) writeHostsFile(content []byte) error {
 	if err := os.WriteFile(h.tmpHostsPath, content, 0644); err != nil {
 		return err
 	}
+
+	fmt.Printf("Updating %s file, sudo is required\n", h.hostsPath)
 
 	return command.WithOptions(
 		command.WithTermOutput(),
