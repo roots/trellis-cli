@@ -79,7 +79,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		c.UI.Info(fmt.Sprintf("%s VM already stopped", color.GreenString("[✓]")))
 		return 0
 	} else {
-		if err := instance.Stop(); err != nil {
+		if err := instance.Stop(c.UI); err != nil {
 			c.UI.Error("Error stopping VM")
 			c.UI.Error(err.Error())
 			return 1
@@ -87,8 +87,6 @@ func (c *VmStopCommand) Run(args []string) int {
 	}
 
 	if err = manager.HostsResolver.RemoveHosts(instance.Name, &instance); err != nil {
-		// TODO: fix error to not be proxy specific
-		c.UI.Error("Error deleting HTTP proxy records. This is probably a trellis-cli bug; please report it.")
 		c.UI.Error(err.Error())
 		return 1
 	}

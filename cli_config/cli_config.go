@@ -48,7 +48,7 @@ func (c *Config) LoadFile(path string) error {
 		return fmt.Errorf("%w: unsupported value for `vm_manager`. Must be one of: lima", InvalidConfigErr)
 	}
 
-	if c.VmHostsResolver != "hostagent" || c.VmHostsResolver != "hosts_file" {
+	if c.VmHostsResolver != "hostagent" && c.VmHostsResolver != "hosts_file" {
 		return fmt.Errorf("%w: unsupported value for `vm_hosts_resolver`. Must be one of: hostagent, hosts_file", InvalidConfigErr)
 	}
 

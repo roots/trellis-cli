@@ -1,6 +1,7 @@
 package lima
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,11 @@ import (
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/http-proxy"
+)
+
+var (
+	HostsRemoveErr = errors.New("Error removing hosts")
+	HostsAddErr    = errors.New("Error adding hosts")
 )
 
 type HostsResolver interface {
@@ -45,10 +51,8 @@ func NewHostsResolver(resolverType string, hosts []string) HostsResolver {
 func (h *HostsFileResolver) AddHosts(name string, n Networkable) error {
 	content, err := h.addHostsContent(name, n)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v.\nThis is probably a trellis-cli bug; please report it.", HostsAddErr, err)
 	}
-
-	fmt.Println("AddHosts", content)
 
 	return h.writeHostsFile(content)
 }
@@ -56,7 +60,7 @@ func (h *HostsFileResolver) AddHosts(name string, n Networkable) error {
 func (h *HostsFileResolver) RemoveHosts(name string, n Networkable) error {
 	content, err := h.removeHostsContent(name, n)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v.\nThis is probably a trellis-cli bug; please report it.", HostsRemoveErr, err)
 	}
 
 	return h.writeHostsFile(content)
@@ -96,7 +100,7 @@ func (h *HostsFileResolver) writeHostsFile(content []byte) error {
 		return err
 	}
 
-	fmt.Printf("Updating %s file, sudo is required\n", h.hostsPath)
+	fmt.Printf("\nUpdating %s file, sudo may be required\n", h.hostsPath)
 
 	return command.WithOptions(
 		command.WithTermOutput(),
@@ -105,7 +109,7 @@ func (h *HostsFileResolver) writeHostsFile(content []byte) error {
 
 func (h *HostagentResolver) AddHosts(name string, n Networkable) error {
 	if err := httpProxy.AddRecords(n.HttpHost(), h.Hosts); err != nil {
-		return fmt.Errorf("Error creating HTTP proxy records. This is probably a trellis-cli bug; please report it.\n%v", err)
+		return fmt.Errorf("%w: %v.\nThis is probably a trellis-cli bug; please report it.", HostsAddErr, err)
 	}
 
 	return nil
@@ -113,7 +117,7 @@ func (h *HostagentResolver) AddHosts(name string, n Networkable) error {
 
 func (h *HostagentResolver) RemoveHosts(name string, n Networkable) error {
 	if err := httpProxy.RemoveRecords(h.Hosts); err != nil {
-		return fmt.Errorf("Error deleting HTTP proxy records. This is probably a trellis-cli bug; please report it.\n%v", err)
+		return fmt.Errorf("%w: %v.\nThis is probably a trellis-cli bug; please report it.", HostsRemoveErr, err)
 	}
 
 	return nil

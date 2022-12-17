@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 	"gopkg.in/yaml.v2"
@@ -24,8 +25,9 @@ var ConfigTemplate string
 var inventoryTemplate string
 
 var (
-	ConfigError    = errors.New("Could not write Lima config file")
-	HydrationError = errors.New("Could not fetch Lima instance data")
+	ConfigErr    = errors.New("Could not write Lima config file")
+	HydrationErr = errors.New("Could not fetch Lima instance data")
+	IpErr        = errors.New("Could not determine IP address for VM instance")
 )
 
 type PortForward struct {
@@ -87,12 +89,12 @@ func (i *Instance) CreateConfig() error {
 
 	file, err := os.Create(i.ConfigFile)
 	if err != nil {
-		return fmt.Errorf("%v: %w", ConfigError, err)
+		return fmt.Errorf("%v: %w", ConfigErr, err)
 	}
 
 	err = tpl.Execute(file, i)
 	if err != nil {
-		return fmt.Errorf("%v: %w", ConfigError, err)
+		return fmt.Errorf("%v: %w", ConfigErr, err)
 	}
 
 	return nil
@@ -114,13 +116,19 @@ func (i *Instance) CreateInventoryFile() error {
 	return nil
 }
 
-func (i *Instance) Delete() error {
+func (i *Instance) Delete(ui cli.Ui) error {
 	return command.WithOptions(
 		command.WithTermOutput(),
+		command.WithLogging(ui),
 	).Cmd("limactl", []string{"delete", i.Name}).Run()
 }
 
-// TODO Needs better error handling
+/*
+Gets the IP address of the instance using the output of `ip route`:
+  default via 192.168.64.1 proto dhcp src 192.168.64.2 metric 100
+  192.168.64.0/24 proto kernel scope link src 192.168.64.2
+  192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
+*/
 func (i *Instance) IP() (ip string, err error) {
 	output, err := command.Cmd(
 		"limactl",
@@ -128,17 +136,18 @@ func (i *Instance) IP() (ip string, err error) {
 	).CombinedOutput()
 
 	if err != nil {
-		return "", fmt.Errorf("Could not find IP address for VM instance %s", i.Name)
+		return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
 	}
 
-	re := regexp.MustCompile(`([0-9\.]+)`)
-	ip = re.FindString(string(output))
-
-	if ip == "" {
-		return ip, fmt.Errorf("Could not find IP address for VM instance %s", i.Name)
-	} else {
-		return ip, nil
+	re := regexp.MustCompile(`default via .* src ([0-9\.]+)`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) < 2 {
+		return "", fmt.Errorf("%w: no IP address could be matched in the ip route output\n%s", IpErr, string(output))
 	}
+
+	ip = matches[1]
+
+	return ip, nil
 }
 
 func (i *Instance) Running() bool {
@@ -154,15 +163,17 @@ func (i *Instance) Shell(commandArgs []string) error {
 	).Cmd("limactl", args).Run()
 }
 
-func (i *Instance) Start() error {
+func (i *Instance) Start(ui cli.Ui) error {
 	return command.WithOptions(
 		command.WithTermOutput(),
+		command.WithLogging(ui),
 	).Cmd("limactl", []string{"start", "--tty=false", i.Name}).Run()
 }
 
-func (i *Instance) Stop() error {
+func (i *Instance) Stop(ui cli.Ui) error {
 	return command.WithOptions(
 		command.WithTermOutput(),
+		command.WithLogging(ui),
 	).Cmd("limactl", []string{"stop", i.Name}).Run()
 }
 
@@ -207,7 +218,7 @@ func (i *Instance) hydrateFromConfig() error {
 	}
 
 	if err = yaml.Unmarshal(configYaml, config); err != nil {
-		return fmt.Errorf("%v: %w", HydrationError, err)
+		return fmt.Errorf("%v: %w", HydrationErr, err)
 	}
 
 	i.HttpForwardPort = config.PortForwards[0].HostPort
@@ -218,13 +229,13 @@ func (i *Instance) hydrateFromConfig() error {
 func (i *Instance) hydrateFromLima() error {
 	output, err := command.Cmd("limactl", []string{"list", "--json", i.Name}).Output()
 	if err != nil {
-		return fmt.Errorf("%v: %w", HydrationError, err)
+		return fmt.Errorf("%v: %w", HydrationErr, err)
 	}
 
 	data := strings.Split(string(output), "\n")[0]
 
 	if err = json.Unmarshal([]byte(data), i); err != nil {
-		return fmt.Errorf("%v: %w", HydrationError, err)
+		return fmt.Errorf("%v: %w", HydrationErr, err)
 	}
 
 	return nil

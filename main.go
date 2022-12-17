@@ -45,6 +45,8 @@ func main() {
 	}
 
 	trellis := trellis.NewTrellis()
+
+	// load global CLI config
 	if err := trellis.LoadCliConfig(); err != nil {
 		ui.Error(err.Error())
 		os.Exit(1)

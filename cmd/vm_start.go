@@ -90,7 +90,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		if instance.Running() {
 			c.UI.Info(fmt.Sprintf("%s VM already running", color.GreenString("[✓]")))
 		} else {
-			if err := instance.Start(); err != nil {
+			if err := instance.Start(c.UI); err != nil {
 				c.UI.Error("Error starting virtual machine.")
 				c.UI.Error(err.Error())
 				return 1
@@ -117,11 +117,6 @@ func (c *VmStartCommand) Run(args []string) int {
 		c.UI.Error(err.Error())
 		return 1
 	}
-
-	c.UI.Info(fmt.Sprintf("\n%s Lima VM started\n", color.GreenString("[✓]")))
-	c.UI.Info(fmt.Sprintf("Name: %s", instance.Name))
-	c.UI.Info(fmt.Sprintf("Local SSH port: %d", instance.SshLocalPort))
-	c.UI.Info(fmt.Sprintf("Local HTTP port: %d", instance.HttpForwardPort))
 
 	if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
 		c.UI.Error(err.Error())

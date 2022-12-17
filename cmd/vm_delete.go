@@ -74,7 +74,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 	}
 
 	if instance.Stopped() {
-		if err := instance.Delete(); err != nil {
+		if err := instance.Delete(c.UI); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}
