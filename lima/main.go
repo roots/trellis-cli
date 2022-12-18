@@ -35,7 +35,13 @@ type PortForward struct {
 	HostPort  int `yaml:"hostPort"`
 }
 
+type Image struct {
+	Location string `yaml:"location"`
+	Arch     string `yaml:"arch"`
+}
+
 type Config struct {
+	Images       []Image       `yaml:"images"`
 	PortForwards []PortForward `yaml:"portForwards"`
 }
 
@@ -57,6 +63,7 @@ type Instance struct {
 	Disk            int    `json:"disk"`
 	SshLocalPort    int    `json:"sshLocalPort"`
 	HttpForwardPort int
+	Images          []Image
 	Username        string
 }
 

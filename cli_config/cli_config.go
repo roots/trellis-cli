@@ -11,6 +11,17 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type VmImage struct {
+	Location string `yaml:"location"`
+	Arch     string `yaml:"arch"`
+}
+
+type VmConfig struct {
+	Manager       string    `yaml:"manager"`
+	HostsResolver string    `yaml:"hosts_resolver"`
+	Images        []VmImage `yaml:"images"`
+}
+
 type Config struct {
 	AllowDevelopmentDeploys bool              `yaml:"allow_development_deploys"`
 	AskVaultPass            bool              `yaml:"ask_vault_pass"`
@@ -18,8 +29,7 @@ type Config struct {
 	LoadPlugins             bool              `yaml:"load_plugins"`
 	Open                    map[string]string `yaml:"open"`
 	VirtualenvIntegration   bool              `yaml:"virtualenv_integration"`
-	VmManager               string            `yaml:"vm_manager"`
-	VmHostsResolver         string            `yaml:"vm_hosts_resolver"`
+	Vm                      VmConfig          `yaml:"vm"`
 }
 
 var (
@@ -44,11 +54,11 @@ func (c *Config) LoadFile(path string) error {
 	}
 
 	// TODO: improve config validation
-	if c.VmManager != "lima" {
+	if c.Vm.Manager != "lima" {
 		return fmt.Errorf("%w: unsupported value for `vm_manager`. Must be one of: lima", InvalidConfigErr)
 	}
 
-	if c.VmHostsResolver != "hostagent" && c.VmHostsResolver != "hosts_file" {
+	if c.Vm.HostsResolver != "hostagent" && c.Vm.HostsResolver != "hosts_file" {
 		return fmt.Errorf("%w: unsupported value for `vm_hosts_resolver`. Must be one of: hostagent, hosts_file", InvalidConfigErr)
 	}
 

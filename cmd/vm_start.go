@@ -71,7 +71,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.Trellis.CliConfig.VmHostsResolver == "hostagent" && !hostagent.Running() {
+	if c.Trellis.CliConfig.Vm.HostsResolver == "hostagent" && !hostagent.Running() {
 		if err := c.hostagentInstall(); err != nil {
 			return 1
 		}

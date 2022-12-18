@@ -28,6 +28,7 @@ type Manager struct {
 	ConfigPath    string
 	Sites         map[string]*trellis.Site
 	HostsResolver HostsResolver
+	trellis       *trellis.Trellis
 }
 
 func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
@@ -47,7 +48,8 @@ func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
 	manager = &Manager{
 		ConfigPath:    limaConfigPath,
 		Sites:         trellis.Environments["development"].WordPressSites,
-		HostsResolver: NewHostsResolver(trellis.CliConfig.VmHostsResolver, hostNames),
+		HostsResolver: NewHostsResolver(trellis.CliConfig.Vm.HostsResolver, hostNames),
+		trellis:       trellis,
 	}
 
 	if err = manager.createConfigPath(); err != nil {
@@ -59,11 +61,20 @@ func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
 
 func (m *Manager) NewInstance(name string) Instance {
 	name = convertToInstanceName(name)
+	images := []Image{}
+
+	for _, image := range m.trellis.CliConfig.Vm.Images {
+		images = append(images, Image{
+			Location: image.Location,
+			Arch:     image.Arch,
+		})
+	}
 
 	instance := Instance{
 		Name:       name,
 		ConfigPath: m.ConfigPath,
 		ConfigFile: filepath.Join(m.ConfigPath, name+".yml"),
+		Images:     images,
 		Sites:      m.Sites,
 	}
 

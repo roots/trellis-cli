@@ -1,15 +1,15 @@
 vmType: "vz"
 images:
-- location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
-  arch: "x86_64"
-- location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img"
-  arch: "aarch64"
+{{ range $image := .Images -}}
+- location: {{ $image.Location }}
+  arch: {{ $image.Arch }}
+{{ end }}
 mounts:
 {{ range $siteName, $site := .Sites -}}
 - location: {{ $site.AbsLocalPath }}
   mountPoint: /srv/www/{{ $siteName }}/current
   writable: true
-{{- end }}
+{{ end }}
 mountType: "virtiofs"
 networks:
 - vzNAT: true
