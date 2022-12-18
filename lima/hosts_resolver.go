@@ -33,18 +33,22 @@ type HostagentResolver struct {
 	Hosts []string
 }
 
-func NewHostsResolver(resolverType string, hosts []string) HostsResolver {
+func NewHostsResolver(resolverType string, hosts []string) (resolver HostsResolver, err error) {
 	switch resolverType {
 	case "hostagent":
-		return &HostagentResolver{Hosts: hosts}
+		return &HostagentResolver{Hosts: hosts}, nil
 	case "hosts_file":
-		return &HostsFileResolver{
-			Hosts:        hosts,
-			hostsPath:    "/etc/hosts",
-			tmpHostsPath: filepath.Join(app_paths.DataDir(), "hosts"),
-		}
+		return NewHostsFileResolver(hosts), nil
 	default:
-		return &HostagentResolver{Hosts: hosts}
+		return nil, fmt.Errorf("Unknown hosts resolver type: %s", resolverType)
+	}
+}
+
+func NewHostsFileResolver(hosts []string) *HostsFileResolver {
+	return &HostsFileResolver{
+		Hosts:        hosts,
+		hostsPath:    "/etc/hosts",
+		tmpHostsPath: filepath.Join(app_paths.DataDir(), "hosts"),
 	}
 }
 
@@ -81,6 +85,10 @@ func (h *HostsFileResolver) addHostsContent(name string, n Networkable) (content
 	return content, nil
 }
 
+func (h *HostsFileResolver) SudoersCommand() []string {
+	return []string{"/bin/cp", h.tmpHostsPath, h.hostsPath}
+}
+
 func (h *HostsFileResolver) removeHostsContent(name string, n Networkable) (content []byte, err error) {
 	header := fmt.Sprintf("## trellis-start-%s", name)
 	footer := fmt.Sprintf("## trellis-end-%s", name)
@@ -100,11 +108,11 @@ func (h *HostsFileResolver) writeHostsFile(content []byte) error {
 		return err
 	}
 
-	fmt.Printf("\nUpdating %s file, sudo may be required\n", h.hostsPath)
+	fmt.Printf("\nUpdating %s file (sudo may be required, see `trellis vm sudoers` for more details)\n", h.hostsPath)
 
 	return command.WithOptions(
 		command.WithTermOutput(),
-	).Cmd("sudo", []string{"cp", h.tmpHostsPath, h.hostsPath}).Run()
+	).Cmd("sudo", h.SudoersCommand()).Run()
 }
 
 func (h *HostagentResolver) AddHosts(name string, n Networkable) error {

@@ -208,6 +208,9 @@ func main() {
 		"vm stop": func() (cli.Command, error) {
 			return cmd.NewVmStopCommand(ui, trellis), nil
 		},
+		"vm sudoers": func() (cli.Command, error) {
+			return &cmd.VmSudoersCommand{UI: ui, Trellis: trellis}, nil
+		},
 		"xdebug-tunnel": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis xdebug-tunnel <subcommand> [<args>]",

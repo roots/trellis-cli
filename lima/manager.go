@@ -44,11 +44,16 @@ func NewManager(trellis *trellis.Trellis) (manager *Manager, err error) {
 	limaConfigPath := filepath.Join(trellis.ConfigPath(), configDir)
 
 	hostNames := trellis.Environments["development"].AllHosts()
+	hostsResolver, err := NewHostsResolver(trellis.CliConfig.Vm.HostsResolver, hostNames)
+
+	if err != nil {
+		return nil, err
+	}
 
 	manager = &Manager{
 		ConfigPath:    limaConfigPath,
 		Sites:         trellis.Environments["development"].WordPressSites,
-		HostsResolver: NewHostsResolver(trellis.CliConfig.Vm.HostsResolver, hostNames),
+		HostsResolver: hostsResolver,
 		trellis:       trellis,
 	}
 
