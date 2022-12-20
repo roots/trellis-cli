@@ -81,12 +81,6 @@ func (c *VmStartCommand) Run(args []string) int {
 	_, ok := manager.GetInstance(siteName)
 
 	if ok {
-		if err := instance.Hydrate(true); err != nil {
-			c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
-			c.UI.Error(err.Error())
-			return 1
-		}
-
 		if instance.Running() {
 			c.UI.Info(fmt.Sprintf("%s VM already running", color.GreenString("[✓]")))
 		} else {
@@ -97,7 +91,13 @@ func (c *VmStartCommand) Run(args []string) int {
 			}
 		}
 
-		if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
+		if err := instance.Hydrate(true); err != nil {
+			c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		if err = c.writeFiles(manager, instance); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}
@@ -118,12 +118,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	if err = instance.CreateInventoryFile(); err != nil {
+	if err = c.writeFiles(manager, instance); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
@@ -219,5 +214,17 @@ func (c *VmStartCommand) runHostagent() error {
 	}
 
 	spinner.Stop()
+	return nil
+}
+
+func (c *VmStartCommand) writeFiles(manager *lima.Manager, instance lima.Instance) error {
+	if err := instance.CreateInventoryFile(); err != nil {
+		return err
+	}
+
+	if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
+		return err
+	}
+
 	return nil
 }
