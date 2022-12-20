@@ -59,13 +59,16 @@ func (c *ExecCommand) Synopsis() string {
 
 func (c *ExecCommand) Help() string {
 	helpText := `
-Usage: trellis exec [options]
+Usage: trellis exec [options] COMMAND
 
 Exec activates the Trellis virtual environment and executes the command specified.
 
 Run a custom ansible-playbook command:
 
   $ trellis exec ansible-playbook --version
+
+Arguments:
+  COMMAND  Command to execute
 
 Options:
   -h, --help show this help
