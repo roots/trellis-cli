@@ -1,6 +1,6 @@
 # trellis-cli
 
-[![Build status](https://img.shields.io/github/workflow/status/roots/trellis-cli/ci?style=flat-square)](https://github.com/roots/trellis-cli/actions)
+[![Build status]( https://img.shields.io/github/actions/workflow/status/roots/trellis-cli/ci.yml?branch=master&style=flat-square)](https://github.com/roots/trellis-cli/actions)
 ![GitHub release](https://img.shields.io/github/release/roots/trellis-cli?style=flat-square)
 
 A command-line interface (CLI) to manage [Trellis](https://roots.io/trellis/) projects via the `trellis` command. It includes:
