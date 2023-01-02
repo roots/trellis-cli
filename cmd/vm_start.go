@@ -56,72 +56,46 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	manager, err := lima.NewManager(c.Trellis)
+	manager, err := lima.NewManager(c.Trellis, c.UI)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
 	}
 
-	if err := lima.Installed(); err != nil {
-		c.UI.Error(err.Error())
-		c.UI.Error("Install or upgrade Lima to continue:")
-		c.UI.Error("\n  brew install lima\n")
-		c.UI.Error("See https://github.com/lima-vm/lima#getting-started for manual installation options")
-		return 1
-	}
-
-	instance := manager.NewInstance(siteName)
-	existingInstance, ok := manager.GetInstance(siteName)
+	instance, ok := manager.GetInstance(siteName)
 
 	if ok {
-		instance = existingInstance
-
 		if instance.Running() {
 			c.UI.Info(fmt.Sprintf("%s VM already running", color.GreenString("[✓]")))
 		} else {
-			if err := instance.Start(c.UI); err != nil {
+			if err := manager.StartInstance(instance); err != nil {
 				c.UI.Error("Error starting virtual machine.")
 				c.UI.Error(err.Error())
 				return 1
 			}
-		}
 
-		if err := instance.Hydrate(true); err != nil {
-			c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
-			c.UI.Error(err.Error())
-			return 1
-		}
-
-		if err = c.writeFiles(manager, instance); err != nil {
-			c.UI.Error(err.Error())
-			return 1
+			c.printInstanceInfo()
 		}
 
 		return 0
+	} else {
+		if err = manager.CreateInstance(siteName); err != nil {
+			c.UI.Error("Error creating VM.")
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		c.UI.Info("\nProvisioning VM...")
+
+		provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
+		code := provisionCmd.Run([]string{"development"})
+
+		if code == 0 {
+			c.printInstanceInfo()
+		}
+
+		return code
 	}
-
-	c.UI.Info("Creating new VM...")
-	if err := instance.Create(); err != nil {
-		c.UI.Error("Error creating VM.")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	if err := instance.Hydrate(true); err != nil {
-		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	if err = c.writeFiles(manager, instance); err != nil {
-		c.UI.Error(err.Error())
-		return 1
-	}
-
-	c.UI.Info("\nProvisioning VM...")
-
-	provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
-	return provisionCmd.Run([]string{"development"})
 }
 
 func (c *VmStartCommand) Synopsis() string {
@@ -145,14 +119,11 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *VmStartCommand) writeFiles(manager *lima.Manager, instance lima.Instance) error {
-	if err := instance.CreateInventoryFile(); err != nil {
-		return err
-	}
+func (c *VmStartCommand) printInstanceInfo() {
+	c.UI.Info(`
+Your Trellis VM is ready to use!
 
-	if err := manager.HostsResolver.AddHosts(instance.Name, &instance); err != nil {
-		return err
-	}
-
-	return nil
+* Composer and WP-CLI commands need to be run on the virtual machine for any post-provision modifications.
+* You can SSH into the machine with 'trellis vm shell'
+* Then navigate to your WordPress sites at '/srv/www'`)
 }

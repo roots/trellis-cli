@@ -27,7 +27,7 @@ func (c *VmShellCommand) Run(args []string) int {
 		return 1
 	}
 
-	manager, err := lima.NewManager(c.Trellis)
+	manager, err := lima.NewManager(c.Trellis, c.UI)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
@@ -40,16 +40,10 @@ func (c *VmShellCommand) Run(args []string) int {
 		return 0
 	}
 
-	if err := instance.Hydrate(false); err != nil {
-		c.UI.Error("Error getting VM info. This is a trellis-cli bug.")
-		c.UI.Error(err.Error())
-		return 1
-	}
-
 	if instance.Stopped() {
 		c.UI.Info("VM is stopped. Run `trellis vm start` to start it.")
 	} else {
-		if err := instance.Shell(args); err != nil {
+		if err := manager.OpenShell(instance, args); err != nil {
 			c.UI.Error(err.Error())
 			return 1
 		}

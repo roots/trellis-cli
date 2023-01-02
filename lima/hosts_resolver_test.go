@@ -10,10 +10,6 @@ type MockInstance struct {
 	Name string
 }
 
-func (m *MockInstance) HttpHost() string {
-	return "http://127.0.0.1:8080"
-}
-
 func (m *MockInstance) IP() (string, error) {
 	return "192.168.2.1", nil
 }

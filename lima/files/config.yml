@@ -1,6 +1,6 @@
 vmType: "vz"
 images:
-{{ range $image := .Images -}}
+{{ range $image := .Config.Images -}}
 - location: {{ $image.Location }}
   arch: {{ $image.Arch }}
 {{ end }}
@@ -14,7 +14,9 @@ mountType: "virtiofs"
 networks:
 - vzNAT: true
 portForwards:
-- guestPort: 80
-  hostPort: {{ .HttpForwardPort }}
+{{ range $port := .Config.PortForwards -}}
+- guestPort: {{ $port.GuestPort}}
+  hostPort: {{ $port.HostPort }}
+{{ end }}
 containerd:
   user: false

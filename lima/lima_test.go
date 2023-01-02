@@ -23,14 +23,21 @@ func TestCreateConfig(t *testing.T) {
 	instance := &Instance{
 		Dir:        dir,
 		ConfigFile: configFile,
-		Images: []Image{
-			{
-				Location: "http://ubuntu.com/focal",
-				Arch:     "aarch64",
+		Config: Config{
+			Images: []Image{
+				{
+					Location: "http://ubuntu.com/focal",
+					Arch:     "aarch64",
+				},
+			},
+			PortForwards: []PortForward{
+				{
+					HostPort:  1234,
+					GuestPort: 80,
+				},
 			},
 		},
-		HttpForwardPort: 1234,
-		Sites:           trellis.Environments["development"].WordPressSites,
+		Sites: trellis.Environments["development"].WordPressSites,
 	}
 
 	err := instance.CreateConfig()
@@ -62,6 +69,7 @@ networks:
 portForwards:
 - guestPort: 80
   hostPort: 1234
+
 containerd:
   user: false
 `, absSitePath)
