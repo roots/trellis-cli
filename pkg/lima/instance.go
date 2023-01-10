@@ -20,7 +20,7 @@ var inventoryTemplate string
 
 var (
 	ConfigErr = errors.New("Could not write Lima config file")
-	IpErr     = errors.New("Could not determine IP address for VM instance")
+	IpErr     = errors.New("Could not determine IP address for VM")
 )
 
 type PortForward struct {

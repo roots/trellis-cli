@@ -9,10 +9,10 @@ var (
 )
 
 type Manager interface {
-	CreateInstance(name string) error
-	DeleteInstance(name string) error
+	CreateVM(name string) error
+	DeleteVM(name string) error
 	InventoryPath() string
-	StartInstance(name string) error
-	StopInstance(name string) error
+	StartVM(name string) error
+	StopVM(name string) error
 	OpenShell(name string, commandArgs []string) error
 }

@@ -70,15 +70,15 @@ func (m *Manager) InventoryPath() string {
 	return filepath.Join(m.ConfigPath, "inventory")
 }
 
-func (m *Manager) GetInstance(name string) (Instance, bool) {
+func (m *Manager) GetVM(name string) (Instance, bool) {
 	instances := m.instances()
 	instance, ok := instances[name]
 
 	return instance, ok
 }
 
-func (m *Manager) CreateInstance(name string) error {
-	instance := m.newInstance(name)
+func (m *Manager) CreateVM(name string) error {
+	instance := m.newVM(name)
 
 	if err := instance.CreateConfig(); err != nil {
 		return err
@@ -96,8 +96,8 @@ func (m *Manager) CreateInstance(name string) error {
 	return postStart(m, instance)
 }
 
-func (m *Manager) DeleteInstance(name string) error {
-	instance, ok := m.GetInstance(name)
+func (m *Manager) DeleteVM(name string) error {
+	instance, ok := m.GetVM(name)
 
 	if !ok {
 		m.ui.Info("VM does not exist for this project. Run `trellis vm start` to create it.")
@@ -116,7 +116,7 @@ func (m *Manager) DeleteInstance(name string) error {
 
 // TODO: set working dir to site path?
 func (m *Manager) OpenShell(name string, commandArgs []string) error {
-	instance, ok := m.GetInstance(name)
+	instance, ok := m.GetVM(name)
 
 	if !ok {
 		m.ui.Info("VM does not exist for this project. Run `trellis vm start` to create it.")
@@ -137,8 +137,8 @@ func (m *Manager) OpenShell(name string, commandArgs []string) error {
 	).Cmd("limactl", args).Run()
 }
 
-func (m *Manager) StartInstance(name string) error {
-	instance, ok := m.GetInstance(name)
+func (m *Manager) StartVM(name string) error {
+	instance, ok := m.GetVM(name)
 
 	if !ok {
 		return vm.VmNotFoundErr
@@ -161,8 +161,8 @@ func (m *Manager) StartInstance(name string) error {
 	return postStart(m, instance)
 }
 
-func (m *Manager) StopInstance(name string) error {
-	instance, ok := m.GetInstance(name)
+func (m *Manager) StopVM(name string) error {
+	instance, ok := m.GetVM(name)
 
 	if !ok {
 		m.ui.Info("VM does not exist for this project. Run `trellis vm start` to create it.")
@@ -190,8 +190,8 @@ func (m *Manager) StopInstance(name string) error {
 	return nil
 }
 
-func (m *Manager) hydrateInstance(instance *Instance) error {
-	i, _ := m.GetInstance(instance.Name)
+func (m *Manager) hydrateVM(instance *Instance) error {
+	i, _ := m.GetVM(instance.Name)
 	tmpJson, err := json.Marshal(i)
 	if err != nil {
 		return fmt.Errorf("Could not marshal instance: %v\nThis is a trellis-cli bug.", err)
@@ -203,15 +203,15 @@ func (m *Manager) hydrateInstance(instance *Instance) error {
 	return nil
 }
 
-func (m *Manager) initInstance(instance *Instance) {
+func (m *Manager) initVM(instance *Instance) {
 	instance.ConfigFile = filepath.Join(m.ConfigPath, instance.Name+".yml")
 	instance.InventoryFile = m.InventoryPath()
 	instance.Sites = m.Sites
 }
 
-func (m *Manager) newInstance(name string) Instance {
+func (m *Manager) newVM(name string) Instance {
 	instance := Instance{Name: name}
-	m.initInstance(&instance)
+	m.initVM(&instance)
 
 	images := []Image{}
 
@@ -261,7 +261,7 @@ func (m *Manager) instances() (instances map[string]Instance) {
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		instance := &Instance{}
 		json.Unmarshal([]byte(line), instance)
-		m.initInstance(instance)
+		m.initVM(instance)
 		instances[instance.Name] = *instance
 	}
 
@@ -281,7 +281,7 @@ func postStart(manager *Manager, instance Instance) error {
 	instance.Username = string(user)
 
 	// Hydrate instance with data from limactl that is only available after starting (mainly the forwarded SSH local port)
-	err = manager.hydrateInstance(&instance)
+	err = manager.hydrateVM(&instance)
 	if err != nil {
 		return err
 	}
