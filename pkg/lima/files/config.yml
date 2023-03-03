@@ -1,0 +1,29 @@
+vmType: "vz"
+rosetta:
+  enabled: false
+images:
+{{ range $image := .Config.Images -}}
+- location: {{ $image.Location }}
+  arch: {{ $image.Arch }}
+{{ end }}
+mounts:
+{{ range $siteName, $site := .Sites -}}
+- location: {{ $site.AbsLocalPath }}
+  mountPoint: /srv/www/{{ $siteName }}/current
+  writable: true
+{{ end }}
+mountType: "virtiofs"
+networks:
+- vzNAT: true
+portForwards:
+{{ range $port := .Config.PortForwards -}}
+- guestPort: {{ $port.GuestPort}}
+  hostPort: {{ $port.HostPort }}
+{{ end }}
+containerd:
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    echo "127.0.0.1 $(hostname)" >> /etc/hosts

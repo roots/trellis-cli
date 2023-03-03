@@ -33,7 +33,7 @@ func Register(c *cli.CLI, searchPaths []string, validPluginFilenamePrefixes []st
 	// Separate plugin commands from core command lists.
 	c.HiddenCommands = append(c.HiddenCommands, pluginRootCommands...)
 	// Append plugin command list to help text.
-	c.HelpFunc = helpFunc(c.Name, pluginRootCommands)
+	c.HelpFunc = helpFunc(pluginRootCommands, c.HelpFunc)
 }
 
 func rootCommandsFor(v reflect.Value) (rootCommands []string) {

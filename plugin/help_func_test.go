@@ -1,9 +1,10 @@
 package plugin
 
 import (
-	"github.com/mitchellh/cli"
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
 )
 
 func TestHelpFunc(t *testing.T) {
@@ -14,9 +15,9 @@ func TestHelpFunc(t *testing.T) {
 	}
 	pluginRootCommands := []string{"foo", "bar"}
 
-	output := helpFunc("app", pluginRootCommands)(coreCommands)
+	output := helpFunc(pluginRootCommands, cli.BasicHelpFunc("app"))(coreCommands)
 
-	expected := "Available third party plugin commands are"
+	expected := "Available plugin commands"
 	if !strings.Contains(output, expected) {
 		t.Errorf("expected output %q to contain %q", output, expected)
 	}
@@ -36,7 +37,7 @@ func TestHelpFuncNoPlugin(t *testing.T) {
 	}
 	pluginRootCommands := []string{}
 
-	output := helpFunc("app", pluginRootCommands)(coreCommands)
+	output := helpFunc(pluginRootCommands, cli.BasicHelpFunc("app"))(coreCommands)
 
 	expected := cli.BasicHelpFunc("app")(coreCommands)
 	if expected != output {

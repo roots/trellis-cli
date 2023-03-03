@@ -58,7 +58,7 @@ func TestIntegrationPluginCommand(t *testing.T) {
 			[]string{"--help"},
 			[]string{},
 			[]string{
-				"Available third party plugin commands are",
+				"Available plugin commands",
 				"spy",
 			},
 		},
@@ -170,7 +170,7 @@ func TestIntegrationPluginListInHelpFunc(t *testing.T) {
 	trellisCommand.Run()
 	output := mockUi.ErrorWriter.String()
 
-	expected := "Available third party plugin commands are"
+	expected := "Available plugin commands"
 	if !strings.Contains(output, expected) {
 		t.Errorf("expected output %q to contain %q", output, expected)
 	}

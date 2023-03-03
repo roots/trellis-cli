@@ -37,6 +37,11 @@ var DefaultCliConfig = cli_config.Config{
 	LoadPlugins:             true,
 	Open:                    make(map[string]string),
 	VirtualenvIntegration:   true,
+	Vm: cli_config.VmConfig{
+		Manager:       "auto",
+		HostsResolver: "hosts_file",
+		Ubuntu:        "22.04",
+	},
 }
 
 type Trellis struct {

@@ -72,6 +72,7 @@ func TestProvisionRunValidations(t *testing.T) {
 func TestProvisionRun(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
+	trellis.CliConfig.Vm.Manager = "mock"
 
 	cases := []struct {
 		name string

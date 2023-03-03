@@ -15,7 +15,11 @@ const (
 	xdgDataHome      = "XDG_DATA_HOME"
 )
 
-// Config path precedence: TRELLIS_CONFIG_DIR, XDG_CONFIG_HOME, AppData (windows only), HOME.
+// Config path precedence:
+// 1. TRELLIS_CONFIG_DIR
+// 2. XDG_CONFIG_HOME
+// 3. AppData (windows only)
+// 4. HOME
 func ConfigDir() string {
 	var path string
 
@@ -37,7 +41,10 @@ func ConfigPath(path string) string {
 	return filepath.Join(ConfigDir(), path)
 }
 
-// Cache path precedence: XDG_CACHE_HOME, LocalAppData (windows only), HOME.
+// Cache path precedence:
+// 1. XDG_CACHE_HOME
+// 2. LocalAppData (windows only)
+// 3. HOME
 func CacheDir() string {
 	var path string
 	if a := os.Getenv(xdgCacheHome); a != "" {
@@ -47,6 +54,23 @@ func CacheDir() string {
 	} else {
 		c, _ := os.UserHomeDir()
 		path = filepath.Join(c, ".local", "state", "trellis")
+	}
+	return path
+}
+
+// Data path precedence:
+// 1. XDG_DATA_HOME
+// 2. LocalAppData (windows only)
+// 3. HOME
+func DataDir() string {
+	var path string
+	if a := os.Getenv(xdgDataHome); a != "" {
+		path = filepath.Join(a, "trellis")
+	} else if b := os.Getenv(localAppData); runtime.GOOS == "windows" && b != "" {
+		path = filepath.Join(b, "Trellis CLI")
+	} else {
+		c, _ := os.UserHomeDir()
+		path = filepath.Join(c, ".local", "share", "trellis")
 	}
 	return path
 }
