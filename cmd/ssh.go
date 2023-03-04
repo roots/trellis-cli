@@ -37,6 +37,12 @@ func (c *SshCommand) Run(args []string) int {
 		return 1
 	}
 
+	if err := c.flags.Parse(args); err != nil {
+		return 1
+	}
+
+	args = c.flags.Args()
+
 	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {

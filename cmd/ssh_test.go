@@ -107,6 +107,12 @@ func TestSshRun(t *testing.T) {
 			"ssh vagrant@example.test",
 			0,
 		},
+		{
+			"production_with_user_flag",
+			[]string{"-u=web", "production"},
+			"ssh web@example.com",
+			0,
+		},
 	}
 
 	for _, tc := range cases {
