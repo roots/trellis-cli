@@ -3,7 +3,7 @@ module github.com/roots/trellis-cli
 go 1.18
 
 require (
-	github.com/digitalocean/godo v1.83.0
+	github.com/digitalocean/godo v1.97.0
 	github.com/fatih/color v1.14.1
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
@@ -57,6 +57,7 @@ require (
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
+	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
