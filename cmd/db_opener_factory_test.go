@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/mitchellh/cli"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,7 +9,7 @@ import (
 func TestMakeUnexpected(t *testing.T) {
 	factory := &DBOpenerFactory{}
 
-	_, actualErr := factory.Make("unexpected-app", cli.NewMockUi())
+	_, actualErr := factory.Make("unexpected-app")
 
 	actualErrorMessage := actualErr.Error()
 
@@ -38,7 +37,7 @@ func TestMake(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		actual, actualErr := factory.Make(tc.app, cli.NewMockUi())
+		actual, actualErr := factory.Make(tc.app)
 
 		if actualErr != nil {
 			t.Errorf("expected error %s to be nil", actualErr)

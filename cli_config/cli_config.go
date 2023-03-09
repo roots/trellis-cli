@@ -26,6 +26,7 @@ type VmConfig struct {
 type Config struct {
 	AllowDevelopmentDeploys bool              `yaml:"allow_development_deploys"`
 	AskVaultPass            bool              `yaml:"ask_vault_pass"`
+	DatabaseApp             string            `yaml:"database_app"`
 	CheckForUpdates         bool              `yaml:"check_for_updates"`
 	LoadPlugins             bool              `yaml:"load_plugins"`
 	Open                    map[string]string `yaml:"open"`
@@ -64,6 +65,10 @@ func (c *Config) LoadFile(path string) error {
 
 	if c.Vm.HostsResolver != "hosts_file" {
 		return fmt.Errorf("%w: unsupported value for `vm.hosts_resolver`. Must be one of: hosts_file", InvalidConfigErr)
+	}
+
+	if c.DatabaseApp != "" && c.DatabaseApp != "tableplus" && c.DatabaseApp != "sequel-ace" {
+		return fmt.Errorf("%w: unsupported value for `database_app`. Must be one of: tableplus, sequel-ace", InvalidConfigErr)
 	}
 
 	return nil

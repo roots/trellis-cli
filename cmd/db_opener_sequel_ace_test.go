@@ -22,9 +22,7 @@ func TestOpen(t *testing.T) {
 	ui := cli.NewMockUi()
 	defer MockUiExec(t, ui)()
 
-	sequelAce := &DBOpenerSequelAce{
-		ui: ui,
-	}
+	sequelAce := &DBOpenerSequelAce{}
 
 	sequelAce.Open(dbCredentials)
 

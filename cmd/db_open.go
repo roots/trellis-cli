@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -95,8 +96,12 @@ func (c *DBOpenCommand) Run(args []string) int {
 		return 1
 	}
 
+	if c.Trellis.CliConfig.DatabaseApp != "" && c.app == "" {
+		c.app = c.Trellis.CliConfig.DatabaseApp
+	}
+
 	// Initialize db opener object; check app is supported.
-	opener, dbOpenerFactoryMakeErr := c.dbOpenerFactory.Make(c.app, c.UI)
+	opener, dbOpenerFactoryMakeErr := c.dbOpenerFactory.Make(c.app)
 	if dbOpenerFactoryMakeErr != nil {
 		c.UI.Error(fmt.Sprintf("Error initializing new db opener object: %s", dbOpenerFactoryMakeErr))
 		c.UI.Error(fmt.Sprintf("Supported apps are: %s", c.dbOpenerFactory.GetSupportedApps()))
@@ -166,11 +171,15 @@ Open database with GUI applications
 
 Open default site's production database with tableplus:
 
-  $ trellis db open --app=tableplus production
+  $ trellis db open --app tableplus production
 
-Open a site's production database with tableplus:
+Open a site's production database with Sequel Ace:
 
-  $ trellis db open --app=tableplus production example.com
+  $ trellis db open --app sequel-ace production example.com
+
+To set a default database app, set the 'databae_app' option in your CLI (project or global) config file:
+
+  database_app: sequel-ace
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
@@ -182,4 +191,14 @@ Options:
 `
 
 	return strings.TrimSpace(fmt.Sprintf(helpText, c.dbOpenerFactory.GetSupportedApps()))
+}
+
+func (c *DBOpenCommand) AutocompleteArgs() complete.Predictor {
+	return c.Trellis.AutocompleteSite(c.flags)
+}
+
+func (c *DBOpenCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"--app": complete.PredictSet(c.dbOpenerFactory.GetSupportedApps()...),
+	}
 }
