@@ -7,12 +7,10 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/command"
 )
 
 type DBOpenerSequelAce struct {
-	ui cli.Ui
 }
 
 //go:embed files/sequel_ace_spf_template.xml
