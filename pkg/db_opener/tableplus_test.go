@@ -1,4 +1,4 @@
-package cmd
+package db_opener
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestUriFor(t *testing.T) {
 		WPEnv:      "wp-env",
 	}
 
-	tableplus := &DBOpenerTableplus{}
+	tableplus := &Tableplus{}
 
 	actual := tableplus.uriFor(dbCredentials)
 

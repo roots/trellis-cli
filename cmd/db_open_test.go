@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/pkg/db_opener"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -38,7 +39,7 @@ func TestDBOpenArgumentValidations(t *testing.T) {
 			ui := cli.NewMockUi()
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
 
-			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &AdHocPlaybook{}}
+			dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &db_opener.Factory{}, playbook: &AdHocPlaybook{}}
 			dbOpenCommand.init()
 
 			code := dbOpenCommand.Run(tc.args)
@@ -61,7 +62,7 @@ func TestDBOpenAppFlagValidations(t *testing.T) {
 	ui := cli.NewMockUi()
 	trellis := trellis.NewTrellis()
 
-	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: &AdHocPlaybook{}}
+	dbOpenCommand := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &db_opener.Factory{}, playbook: &AdHocPlaybook{}}
 	dbOpenCommand.init()
 	dbOpenCommand.app = "unexpected-app"
 
@@ -82,7 +83,7 @@ func TestDBOpenPlaybook(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 
-	dbOpenerFactory := &DBOpenerFactory{}
+	dbOpenerFactory := &db_opener.Factory{}
 
 	cases := []struct {
 		name string
