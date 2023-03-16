@@ -132,6 +132,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 
 	if err := dumpDbCredentials.Run(); err != nil {
 		c.UI.Error("Error opening database. Temporary playbook failed to execute:")
+		c.UI.Error(mockUi.OutputWriter.String())
 		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
@@ -145,7 +146,10 @@ func (c *DBOpenCommand) Run(args []string) int {
 	var dbCredentials DBCredentials
 	unmarshalErr := json.Unmarshal(dbCredentialsByte, &dbCredentials)
 	if unmarshalErr != nil {
-		c.UI.Error(fmt.Sprintf("Error unmarshaling db credentials JSON file: %s", unmarshalErr))
+		c.UI.Error(fmt.Sprintf("Error parsing db credentials JSON file: %s", unmarshalErr))
+		c.UI.Error("This probably means the temporary playbook used to template out the JSON file with database credentials failed. Here was the output for troubleshooting:")
+		c.UI.Error(mockUi.OutputWriter.String())
+		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
 
