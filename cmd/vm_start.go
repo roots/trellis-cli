@@ -5,6 +5,7 @@ import (
 	"flag"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
@@ -14,6 +15,7 @@ type VmStartCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
+	name    string
 }
 
 func NewVmStartCommand(ui cli.Ui, trellis *trellis.Trellis) *VmStartCommand {
@@ -25,6 +27,7 @@ func NewVmStartCommand(ui cli.Ui, trellis *trellis.Trellis) *VmStartCommand {
 func (c *VmStartCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.StringVar(&c.name, "name", "", "Name of the VM")
 }
 
 func (c *VmStartCommand) Run(args []string) int {
@@ -49,10 +52,26 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
-	if err != nil {
-		c.UI.Error(err.Error())
-		return 1
+	if c.name == "" {
+		siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
+
+		if err == nil {
+			c.name = siteName
+		} else {
+			c.UI.Warn("Warning: default VM name could not be automatically determined.")
+
+			prompt := promptui.Prompt{
+				Label: "VM name",
+			}
+
+			nameInput, err := prompt.Run()
+			if err != nil {
+				c.UI.Error("Aborting: no name provided")
+				return 1
+			}
+
+			c.name = nameInput
+		}
 	}
 
 	manager, err := newVmManager(c.Trellis, c.UI)
@@ -61,7 +80,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = manager.StartInstance(siteName)
+	err = manager.StartInstance(c.name)
 	if err == nil {
 		c.printInstanceInfo()
 		return 0
@@ -74,7 +93,7 @@ func (c *VmStartCommand) Run(args []string) int {
 	}
 
 	// VM doesn't exist yet, create it
-	if err = manager.CreateInstance(siteName); err != nil {
+	if err = manager.CreateInstance(c.name); err != nil {
 		c.UI.Error("Error creating VM.")
 		c.UI.Error(err.Error())
 		return 1
@@ -106,8 +125,13 @@ If a VM doesn't exist yet, it will be created. If a VM already exists, it will b
 Note: VM management (under the 'trellis vm' subcommands) is currently only available for macOS Ventura (13.0) and later.
 Lima (https://lima-vm.io/) is the underlying VM manager which requires macOS's new virtualization framework.
 
+Start a VM with a custom name:
+
+  $ trellis vm start --name my-vm
+
 Options:
-  -h, --help show this help
+      --name  Name of the VM (default: main development site name)
+  -h, --help  Show this help
 `
 
 	return strings.TrimSpace(helpText)

@@ -17,11 +17,10 @@ import (
 )
 
 const (
-	ConfigDir   = ".trellis"
-	GlobPattern = "group_vars/*/wordpress_sites.yml"
+	cliConfigFile = "cli.yml"
+	ConfigDir     = ".trellis"
+	GlobPattern   = "group_vars/*/wordpress_sites.yml"
 )
-
-const cliConfigFile = "cli.yml"
 
 type Options struct {
 	Detector  Detector
