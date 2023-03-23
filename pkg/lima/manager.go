@@ -105,10 +105,20 @@ func (m *Manager) DeleteInstance(name string) error {
 	}
 
 	if instance.Stopped() {
-		return command.WithOptions(
+		err := command.WithOptions(
 			command.WithTermOutput(),
 			command.WithLogging(m.ui),
 		).Cmd("limactl", []string{"delete", instance.Name}).Run()
+
+		if err != nil {
+			return err
+		}
+
+		if err := instance.DeleteConfig(); err != nil {
+			return err
+		}
+
+		return nil
 	} else {
 		return fmt.Errorf("Error: VM is running. Run `trellis vm stop` to stop it.")
 	}

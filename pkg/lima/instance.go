@@ -91,6 +91,15 @@ func (i *Instance) CreateInventoryFile() error {
 	return nil
 }
 
+func (i *Instance) DeleteConfig() error {
+	err := os.Remove(i.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("Could not delete config file: %v", err)
+	}
+
+	return nil
+}
+
 /*
 Gets the IP address of the instance using the output of `ip route`:
   default via 192.168.64.1 proto dhcp src 192.168.64.2 metric 100
