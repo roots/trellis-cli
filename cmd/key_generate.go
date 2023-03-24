@@ -99,9 +99,9 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	}
 
 	if c.keyName == "" {
-		siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment("development", "")
-		if siteNameErr != nil {
-			c.UI.Error(siteNameErr.Error())
+		siteName, _, siteErr := c.Trellis.MainSiteFromEnvironment("development")
+		if siteErr != nil {
+			c.UI.Error(siteErr.Error())
 			return 1
 		}
 

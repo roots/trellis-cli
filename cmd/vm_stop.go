@@ -47,7 +47,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
+	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1

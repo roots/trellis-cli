@@ -119,10 +119,16 @@ func (c *AliasCommand) Run(args []string) int {
 		}
 
 		if !c.skipLocal && c.local == environment {
-			siteName, _ := c.Trellis.FindSiteNameFromEnvironment(environment, "")
-			mainHost := c.Trellis.SiteFromEnvironmentAndName(environment, siteName).MainHost()
+			_, site, err := c.Trellis.MainSiteFromEnvironment(environment)
+
+			if err != nil {
+				spinner.StopFail()
+				c.UI.Error(err.Error())
+				return 1
+			}
+
 			args = append(args, "-e", "include_local_env=true")
-			args = append(args, "-e", "local_hostname_alias="+mainHost)
+			args = append(args, "-e", "local_hostname_alias="+site.MainHost())
 		}
 
 		mockUi := cli.NewMockUi()
