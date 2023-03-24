@@ -34,14 +34,13 @@ func (c *OpenCommand) Run(args []string) int {
 	var openArgs = []string{}
 
 	if len(args) == 0 {
-		siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment("development", "")
-		if siteNameErr != nil {
-			c.UI.Error(siteNameErr.Error())
+		_, site, siteErr := c.Trellis.MainSiteFromEnvironment("development")
+		if siteErr != nil {
+			c.UI.Error(siteErr.Error())
 			return 1
 		}
 
-		url := c.Trellis.SiteFromEnvironmentAndName("development", siteName).MainUrl()
-		openArgs = []string{url}
+		openArgs = []string{site.MainUrl()}
 	} else {
 		value, exists := c.Trellis.CliConfig.Open[args[0]]
 

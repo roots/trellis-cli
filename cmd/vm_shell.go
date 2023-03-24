@@ -20,7 +20,7 @@ func (c *VmShellCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
-	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
+	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
