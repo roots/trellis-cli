@@ -49,9 +49,9 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, err := c.Trellis.FindSiteNameFromEnvironment("development", "")
+	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
 	if err != nil {
-		c.UI.Error(err.Error())
+		c.UI.Error("Error: could not automatically set VM name: " + err.Error())
 		return 1
 	}
 

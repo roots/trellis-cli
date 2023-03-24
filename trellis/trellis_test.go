@@ -239,6 +239,33 @@ func TestSiteFromEnvironmentAndName(t *testing.T) {
 	}
 }
 
+func TestMainSiteFromEnvironment(t *testing.T) {
+	expected := &Site{}
+
+	environments := make(map[string]*Config)
+	environments["a"] = &Config{
+		WordPressSites: make(map[string]*Site),
+	}
+
+	environments["a"].WordPressSites["a1"] = expected
+	environments["a"].WordPressSites["a2"] = &Site{}
+	environments["a"].WordPressSites["a3"] = &Site{}
+
+	trellis := Trellis{
+		Environments: environments,
+	}
+
+	name, actual, _ := trellis.MainSiteFromEnvironment("a")
+
+	if name != "a1" {
+		t.Errorf("expected a1 got %s", name)
+	}
+
+	if actual != expected {
+		t.Error("expected site not returned")
+	}
+}
+
 func TestActivateProjectForProjects(t *testing.T) {
 	defer LoadFixtureProject(t)()
 

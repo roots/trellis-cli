@@ -265,6 +265,18 @@ func (t *Trellis) FindSiteNameFromEnvironment(environment string, siteNameArg st
 	return "", fmt.Errorf("Error: %s is not a valid site. Valid options are %s", siteNameArg, siteNames)
 }
 
+func (t *Trellis) MainSiteFromEnvironment(environment string) (string, *Site, error) {
+	sites := t.SiteNamesFromEnvironment(environment)
+
+	if len(sites) == 0 {
+		return "", nil, fmt.Errorf("Error: No sites found in %s environment", environment)
+	}
+
+	name := sites[0]
+
+	return name, t.Environments[environment].WordPressSites[name], nil
+}
+
 func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteName string, err error) {
 	sites := t.SiteNamesFromEnvironment(environment)
 
