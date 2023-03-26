@@ -68,6 +68,7 @@ mounts:
 mountType: "virtiofs"
 networks:
 - vzNAT: true
+
 portForwards:
 - guestPort: 80
   hostPort: 1234

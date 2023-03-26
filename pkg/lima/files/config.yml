@@ -15,11 +15,13 @@ mounts:
 mountType: "virtiofs"
 networks:
 - vzNAT: true
+{{ if .Config.PortForwards }}
 portForwards:
 {{ range $port := .Config.PortForwards -}}
 - guestPort: {{ $port.GuestPort}}
   hostPort: {{ $port.HostPort }}
 {{ end }}
+{{ end -}}
 containerd:
   user: false
 provision:
