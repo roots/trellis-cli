@@ -178,11 +178,28 @@ Current supported settings:
 
 | Setting | Description | Type | Default |
 | --- | --- | -- | -- |
+| `allow_development_deploys` | Whether to allows deploy to the `development` env | boolean | false |
 | `ask_vault_pass` | Set Ansible to always ask for the vault pass | boolean | false |
 | `check_for_updates` | Whether to check for new versions of trellis-cli | boolean | true |
+| `database_app` | Database app to use in `db open` (Options: `tableplus`, `sequel-ace`)| string | none |
 | `load_plugins` | Load external CLI plugins | boolean | true |
 | `open` | List of name -> URL shortcuts | map[string]string | none |
 | `virtualenv_integration` | Enable automated virtualenv integration | boolean | true |
+| `vm` | Options for dev virtual machines | Object | see below |
+
+### `vm`
+| Setting | Description | Type | Default |
+| --- | --- | -- | -- |
+| `manager` | VM manager (Options: `auto` (depends on OS), `lima`)| string | "auto" |
+| `ubuntu` | Ubuntu OS version (Options: `18.04`, `20.04`, `22.04`)| string |
+| `hosts_resolver` | VM hosts resolver (Options: `hosts_file`)| string |
+| `images` | Custom OS image | object | Set based on `ubuntu` version |
+
+#### `images`
+| Setting | Description | Type | Default |
+| --- | --- | -- | -- |
+| `location` | URL of Ubuntu image | string | none |
+| `arch` | Architecture of image (eg: `x86_64`, `aarch64`) | string | none |
 
 Example config:
 
