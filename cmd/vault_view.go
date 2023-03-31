@@ -83,7 +83,7 @@ func (c *VaultViewCommand) Synopsis() string {
 
 func (c *VaultViewCommand) Help() string {
 	helpText := `
-Usage: trellis vault encrypt [options] ENVIRONMENT
+Usage: trellis vault view [options] ENVIRONMENT
 
 Open, decrypt and view existing vaulted files
 
