@@ -1,13 +1,13 @@
-package cmd
+package db_opener
 
 import (
 	"fmt"
 	"os/exec"
 )
 
-type DBOpenerTableplus struct{}
+type Tableplus struct{}
 
-func (o *DBOpenerTableplus) Open(c DBCredentials) (err error) {
+func (o *Tableplus) Open(c DBCredentials) (err error) {
 	uri := o.uriFor(c)
 	open := exec.Command("open", uri)
 
@@ -19,7 +19,7 @@ func (o *DBOpenerTableplus) Open(c DBCredentials) (err error) {
 	return nil
 }
 
-func (o *DBOpenerTableplus) uriFor(c DBCredentials) string {
+func (o *Tableplus) uriFor(c DBCredentials) string {
 	return fmt.Sprintf(
 		"mysql+ssh://%s@%s:%d/%s:%s@%s/%s?usePrivateKey=true&enviroment=%s",
 		c.SSHUser,

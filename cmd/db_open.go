@@ -12,6 +12,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/db_opener"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -30,7 +31,7 @@ func NewDBOpenCommand(ui cli.Ui, trellis *trellis.Trellis) *DBOpenCommand {
 		},
 	}
 
-	c := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &DBOpenerFactory{}, playbook: playbook}
+	c := &DBOpenCommand{UI: ui, Trellis: trellis, dbOpenerFactory: &db_opener.Factory{}, playbook: playbook}
 	c.init()
 	return c
 }
@@ -40,19 +41,8 @@ type DBOpenCommand struct {
 	flags           *flag.FlagSet
 	app             string
 	Trellis         *trellis.Trellis
-	dbOpenerFactory *DBOpenerFactory
+	dbOpenerFactory *db_opener.Factory
 	playbook        *AdHocPlaybook
-}
-
-type DBCredentials struct {
-	SSHUser    string `json:"web_user"`
-	SSHHost    string `json:"ansible_host"`
-	SSHPort    int    `json:"ansible_port"`
-	DBUser     string `json:"db_user"`
-	DBPassword string `json:"db_password"`
-	DBHost     string `json:"db_host"`
-	DBName     string `json:"db_name"`
-	WPEnv      string `json:"wp_env"`
 }
 
 func (c *DBOpenCommand) init() {
@@ -143,7 +133,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 		c.UI.Error(fmt.Sprintf("Error reading db credentials JSON file: %s", readErr))
 		return 1
 	}
-	var dbCredentials DBCredentials
+	var dbCredentials db_opener.DBCredentials
 	unmarshalErr := json.Unmarshal(dbCredentialsByte, &dbCredentials)
 	if unmarshalErr != nil {
 		c.UI.Error(fmt.Sprintf("Error parsing db credentials JSON file: %s", unmarshalErr))

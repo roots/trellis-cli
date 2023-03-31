@@ -1,4 +1,4 @@
-package cmd
+package db_opener
 
 import (
 	"reflect"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestMakeUnexpected(t *testing.T) {
-	factory := &DBOpenerFactory{}
+	factory := &Factory{}
 
 	_, actualErr := factory.Make("unexpected-app")
 
@@ -20,19 +20,19 @@ func TestMakeUnexpected(t *testing.T) {
 }
 
 func TestMake(t *testing.T) {
-	factory := &DBOpenerFactory{}
+	factory := &Factory{}
 
 	cases := []struct {
 		app      string
-		expected DBOpener
+		expected Opener
 	}{
 		{
 			"sequel-ace",
-			&DBOpenerSequelAce{},
+			&SequelAce{},
 		},
 		{
 			"tableplus",
-			&DBOpenerTableplus{},
+			&Tableplus{},
 		},
 	}
 

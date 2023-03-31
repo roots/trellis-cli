@@ -1,21 +1,22 @@
-package cmd
+package db_opener
 
 import (
 	"fmt"
+	"time"
 )
 
-type DBOpenerFactory struct{}
+type Factory struct{}
 
-type DBOpener interface {
+type Opener interface {
 	Open(c DBCredentials) (err error)
 }
 
-func (f *DBOpenerFactory) Make(app string) (o DBOpener, err error) {
+func (f *Factory) Make(app string) (o Opener, err error) {
 	switch app {
 	case "tableplus":
-		return &DBOpenerTableplus{}, nil
+		return &Tableplus{}, nil
 	case "sequel-ace":
-		return &DBOpenerSequelAce{}, nil
+		return &SequelAce{spfDeleteDelay: 3 * time.Second, spfFile: nil}, nil
 	case "sequel-pro":
 		return nil, fmt.Errorf("Sequel Pro is replaced by Sequel Ace. Check the docs for more info: https://docs.roots.io/trellis/master/database-access/")
 	}
@@ -23,7 +24,7 @@ func (f *DBOpenerFactory) Make(app string) (o DBOpener, err error) {
 	return nil, fmt.Errorf("%s is not supported", app)
 }
 
-func (f *DBOpenerFactory) GetSupportedApps() []string {
+func (f *Factory) GetSupportedApps() []string {
 	return []string{
 		"tableplus",
 		"sequel-ace",
