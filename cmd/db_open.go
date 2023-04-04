@@ -12,6 +12,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/pkg/db_opener"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -108,17 +109,19 @@ func (c *DBOpenCommand) Run(args []string) int {
 	defer c.playbook.DumpFiles()()
 
 	// Template db credentials to JSON file.
-	playbookArgs := []string{
-		"dump_db_credentials.yml",
-		"-e", "env=" + environment,
-		"-e", "site=" + siteName,
-		"-e", "dest=" + dbCredentialsJson.Name(),
+	playbook := ansible.Playbook{
+		Name: "dump_db_credentials.yml",
+		Env:  environment,
+		ExtraVars: map[string]string{
+			"site": siteName,
+			"dest": dbCredentialsJson.Name(),
+		},
 	}
 
 	mockUi := cli.NewMockUi()
 	dumpDbCredentials := command.WithOptions(
 		command.WithUiOutput(mockUi),
-	).Cmd("ansible-playbook", playbookArgs)
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := dumpDbCredentials.Run(); err != nil {
 		c.UI.Error("Error opening database. Temporary playbook failed to execute:")

@@ -9,6 +9,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -70,36 +71,34 @@ func (c *ProvisionCommand) Run(args []string) int {
 	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.Trellis}
 	galaxyInstallCommand.Run([]string{})
 
-	vars := "env=" + environment
+	playbook := ansible.Playbook{
+		Name:    "server.yml",
+		Env:     environment,
+		Verbose: c.verbose,
+	}
+
 	if c.extraVars != "" {
-		vars = strings.Join([]string{vars, c.extraVars}, " ")
+		playbook.AddExtraVars(c.extraVars)
 	}
 
-	playbookArgs := []string{"-e", vars}
 	if c.tags != "" {
-		playbookArgs = append(playbookArgs, "--tags", c.tags)
+		playbook.AddArg("--tags", c.tags)
 	}
-
-	if c.verbose {
-		playbookArgs = append(playbookArgs, "-vvvv")
-	}
-
-	var playbookFile string = "server.yml"
 
 	if environment == "development" {
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
-		playbookFile = "dev.yml"
+		playbook.SetName("dev.yml")
 		devInventoryFile := c.findDevInventory()
 
 		if devInventoryFile != "" {
-			playbookArgs = append(playbookArgs, "--inventory-file", devInventoryFile)
+			playbook.SetInventory(devInventoryFile)
 		}
 	}
 
 	provision := command.WithOptions(
 		command.WithUiOutput(c.UI),
 		command.WithLogging(c.UI),
-	).Cmd("ansible-playbook", append([]string{playbookFile}, playbookArgs...))
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := provision.Run(); err != nil {
 		c.UI.Error(err.Error())

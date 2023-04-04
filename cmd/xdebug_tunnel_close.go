@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -53,14 +53,17 @@ func (c *XdebugTunnelCloseCommand) Run(args []string) int {
 	}
 
 	host := args[0]
-	inventoryHost := fmt.Sprintf("xdebug_tunnel_inventory_host=%s", host)
-	playbookArgs := []string{"xdebug-tunnel.yml", "-e", "xdebug_remote_enable=0", "-e", inventoryHost}
 
-	if c.verbose {
-		playbookArgs = append(playbookArgs, "-vvvv")
+	playbook := ansible.Playbook{
+		Name:    "xdebug-tunnel.yml",
+		Verbose: c.verbose,
+		ExtraVars: map[string]string{
+			"xdebug_tunnel_inventory_host": host,
+			"xdebug_remote_enable":         "0",
+		},
 	}
 
-	xdebugClose := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbookArgs)
+	xdebugClose := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := xdebugClose.Run(); err != nil {
 		c.UI.Error(err.Error())

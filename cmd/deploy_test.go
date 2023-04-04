@@ -96,31 +96,31 @@ func TestDeployRun(t *testing.T) {
 		{
 			"default",
 			[]string{"production", "example.com"},
-			"ansible-playbook deploy.yml -e env=production site=example.com",
+			"ansible-playbook deploy.yml -e env=production -e site=example.com",
 			0,
 		},
 		{
 			"site_not_needed_in_default_case",
 			[]string{"production"},
-			"ansible-playbook deploy.yml -e env=production site=example.com",
+			"ansible-playbook deploy.yml -e env=production -e site=example.com",
 			0,
 		},
 		{
 			"with_extra_vars",
 			[]string{"-extra-vars", "k=v foo=bar", "production"},
-			"ansible-playbook deploy.yml -e env=production site=example.com k=v foo=bar",
+			"ansible-playbook deploy.yml -e k=v foo=bar -e env=production -e site=example.com",
 			0,
 		},
 		{
 			"with_branch",
 			[]string{"-branch", "feature-123", "production"},
-			"ansible-playbook deploy.yml -e env=production site=example.com branch=feature-123",
+			"ansible-playbook deploy.yml -e branch=feature-123 -e env=production -e site=example.com",
 			0,
 		},
 		{
 			"with_verbose",
 			[]string{"--verbose", "production"},
-			"ansible-playbook deploy.yml -e env=production site=example.com -vvvv",
+			"ansible-playbook deploy.yml -vvvv -e env=production -e site=example.com",
 			0,
 		},
 	}

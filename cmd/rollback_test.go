@@ -96,25 +96,25 @@ func TestRollbackRun(t *testing.T) {
 		{
 			"default",
 			[]string{"development", "example.com"},
-			"ansible-playbook rollback.yml -e env=development site=example.com",
+			"ansible-playbook rollback.yml -e env=development -e site=example.com",
 			0,
 		},
 		{
 			"site_not_needed_in_default_case",
 			[]string{"development"},
-			"ansible-playbook rollback.yml -e env=development site=example.com",
+			"ansible-playbook rollback.yml -e env=development -e site=example.com",
 			0,
 		},
 		{
 			"with_release_flag",
 			[]string{"--release=123", "development", "example.com"},
-			"ansible-playbook rollback.yml -e env=development site=example.com release=123",
+			"ansible-playbook rollback.yml -e env=development -e release=123 -e site=example.com",
 			0,
 		},
 		{
 			"with_verbose",
 			[]string{"--verbose", "development", "example.com"},
-			"ansible-playbook rollback.yml -e env=development site=example.com -vvvv",
+			"ansible-playbook rollback.yml -vvvv -e env=development -e site=example.com",
 			0,
 		},
 	}

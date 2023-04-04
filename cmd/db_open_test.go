@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -88,12 +89,12 @@ func TestDBOpenPlaybook(t *testing.T) {
 	cases := []struct {
 		name string
 		args []string
-		out  string
+		out  *regexp.Regexp
 	}{
 		{
 			"default",
 			[]string{"-app=" + dbOpenerFactory.GetSupportedApps()[0], "production", "example.com"},
-			"ansible-playbook dump_db_credentials.yml -e env=production -e site=example.com -e dest=" + os.TempDir(),
+			regexp.MustCompile("ansible-playbook dump_db_credentials.yml -e dest=" + os.TempDir() + ".*.json -e env=production -e site=example.com"),
 		},
 	}
 
@@ -107,8 +108,8 @@ func TestDBOpenPlaybook(t *testing.T) {
 
 			combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
-			if !strings.Contains(combined, tc.out) {
-				t.Errorf("expected output %q to contain %q", combined, tc.out)
+			if !tc.out.MatchString(combined) {
+				t.Errorf("expected output %q to match %q", combined, tc.out)
 			}
 		})
 	}

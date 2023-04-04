@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -88,29 +88,27 @@ you can disable this check by setting the following config value in your CLI con
 		return 1
 	}
 
-	vars := []string{
-		fmt.Sprintf("env=%s", environment),
-		fmt.Sprintf("site=%s", siteName),
-	}
-
-	if c.verbose {
-		vars = append(vars, "-vvvv")
+	playbook := ansible.Playbook{
+		Name:    "deploy.yml",
+		Env:     environment,
+		Verbose: c.verbose,
+		ExtraVars: map[string]string{
+			"site": siteName,
+		},
 	}
 
 	if c.branch != "" {
-		vars = append(vars, fmt.Sprintf("branch=%s", c.branch))
+		playbook.AddExtraVar("branch", c.branch)
 	}
 
 	if c.extraVars != "" {
-		vars = append(vars, c.extraVars)
+		playbook.AddExtraVars(c.extraVars)
 	}
-
-	extraVars := strings.Join(vars, " ")
 
 	deploy := command.WithOptions(
 		command.WithUiOutput(c.UI),
 		command.WithLogging(c.UI),
-	).Cmd("ansible-playbook", []string{"deploy.yml", "-e", extraVars})
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := deploy.Run(); err != nil {
 		c.UI.Error(err.Error())
