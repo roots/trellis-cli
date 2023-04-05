@@ -81,7 +81,7 @@ func TestXdebugTunnelCloseRun(t *testing.T) {
 		{
 			"with_verbose",
 			[]string{"--verbose", "1.2.3.4"},
-			"ansible-playbook xdebug-tunnel.yml -e xdebug_remote_enable=0 -e xdebug_tunnel_inventory_host=1.2.3.4 -vvvv",
+			"ansible-playbook xdebug-tunnel.yml -vvvv -e xdebug_remote_enable=0 -e xdebug_tunnel_inventory_host=1.2.3.4",
 			0,
 		},
 	}

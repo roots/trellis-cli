@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -68,22 +68,23 @@ func (c *RollbackCommand) Run(args []string) int {
 		return 1
 	}
 
-	extraVars := fmt.Sprintf("env=%s site=%s", environment, siteName)
-
-	if len(c.release) > 0 {
-		extraVars = fmt.Sprintf("%s release=%s", extraVars, c.release)
+	playbook := ansible.Playbook{
+		Name:    "rollback.yml",
+		Env:     environment,
+		Verbose: c.verbose,
+		ExtraVars: map[string]string{
+			"site": siteName,
+		},
 	}
 
-	playbookArgs := []string{"rollback.yml", "-e", extraVars}
-
-	if c.verbose {
-		playbookArgs = append(playbookArgs, "-vvvv")
+	if c.release != "" {
+		playbook.AddExtraVar("release", c.release)
 	}
 
 	rollback := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(c.UI),
-	).Cmd("ansible-playbook", playbookArgs)
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := rollback.Run(); err != nil {
 		c.UI.Error(err.Error())

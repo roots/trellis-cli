@@ -95,19 +95,19 @@ func TestProvisionRun(t *testing.T) {
 		{
 			"with_tags",
 			[]string{"-tags", "users", "development"},
-			"ansible-playbook dev.yml -e env=development --tags users",
+			"ansible-playbook dev.yml --tags=users -e env=development",
 			0,
 		},
 		{
 			"with_extra_vars",
 			[]string{"-extra-vars", "k=v foo=bar", "development"},
-			"ansible-playbook dev.yml -e env=development k=v foo=bar",
+			"ansible-playbook dev.yml -e k=v foo=bar -e env=development",
 			0,
 		},
 		{
 			"with_verbose",
 			[]string{"--verbose", "development"},
-			"ansible-playbook dev.yml -e env=development -vvvv",
+			"ansible-playbook dev.yml -vvvv -e env=development",
 			0,
 		},
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -69,10 +70,15 @@ func (c *DotEnvCommand) Run(args []string) int {
 
 	defer c.playbook.DumpFiles()()
 
+	playbook := ansible.Playbook{
+		Name: "dotenv.yml",
+		Env:  environment,
+	}
+
 	mockUi := cli.NewMockUi()
 	dotenv := command.WithOptions(
 		command.WithUiOutput(mockUi),
-	).Cmd("ansible-playbook", []string{"dotenv.yml", "-e", "env=" + environment})
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := dotenv.Run(); err != nil {
 		spinner.StopFail()

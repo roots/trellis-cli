@@ -75,13 +75,13 @@ func TestXdebugTunnelOpenRun(t *testing.T) {
 		{
 			"default",
 			[]string{"1.2.3.4"},
-			"ansible-playbook xdebug-tunnel.yml -e xdebug_remote_enable=1 -e sshd_allow_tcp_forwarding=yes -e xdebug_tunnel_inventory_host=1.2.3.4",
+			"ansible-playbook xdebug-tunnel.yml -e sshd_allow_tcp_forwarding=yes -e xdebug_remote_enable=1 -e xdebug_tunnel_inventory_host=1.2.3.4",
 			0,
 		},
 		{
 			"with_verbose",
 			[]string{"--verbose", "1.2.3.4"},
-			"ansible-playbook xdebug-tunnel.yml -e xdebug_remote_enable=1 -e sshd_allow_tcp_forwarding=yes -e xdebug_tunnel_inventory_host=1.2.3.4 -vvvv",
+			"ansible-playbook xdebug-tunnel.yml -vvvv -e sshd_allow_tcp_forwarding=yes -e xdebug_remote_enable=1 -e xdebug_tunnel_inventory_host=1.2.3.4",
 			0,
 		},
 	}

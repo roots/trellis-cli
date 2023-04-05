@@ -10,6 +10,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -110,12 +111,14 @@ func (c *AliasCommand) Run(args []string) int {
 	defer c.aliasPlaybook.DumpFiles()()
 
 	for _, environment := range envsToAlias {
-		args := []string{
-			"alias.yml",
-			"-vvv",
-			"-e", "env=" + environment,
-			"-e", "trellis_alias_j2=alias.yml.j2",
-			"-e", "trellis_alias_temp_dir=" + tempDir,
+		playbook := ansible.Playbook{
+			Name:    "alias.yml",
+			Verbose: true,
+			Env:     environment,
+			ExtraVars: map[string]string{
+				"trellis_alias_j2":       "alias.yml.j2",
+				"trellis_alias_temp_dir": tempDir,
+			},
 		}
 
 		if !c.skipLocal && c.local == environment {
@@ -127,14 +130,14 @@ func (c *AliasCommand) Run(args []string) int {
 				return 1
 			}
 
-			args = append(args, "-e", "include_local_env=true")
-			args = append(args, "-e", "local_hostname_alias="+site.MainHost())
+			playbook.AddExtraVar("include_local_env", "true")
+			playbook.AddExtraVar("local_hostname_alias", site.MainHost())
 		}
 
 		mockUi := cli.NewMockUi()
 		aliasPlaybook := command.WithOptions(
 			command.WithUiOutput(mockUi),
-		).Cmd("ansible-playbook", args)
+		).Cmd("ansible-playbook", playbook.CmdArgs())
 
 		if err := aliasPlaybook.Run(); err != nil {
 			spinner.StopFail()
@@ -165,10 +168,18 @@ func (c *AliasCommand) Run(args []string) int {
 
 	defer c.aliasCopyPlaybook.DumpFiles()()
 
+	playbook := ansible.Playbook{
+		Name: "alias-copy.yml",
+		Env:  c.local,
+		ExtraVars: map[string]string{
+			"trellis_alias_combined": combinedYmlPath,
+		},
+	}
+
 	mockUi := cli.NewMockUi()
 	aliasCopyPlaybook := command.WithOptions(
 		command.WithUiOutput(mockUi),
-	).Cmd("ansible-playbook", []string{"alias-copy.yml", "-e", "env=" + c.local, "-e", "trellis_alias_combined=" + combinedYmlPath})
+	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := aliasCopyPlaybook.Run(); err != nil {
 		spinner.StopFail()
@@ -213,9 +224,23 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
+func (c *AliasCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func (c *AliasCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--local":      complete.PredictNothing,
+		"--local":      predictEnvironment(c.Trellis),
 		"--skip-local": complete.PredictNothing,
+	}
+}
+
+func predictEnvironment(t *trellis.Trellis) complete.PredictFunc {
+	return func(args complete.Args) []string {
+		if err := t.LoadProject(); err != nil {
+			return []string{}
+		}
+
+		return t.EnvironmentNames()
 	}
 }
