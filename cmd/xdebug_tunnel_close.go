@@ -83,7 +83,7 @@ Usage: trellis xdebug-tunnel close [options] HOST
 
 Closes the remote Xdebug tunnel connection.
 
-Documentation: https://docs.roots.io/trellis/master/debugging-php/#using-xdebug-in-production
+Documentation: https://roots.io/trellis/docs/debugging-php/#using-xdebug-in-production
 
 Close Xdebug tunnel on host 1.2.3.4:
 

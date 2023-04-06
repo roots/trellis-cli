@@ -65,7 +65,7 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 
 ## Windows Install
 trellis-cli does offer a native Windows exe but we [recommend you use
-WSL](https://docs.roots.io/trellis/master/installation/#local-development-requirements) for Trellis. The above install methods will work for WSL as well.
+WSL](https://roots.io/trellis/docs/installation/#local-development-requirements) for Trellis. The above install methods will work for WSL as well.
 
 If you do want to use the native Windows exe, you'll need to do the following
 setup after downloading the Windows build:

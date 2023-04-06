@@ -84,7 +84,7 @@ Usage: trellis xdebug-tunnel open [options] HOST
 
 Opens a remote SSH tunnel to allow remote Xdebug connections.
 
-Documentation: https://docs.roots.io/trellis/master/debugging-php/#using-xdebug-in-production
+Documentation: https://roots.io/trellis/docs/debugging-php/#using-xdebug-in-production
 
 Open Xdebug tunnel on host 1.2.3.4:
 
