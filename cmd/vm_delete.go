@@ -64,7 +64,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 	}
 
 	if c.force || c.confirmDeletion() {
-		if err := manager.DeleteInstance(siteName); err != nil {
+		if err := manager.DeleteVM(siteName); err != nil {
 			c.UI.Error("Error: " + err.Error())
 			return 1
 		}

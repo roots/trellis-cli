@@ -61,9 +61,9 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = manager.StartInstance(siteName)
+	err = manager.StartVM(siteName)
 	if err == nil {
-		c.printInstanceInfo()
+		c.printVMInfo()
 		return 0
 	}
 
@@ -74,7 +74,7 @@ func (c *VmStartCommand) Run(args []string) int {
 	}
 
 	// VM doesn't exist yet, create it
-	if err = manager.CreateInstance(siteName); err != nil {
+	if err = manager.CreateVM(siteName); err != nil {
 		c.UI.Error("Error creating VM.")
 		c.UI.Error(err.Error())
 		return 1
@@ -86,7 +86,7 @@ func (c *VmStartCommand) Run(args []string) int {
 	code := provisionCmd.Run([]string{"development"})
 
 	if code == 0 {
-		c.printInstanceInfo()
+		c.printVMInfo()
 	}
 
 	return code
@@ -113,7 +113,7 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *VmStartCommand) printInstanceInfo() {
+func (c *VmStartCommand) printVMInfo() {
 	c.UI.Info(`
 Your Trellis VM is ready to use!
 

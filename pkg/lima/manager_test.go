@@ -97,7 +97,7 @@ func TestInitInstance(t *testing.T) {
 	}
 
 	instance := Instance{Name: "test"}
-	manager.initInstance(&instance)
+	manager.initVM(&instance)
 
 	if instance.Name != "test" {
 		t.Errorf("expected instance name to be %q, got %q", "test", instance.Name)
@@ -120,7 +120,7 @@ func TestNewInstanceUbuntuVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	instance := manager.newInstance("test")
+	instance := manager.newVM("test")
 
 	if instance.Name != "test" {
 		t.Errorf("expected instance name to be %q, got %q", "test", instance.Name)
@@ -232,7 +232,7 @@ func TestCreateInstance(t *testing.T) {
 
 	defer command.MockExecCommands(t, commands)()
 
-	if err = manager.CreateInstance(instanceName); err != nil {
+	if err = manager.CreateVM(instanceName); err != nil {
 		t.Fatal(err)
 	}
 

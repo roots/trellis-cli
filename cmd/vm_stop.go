@@ -59,7 +59,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := manager.StopInstance(siteName); err != nil {
+	if err := manager.StopVM(siteName); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

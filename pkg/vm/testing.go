@@ -19,11 +19,11 @@ func NewMockManager(trellis *trellis.Trellis, ui cli.Ui) (manager *MockVmManager
 	return manager, nil
 }
 
-func (m *MockVmManager) CreateInstance(name string) error {
+func (m *MockVmManager) CreateVM(name string) error {
 	return nil
 }
 
-func (m *MockVmManager) DeleteInstance(name string) error {
+func (m *MockVmManager) DeleteVM(name string) error {
 	return nil
 }
 
@@ -31,11 +31,11 @@ func (m *MockVmManager) InventoryPath() string {
 	return ""
 }
 
-func (m *MockVmManager) StartInstance(name string) error {
+func (m *MockVmManager) StartVM(name string) error {
 	return nil
 }
 
-func (m *MockVmManager) StopInstance(name string) error {
+func (m *MockVmManager) StopVM(name string) error {
 	return nil
 }
 
