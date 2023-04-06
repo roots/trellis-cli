@@ -110,6 +110,8 @@ func (c *AliasCommand) Run(args []string) int {
 
 	defer c.aliasPlaybook.DumpFiles()()
 
+	devInventory := findDevInventory(c.Trellis, c.UI)
+
 	for _, environment := range envsToAlias {
 		playbook := ansible.Playbook{
 			Name:    "alias.yml",
@@ -130,6 +132,7 @@ func (c *AliasCommand) Run(args []string) int {
 				return 1
 			}
 
+			playbook.SetInventory(devInventory)
 			playbook.AddExtraVar("include_local_env", "true")
 			playbook.AddExtraVar("local_hostname_alias", site.MainHost())
 		}

@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -12,8 +11,6 @@ import (
 	"github.com/roots/trellis-cli/pkg/ansible"
 	"github.com/roots/trellis-cli/trellis"
 )
-
-const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
 
 func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
 	c := &ProvisionCommand{UI: ui, Trellis: trellis}
@@ -88,11 +85,7 @@ func (c *ProvisionCommand) Run(args []string) int {
 	if environment == "development" {
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		playbook.SetName("dev.yml")
-		devInventoryFile := c.findDevInventory()
-
-		if devInventoryFile != "" {
-			playbook.SetInventory(devInventoryFile)
-		}
+		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
 	}
 
 	provision := command.WithOptions(
@@ -160,20 +153,4 @@ func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 		"--tags":       complete.PredictNothing,
 		"--verbose":    complete.PredictNothing,
 	}
-}
-
-func (c *ProvisionCommand) findDevInventory() string {
-	manager, managerErr := newVmManager(c.Trellis, c.UI)
-	if managerErr == nil {
-		_, vmInventoryErr := os.Stat(manager.InventoryPath())
-		if vmInventoryErr == nil {
-			return manager.InventoryPath()
-		}
-	}
-
-	if _, vagrantInventoryErr := os.Stat(filepath.Join(c.Trellis.Path, VagrantInventoryFilePath)); vagrantInventoryErr == nil {
-		return VagrantInventoryFilePath
-	}
-
-	return ""
 }

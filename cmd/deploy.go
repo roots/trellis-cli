@@ -63,24 +63,6 @@ func (c *DeployCommand) Run(args []string) int {
 		return 1
 	}
 
-	if environment == "development" && !c.Trellis.CliConfig.AllowDevelopmentDeploys {
-		c.UI.Error(`
-Error: deploying to the development environment is not supported by default.
-
-Most local development environments (like Vagrant) handle file sharing automatically.
-Local site files are automatically synced/shared to the VM so there's no need to manually deploy a site.
-
-See https://docs.roots.io/trellis/master/local-development/#vagrant for more details on Vagrant with Trellis.
-
-If you're using a non-standard development setup (such as a remote cloud environment) and want to deploy,
-you can disable this check by setting the following config value in your CLI config:
-
-  allow_development_deploys: true
-    `)
-
-		return 1
-	}
-
 	siteNameArg := c.flags.Arg(1)
 	siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment(environment, siteNameArg)
 	if siteNameErr != nil {
@@ -95,6 +77,28 @@ you can disable this check by setting the following config value in your CLI con
 		ExtraVars: map[string]string{
 			"site": siteName,
 		},
+	}
+
+	if environment == "development" {
+		if c.Trellis.CliConfig.AllowDevelopmentDeploys == false {
+			c.UI.Error(`
+  Error: deploying to the development environment is not supported by default.
+
+  Most local development environments handle file sharing automatically.
+  Local site files are automatically synced/shared to the VM so there's no need to manually deploy a site.
+
+  See https://roots.io/trellis/docs/local-development/ for more details.
+
+  If you're using a non-standard development setup (such as a remote cloud environment) and want to deploy,
+  you can disable this check by setting the following config value in your CLI config:
+
+    allow_development_deploys: true
+      `)
+
+			return 1
+		}
+
+		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
 	}
 
 	if c.branch != "" {
@@ -128,7 +132,7 @@ Usage: trellis deploy [options] ENVIRONMENT [SITE]
 
 Deploys a site to the specified environment.
 
-See https://docs.roots.io/trellis/master/deployments/ for more information on deploys with Trellis.
+See https://roots.io/trellis/docs/deployments/ for more information on deploys with Trellis.
 
 Deploy the default site to production:
 
