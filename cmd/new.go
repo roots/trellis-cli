@@ -149,7 +149,7 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteYamlFile(
 			config,
 			filepath.Join("group_vars", env, "wordpress_sites.yml"),
-			c.YamlHeader("https://docs.roots.io/trellis/master/wordpress-sites/"),
+			c.YamlHeader("https://roots.io/trellis/docs/wordpress-sites/"),
 		)
 
 		stringGenerator := trellis.RandomStringGenerator{Length: 64}
@@ -157,7 +157,7 @@ func (c *NewCommand) Run(args []string) int {
 		c.trellis.WriteYamlFile(
 			vault,
 			filepath.Join("group_vars", env, "vault.yml"),
-			c.YamlHeader("https://docs.roots.io/trellis/master/vault/"),
+			c.YamlHeader("https://roots.io/trellis/docs/vault/"),
 		)
 	}
 
@@ -197,7 +197,7 @@ Usage: trellis new [options] [PATH]
 Creates a new Trellis project in the path specified using the latest versions of Trellis and Bedrock.
 
 This uses our recommended project structure detailed at
-https://docs.roots.io/trellis/master/installation/#create-a-project
+https://roots.io/trellis/docs/installation/#create-a-project
 
 Create a new project in the current directory:
 

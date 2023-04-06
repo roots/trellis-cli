@@ -113,7 +113,7 @@ Usage: trellis vault decrypt [options] ENVIRONMENT
 
 Decrypts files with Ansible Vault for the specified environment
 
-Trellis docs: https://docs.roots.io/trellis/master/vault/ 
+Trellis docs: https://roots.io/trellis/docs/vault/ 
 Ansible Vault docs: https://docs.ansible.com/ansible/latest/user_guide/vault.html
 
 Decrypt production vault files:

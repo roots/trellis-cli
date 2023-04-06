@@ -91,7 +91,7 @@ func (c *CheckCommand) Run(args []string) int {
 	}
 
 	c.UI.Info("\nSee requirements documentation for more information:")
-	c.UI.Info("https://docs.roots.io/trellis/master/installation/#install-requirements")
+	c.UI.Info("https://roots.io/trellis/docs/installation/#requirements")
 
 	if requirementsMet {
 		return 0

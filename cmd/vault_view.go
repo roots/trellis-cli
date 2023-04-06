@@ -87,7 +87,7 @@ Usage: trellis vault view [options] ENVIRONMENT
 
 Open, decrypt and view existing vaulted files
 
-Trellis docs: https://docs.roots.io/trellis/master/vault/ 
+Trellis docs: https://roots.io/trellis/docs/vault/ 
 Ansible Vault docs: https://docs.ansible.com/ansible/latest/user_guide/vault.html
 
 View production vault files:

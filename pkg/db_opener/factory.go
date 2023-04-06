@@ -18,7 +18,7 @@ func (f *Factory) Make(app string) (o Opener, err error) {
 	case "sequel-ace":
 		return &SequelAce{spfDeleteDelay: 3 * time.Second, spfFile: nil}, nil
 	case "sequel-pro":
-		return nil, fmt.Errorf("Sequel Pro is replaced by Sequel Ace. Check the docs for more info: https://docs.roots.io/trellis/master/database-access/")
+		return nil, fmt.Errorf("Sequel Pro is replaced by Sequel Ace. Check the docs for more info: https://roots.io/trellis/docs/database-access/")
 	}
 
 	return nil, fmt.Errorf("%s is not supported", app)
