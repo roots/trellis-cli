@@ -118,6 +118,10 @@ func (c *DBOpenCommand) Run(args []string) int {
 		},
 	}
 
+	if environment == "development" {
+		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
+	}
+
 	mockUi := cli.NewMockUi()
 	dumpDbCredentials := command.WithOptions(
 		command.WithUiOutput(mockUi),

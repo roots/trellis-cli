@@ -75,6 +75,10 @@ func (c *DotEnvCommand) Run(args []string) int {
 		Env:  environment,
 	}
 
+	if environment == "development" {
+		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
+	}
+
 	mockUi := cli.NewMockUi()
 	dotenv := command.WithOptions(
 		command.WithUiOutput(mockUi),
@@ -98,7 +102,8 @@ func (c *DotEnvCommand) Help() string {
 	helpText := `
 Usage: trellis dotenv [options] [ENVIRONMENT=development]
 
-Template .env files to local system
+Template .env file to local system (defaults to development environment)
+
 Template the production .env file:
 
   $ trellis dotenv production
