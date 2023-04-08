@@ -67,7 +67,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 1}
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 2}
 	if err := commandArgumentValidator.validate(args); err != nil {
 		c.UI.Error(err.Error())
 		c.UI.Output(c.Help())
@@ -75,6 +75,11 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	environment := c.flags.Arg(0)
+
+	if environment == "" {
+		environment = "development"
+	}
+
 	if err := c.Trellis.ValidateEnvironment(environment); err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -166,9 +171,9 @@ func (c *DBOpenCommand) Synopsis() string {
 
 func (c *DBOpenCommand) Help() string {
 	helpText := `
-Usage: trellis db [options] ENVIRONMENT [SITE]
+Usage: trellis db [options] [ENVIRONMENT=development] [SITE]
 
-Open database with GUI applications
+Open database with GUI applications (defaults to development environment).
 
 Open default site's production database with tableplus:
 
@@ -183,7 +188,7 @@ To set a default database app, set the 'databae_app' option in your CLI (project
   database_app: sequel-ace
 
 Arguments:
-  ENVIRONMENT Name of environment (ie: production)
+  ENVIRONMENT Name of environment (default: development)
   SITE        Name of the site (ie: example.com); Optional when only single site exist in the environment
 
 Options:
