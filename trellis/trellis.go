@@ -114,7 +114,7 @@ func (t *Trellis) CreateConfigDir() error {
 }
 
 func (t *Trellis) CheckVirtualenv(ui cli.Ui) {
-	if !t.venvWarned && !t.VenvInitialized {
+	if t.CliConfig.VirtualenvIntegration && !t.venvWarned && !t.VenvInitialized {
 		ui.Warn(`
 WARNING: This project has not been initialized with trellis-cli and may not work as expected.
 
