@@ -39,6 +39,6 @@ func (m *MockVmManager) StopInstance(name string) error {
 	return nil
 }
 
-func (m *MockVmManager) OpenShell(name string, commandArgs []string) error {
+func (m *MockVmManager) OpenShell(name string, dir string, commandArgs []string) error {
 	return nil
 }

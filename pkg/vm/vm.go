@@ -14,5 +14,5 @@ type Manager interface {
 	InventoryPath() string
 	StartInstance(name string) error
 	StopInstance(name string) error
-	OpenShell(name string, commandArgs []string) error
+	OpenShell(name string, dir string, commandArgs []string) error
 }

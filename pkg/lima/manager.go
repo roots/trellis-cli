@@ -124,8 +124,7 @@ func (m *Manager) DeleteInstance(name string) error {
 	}
 }
 
-// TODO: set working dir to site path?
-func (m *Manager) OpenShell(name string, commandArgs []string) error {
+func (m *Manager) OpenShell(name string, dir string, commandArgs []string) error {
 	instance, ok := m.GetInstance(name)
 
 	if !ok {
@@ -138,7 +137,7 @@ func (m *Manager) OpenShell(name string, commandArgs []string) error {
 		return nil
 	}
 
-	args := []string{"shell", instance.Name}
+	args := []string{"shell", "--workdir", dir, instance.Name}
 	args = append(args, commandArgs...)
 
 	return command.WithOptions(

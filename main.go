@@ -187,7 +187,7 @@ func main() {
 			return cmd.NewVmDeleteCommand(ui, trellis), nil
 		},
 		"vm shell": func() (cli.Command, error) {
-			return &cmd.VmShellCommand{UI: ui, Trellis: trellis}, nil
+			return cmd.NewVmShellCommand(ui, trellis), nil
 		},
 		"vm start": func() (cli.Command, error) {
 			return cmd.NewVmStartCommand(ui, trellis), nil
