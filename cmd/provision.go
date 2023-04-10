@@ -134,10 +134,10 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
   
 Options:
-      --extra-vars  (multiple) set additional variables as key=value or YAML/JSON, if filename prepend with @
-      --tags        (multiple) only run roles and tasks tagged with these values
+      --extra-vars  (multiple) Set additional variables as key=value or YAML/JSON, if filename prepend with @
+      --tags        (multiple) Only run roles and tasks tagged with these values
       --verbose     Enable Ansible's verbose mode
-  -h, --help        show this help
+  -h, --help        Show this help
 `
 
 	return strings.TrimSpace(helpText)
