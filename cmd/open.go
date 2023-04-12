@@ -45,7 +45,7 @@ func (c *OpenCommand) Run(args []string) int {
 		value, exists := c.Trellis.CliConfig.Open[args[0]]
 
 		if !exists {
-			c.UI.Error(fmt.Sprintf("Error: shortcut '%s' does not exist. Check your .trellis/cli.yml config file.", args[0]))
+			c.UI.Error(fmt.Sprintf("Error: shortcut '%s' does not exist in your CLI config file.", args[0]))
 			c.UI.Error(fmt.Sprintf("Valid shortcuts are: %s", strings.Join(openNames(c.Trellis.CliConfig.Open), ", ")))
 			return 1
 		}
@@ -87,7 +87,7 @@ Opens user-defined URLs (and more) which can act as shortcuts/bookmarks specific
 
 Without any arguments provided, this defaults to opening the main site's development canonical URL.
 
-Additional entries can be customized by adding them to your project's config file (in '.trellis/cli.yml'):
+Additional entries can be customized by adding them to your project's config file (trellis.cli.yml):
 
   open:
     sentry: https://myapp.sentry.io

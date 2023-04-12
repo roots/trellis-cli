@@ -74,7 +74,7 @@ func TestOpenRun(t *testing.T) {
 		{
 			"invalid_shortcut_name",
 			[]string{"invalid"},
-			"Error: shortcut 'invalid' does not exist.",
+			"Error: shortcut 'invalid' does not exist",
 			1,
 		},
 		{
