@@ -291,8 +291,8 @@ func (t *Trellis) getDefaultSiteNameFromEnvironment(environment string) (siteNam
 	return sites[0], nil
 }
 
-func (t *Trellis) LoadCliConfig() error {
-	path := app_paths.ConfigPath(cliConfigFile)
+func (t *Trellis) LoadGlobalCliConfig() error {
+	path := app_paths.ConfigPath("cli.yml")
 
 	if err := t.CliConfig.LoadFile(path); err != nil {
 		return fmt.Errorf("Error loading CLI config %s\n\n%v", path, err)
@@ -306,10 +306,16 @@ func (t *Trellis) LoadCliConfig() error {
 }
 
 func (t *Trellis) LoadProjectCliConfig() error {
-	path := filepath.Join(t.ConfigPath(), cliConfigFile)
+	configPaths := []string{
+		filepath.Join(t.ConfigPath(), "cli.yml"),
+		filepath.Join(t.Path, "trellis.cli.yml"),
+		filepath.Join(t.Path, "trellis.cli.local.yml"),
+	}
 
-	if err := t.CliConfig.LoadFile(path); err != nil {
-		return fmt.Errorf("Error loading CLI config %s\n%v", path, err)
+	for _, path := range configPaths {
+		if err := t.CliConfig.LoadFile(path); err != nil {
+			return fmt.Errorf("Error loading CLI config %s\n%v", path, err)
+		}
 	}
 
 	t.CliConfig.LoadEnv("TRELLIS_")

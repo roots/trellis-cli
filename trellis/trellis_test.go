@@ -337,7 +337,7 @@ func TestLoadCliConfigWhenFileDoesNotExist(t *testing.T) {
 	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
 
 	tp := NewTrellis()
-	err := tp.LoadCliConfig()
+	err := tp.LoadGlobalCliConfig()
 
 	if err != nil {
 		t.Error("expected no error")
@@ -363,7 +363,7 @@ ask_vault_pass: true
 		t.Fatal(err)
 	}
 
-	err := tp.LoadCliConfig()
+	err := tp.LoadGlobalCliConfig()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -391,7 +391,7 @@ ask_vault_pass: true
 		t.Fatal(err)
 	}
 
-	err := tp.LoadCliConfig()
+	err := tp.LoadGlobalCliConfig()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
