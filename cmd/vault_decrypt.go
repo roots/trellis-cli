@@ -3,12 +3,14 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/flags"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -16,7 +18,7 @@ type VaultDecryptCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
-	files   string
+	files   flags.StringSliceVar
 }
 
 func NewVaultDecryptCommand(ui cli.Ui, trellis *trellis.Trellis) *VaultDecryptCommand {
@@ -28,7 +30,8 @@ func NewVaultDecryptCommand(ui cli.Ui, trellis *trellis.Trellis) *VaultDecryptCo
 func (c *VaultDecryptCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.files, "files", "", "Files to decrypt. Must be comma separated without spaces in between.")
+	c.flags.Var(&c.files, "f", "File to decrypt. To decrypt multiple files, use this option multiple times.")
+	c.flags.Var(&c.files, "file", "File to decrypt. To decrypt multiple files, use this option multiple times.")
 }
 
 func (c *VaultDecryptCommand) Run(args []string) int {
@@ -45,7 +48,7 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
@@ -53,21 +56,42 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 		return 1
 	}
 
-	environment := args[0]
+	var environment string
 
-	var files []string
+	if len(args) == 1 {
+		environment = args[0]
 
-	vaultArgs := []string{"decrypt"}
+		environmentErr := c.Trellis.ValidateEnvironment(environment)
+		if environmentErr != nil {
+			c.UI.Error(environmentErr.Error())
+			return 1
+		}
 
-	if len(c.files) == 0 {
-		files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
+		if len(c.files) > 0 {
+			c.UI.Error("Error: the file option can't be used together with the ENVIRONMENT argument\n")
+			c.UI.Output(c.Help())
+			return 1
+		}
+	}
+
+	if environment == "" {
+		if len(c.files) == 0 {
+			matches, err := filepath.Glob("group_vars/*/vault.yml")
+
+			if err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
+
+			c.files = matches
+		}
 	} else {
-		files = strings.Split(c.files, ",")
+		c.files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
 	}
 
 	var filesToDecrypt []string
 
-	for _, file := range files {
+	for _, file := range c.files {
 		isEncrypted, err := trellis.IsFileEncrypted(file)
 
 		if err != nil {
@@ -85,6 +109,7 @@ func (c *VaultDecryptCommand) Run(args []string) int {
 		return 0
 	}
 
+	vaultArgs := []string{"decrypt"}
 	vaultArgs = append(vaultArgs, filesToDecrypt...)
 
 	mockUi := cli.NewMockUi()
@@ -109,28 +134,33 @@ func (c *VaultDecryptCommand) Synopsis() string {
 
 func (c *VaultDecryptCommand) Help() string {
 	helpText := `
-Usage: trellis vault decrypt [options] ENVIRONMENT
+Usage: trellis vault decrypt [options] [ENVIRONMENT]
 
-Decrypts files with Ansible Vault for the specified environment
+Decrypts files with Ansible Vault.
+This command is idempotent and safe to run on already decrypted files.
 
 Trellis docs: https://roots.io/trellis/docs/vault/ 
 Ansible Vault docs: https://docs.ansible.com/ansible/latest/user_guide/vault.html
+
+Decrypt all vault files:
+
+  $ trellis vault decrypt
 
 Decrypt production vault files:
 
   $ trellis vault decrypt production
 
-Decrypt specified files for production environment:
+Decrypt specified files:
 
-  $ trellis vault decrypt --files=group_vars/production/vault.yml production
+  $ trellis vault decrypt -f group_vars/production/vault.yml
+  $ trellis vault decrypt -f group_vars/aaa/vault.yml -f group_vars/bbb/vault.yml
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-      --files  (multiple) Files to decrypt
-               (default: group_vars/all/vault.yml group_vars/<ENVIRONMENT>/vault.yml)
-  -h, --help   show this help
+  -f, --file  File to decrypt. To decrypt multiple files, use this option multiple times.
+  -h, --help  Show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -142,6 +172,7 @@ func (c *VaultDecryptCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *VaultDecryptCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--files": complete.PredictNothing,
+		"-f":     complete.PredictFiles("*"),
+		"--file": complete.PredictFiles("*"),
 	}
 }

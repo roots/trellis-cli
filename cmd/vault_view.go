@@ -3,11 +3,14 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
+	"github.com/roots/trellis-cli/pkg/flags"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -15,7 +18,7 @@ type VaultViewCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
 	flags   *flag.FlagSet
-	files   string
+	files   flags.StringSliceVar
 }
 
 func NewVaultViewCommand(ui cli.Ui, trellis *trellis.Trellis) *VaultViewCommand {
@@ -27,7 +30,8 @@ func NewVaultViewCommand(ui cli.Ui, trellis *trellis.Trellis) *VaultViewCommand 
 func (c *VaultViewCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.files, "files", "", "Files to view. Must be comma separated without spaces in between.")
+	c.flags.Var(&c.files, "f", "File to view. To view multiple files, use this option multiple times.")
+	c.flags.Var(&c.files, "file", "File to view. To view multiple files, use this option multiple times.")
 }
 
 func (c *VaultViewCommand) Run(args []string) int {
@@ -44,7 +48,7 @@ func (c *VaultViewCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
@@ -52,25 +56,54 @@ func (c *VaultViewCommand) Run(args []string) int {
 		return 1
 	}
 
-	environment := args[0]
+	var environment string
 
-	environmentErr := c.Trellis.ValidateEnvironment(environment)
-	if environmentErr != nil {
-		c.UI.Error(environmentErr.Error())
-		return 1
+	if len(args) == 1 {
+		environment = args[0]
+
+		environmentErr := c.Trellis.ValidateEnvironment(environment)
+		if environmentErr != nil {
+			c.UI.Error(environmentErr.Error())
+			return 1
+		}
+
+		if len(c.files) > 0 {
+			c.UI.Error("Error: the file option can't be used together with the ENVIRONMENT argument\n")
+			c.UI.Output(c.Help())
+			return 1
+		}
 	}
-
-	var files []string
 
 	vaultArgs := []string{"view"}
 
-	if len(c.files) == 0 {
-		files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
+	if environment == "" {
+		if len(c.files) == 0 {
+			matches, err := filepath.Glob("group_vars/*/vault.yml")
+
+			if err != nil {
+				c.UI.Error(err.Error())
+				return 1
+			}
+
+			prompt := promptui.Select{
+				Label: "Select a vault file to view",
+				Items: matches,
+			}
+
+			_, file, err := prompt.Run()
+
+			if err != nil {
+				c.UI.Error("Aborting: no file selected")
+				return 1
+			}
+
+			c.files = []string{file}
+		}
 	} else {
-		files = strings.Split(c.files, ",")
+		c.files = []string{"group_vars/all/vault.yml", fmt.Sprintf("group_vars/%s/vault.yml", environment)}
 	}
 
-	vaultArgs = append(vaultArgs, files...)
+	vaultArgs = append(vaultArgs, c.files...)
 	vaultView := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-vault", vaultArgs)
 	_ = vaultView.Run()
 
@@ -83,7 +116,7 @@ func (c *VaultViewCommand) Synopsis() string {
 
 func (c *VaultViewCommand) Help() string {
 	helpText := `
-Usage: trellis vault view [options] ENVIRONMENT
+Usage: trellis vault view [options] [ENVIRONMENT]
 
 Open, decrypt and view existing vaulted files
 
@@ -96,15 +129,15 @@ View production vault files:
 
 View specified files for production environment:
 
-  $ trellis vault view --files=group_vars/production/vault.yml production
+  $ trellis vault view -f group_vars/production/vault.yml
+  $ trellis vault view -f group_vars/aaa/vault.yml -f group_vars/bbb/vault.yml
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-      --files  (multiple) Files to view
-               (default: group_vars/all/vault.yml group_vars/<ENVIRONMENT>/vault.yml)
-  -h, --help   show this help
+  -f, --file  File to view. To view multiple files, use this option multiple times.
+  -h, --help  Show this help
 `
 
 	return strings.TrimSpace(helpText)
@@ -116,6 +149,7 @@ func (c *VaultViewCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *VaultViewCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--files": complete.PredictNothing,
+		"-f":     complete.PredictFiles("*"),
+		"--file": complete.PredictFiles("*"),
 	}
 }

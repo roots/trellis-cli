@@ -153,7 +153,7 @@ func main() {
 			}, nil
 		},
 		"vault edit": func() (cli.Command, error) {
-			return &cmd.VaultEditCommand{UI: ui, Trellis: trellis}, nil
+			return cmd.NewVaultEditCommand(ui, trellis), nil
 		},
 		"vault encrypt": func() (cli.Command, error) {
 			return cmd.NewVaultEncryptCommand(ui, trellis), nil

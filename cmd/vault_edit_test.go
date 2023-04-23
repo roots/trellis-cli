@@ -26,7 +26,7 @@ func TestVaultEditRunValidations(t *testing.T) {
 		{
 			"too_many_args",
 			true,
-			[]string{"group_vars/all/vault.yml", "group_vars/production/vault.yml"},
+			[]string{"foo"},
 			"Error: too many arguments",
 			1,
 		},
@@ -36,7 +36,7 @@ func TestVaultEditRunValidations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			trellis := trellis.NewMockTrellis(tc.projectDetected)
-			vaultEditCommand := VaultEditCommand{ui, trellis}
+			vaultEditCommand := NewVaultEditCommand(ui, trellis)
 
 			code := vaultEditCommand.Run(tc.args)
 
@@ -66,7 +66,7 @@ func TestVaultEditRun(t *testing.T) {
 	}{
 		{
 			"default",
-			[]string{"group_vars/development/vault.yml"},
+			[]string{"-f", "group_vars/development/vault.yml"},
 			"ansible-vault edit group_vars/development/vault.yml",
 			0,
 		},
@@ -77,7 +77,7 @@ func TestVaultEditRun(t *testing.T) {
 			ui := cli.NewMockUi()
 			defer MockUiExec(t, ui)()
 
-			vaultEditCommand := VaultEditCommand{ui, trellis}
+			vaultEditCommand := NewVaultEditCommand(ui, trellis)
 			code := vaultEditCommand.Run(tc.args)
 
 			if code != tc.code {
