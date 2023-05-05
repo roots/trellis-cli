@@ -194,7 +194,7 @@ func (c *AliasCommand) Run(args []string) int {
 	spinner.Stop()
 	c.UI.Info("")
 	message := `
-Action Required: use the generated config by adding these lines to your wp-cli.yml or wp-cli.local.yml config.
+Action Required: use the generated config by adding these lines to site/wp-cli.yml or an alternative wp-cli.yml (or wp-cli.local.yml) config. 
 
 _: 
   inherit: wp-cli.trellis-alias.yml
