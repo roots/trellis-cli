@@ -1,9 +1,9 @@
-@development:
+"@development":
   ssh: "example.test"
   path: "/srv/www/example.com/current/web/wp"
-@production:
+"@production":
   ssh: "web@your_server_hostname:22"
   path: "/srv/www/example.com/current/web/wp"
-@staging:
+"@staging":
   ssh: "web@your_server_hostname:22"
   path: "/srv/www/example.com/current/web/wp"
