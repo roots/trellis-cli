@@ -36,7 +36,7 @@ changelog:
     - '^test:'
 brews:
   - name: trellis-cli
-    tap:
+    repository:
       owner: roots
       name: homebrew-tap
     folder: Formula
