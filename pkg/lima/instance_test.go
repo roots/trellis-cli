@@ -66,6 +66,8 @@ mounts:
   writable: true
 
 mountType: "virtiofs"
+ssh:
+  forwardAgent: true
 networks:
 - vzNAT: true
 
