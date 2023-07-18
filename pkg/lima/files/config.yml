@@ -13,6 +13,8 @@ mounts:
   writable: true
 {{ end }}
 mountType: "virtiofs"
+ssh:
+  forwardAgent: true
 networks:
 - vzNAT: true
 {{ if .Config.PortForwards }}
