@@ -1,6 +1,6 @@
 module github.com/roots/trellis-cli
 
-go 1.18
+go 1.19
 
 require (
 	github.com/digitalocean/godo v1.83.0
