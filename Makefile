@@ -14,4 +14,4 @@ shell:
 
 .PHONY: test
 test:
-	$(RUN) sh -c 'go build -v -o $$TEST_BINARY && go test -v ./...'
+	$(RUN) sh -c 'go build -buildvcs=false -v -o $$TEST_BINARY && go test -v ./...'
