@@ -78,13 +78,13 @@ func TestVaultViewRun(t *testing.T) {
 		},
 		{
 			"files_flag_single_file",
-			[]string{"--files=foo", "production"},
+			[]string{"--file=foo"},
 			"ansible-vault view foo",
 			0,
 		},
 		{
 			"files_flag_multiple_file",
-			[]string{"--files=foo,bar", "production"},
+			[]string{"-f=foo", "-f=bar"},
 			"ansible-vault view foo bar",
 			0,
 		},

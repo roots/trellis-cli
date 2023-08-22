@@ -70,8 +70,8 @@ func TestVaultEncryptRun(t *testing.T) {
 	}{
 		{
 			"environment_with_files",
-			[]string{"--files=foo", "production"},
-			"Error: the files option can't be used together with the ENVIRONMENT argument",
+			[]string{"-f=foo", "production"},
+			"Error: the file option can't be used together with the ENVIRONMENT argument",
 			1,
 		},
 		{
@@ -88,19 +88,19 @@ func TestVaultEncryptRun(t *testing.T) {
 		},
 		{
 			"files_flag_single_file",
-			[]string{"--files=group_vars/production/vault.yml"},
+			[]string{"-f=group_vars/production/vault.yml"},
 			"ansible-vault encrypt group_vars/production/vault.yml",
 			0,
 		},
 		{
 			"files_flag_multiple_file",
-			[]string{"--files=group_vars/production/vault.yml,group_vars/development/vault.yml"},
+			[]string{"-f=group_vars/production/vault.yml", "-f=group_vars/development/vault.yml"},
 			"ansible-vault encrypt group_vars/production/vault.yml group_vars/development/vault.yml",
 			0,
 		},
 		{
 			"already_encrypted_file",
-			[]string{"--files=group_vars/production/encrypted.yml"},
+			[]string{"-f=group_vars/production/encrypted.yml"},
 			"All files already encrypted",
 			0,
 		},
