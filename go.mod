@@ -16,7 +16,7 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.30.1
-	golang.org/x/crypto v0.12.0
+	golang.org/x/crypto v0.14.0
 	golang.org/x/oauth2 v0.11.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.67.0
@@ -57,8 +57,8 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
