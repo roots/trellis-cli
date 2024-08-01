@@ -202,12 +202,11 @@ func TestCreateInstance(t *testing.T) {
 	sshPort := 60720
 	username := "user1"
 	ip := "192.168.64.2"
-	configFile := filepath.Join(manager.ConfigPath, instanceName+".yml")
 
 	commands := []command.MockCommand{
 		{
 			Command: "limactl",
-			Args:    []string{"start", "--tty=false", "--name=" + instanceName, configFile},
+			Args:    []string{"create", "--tty=false", "--name=" + instanceName, "-"},
 			Output:  ``,
 		},
 		{
@@ -218,7 +217,7 @@ func TestCreateInstance(t *testing.T) {
 		{
 			Command: "limactl",
 			Args:    []string{"ls", "--format=json"},
-			Output:  fmt.Sprintf(`{"name":"%s","status":"Running","dir":"/foo/test","vmType":"vz","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"network":[{"vzNAT":true,"macAddress":"52:55:55:6f:d9:e3","interface":"lima0"}],"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, sshPort),
+			Output:  fmt.Sprintf(`{"name":"%s","status":"Stopped","dir":"/foo/test","vmType":"vz","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"network":[{"vzNAT":true,"macAddress":"52:55:55:6f:d9:e3","interface":"lima0"}],"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, sshPort),
 		},
 		{
 			Command: "limactl",
@@ -233,6 +232,79 @@ func TestCreateInstance(t *testing.T) {
 	defer command.MockExecCommands(t, commands)()
 
 	if err = manager.CreateInstance(instanceName); err != nil {
+		t.Fatal(err)
+	}
+
+	_, ok := manager.GetInstance(instanceName)
+
+	if !ok {
+		t.Errorf("expected instance to be found")
+	}
+}
+
+func TestStartInstance(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+	if err := trellis.LoadProject(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("TRELLIS_BYPASS_LIMA_REQUIREMENTS", "1")
+
+	ui := cli.NewMockUi()
+	manager, err := NewManager(trellis, ui)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+
+	hostsStorage := make(map[string]string)
+	manager.HostsResolver = &MockHostsResolver{Hosts: hostsStorage}
+
+	instanceName := "test"
+	sshPort := 60720
+	username := "user1"
+	ip := "192.168.64.2"
+
+	commands := []command.MockCommand{
+		{
+			Command: "limactl",
+			Args:    []string{"create", "--tty=false", "--name=" + instanceName, "-"},
+			Output:  ``,
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"shell", instanceName, "whoami"},
+			Output:  username,
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"ls", "--format=json"},
+			Output:  fmt.Sprintf(`{"name":"%s","status":"Stopped","dir":"%s","vmType":"vz","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"network":[{"vzNAT":true,"macAddress":"52:55:55:6f:d9:e3","interface":"lima0"}],"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, tmpDir, sshPort),
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"shell", "--workdir", "/", instanceName, "ip", "route", "show", "dev", "lima0"},
+			Output: fmt.Sprintf(`default via 192.168.64.1 proto dhcp src %s metric 100
+192.168.64.0/24 proto kernel scope link src 192.168.64.2
+192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
+`, ip),
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"start", instanceName},
+			Output:  ``,
+		},
+	}
+
+	defer command.MockExecCommands(t, commands)()
+
+	if err = manager.CreateInstance(instanceName); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = manager.StartInstance(instanceName); err != nil {
 		t.Fatal(err)
 	}
 
