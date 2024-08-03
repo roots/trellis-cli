@@ -1,10 +1,12 @@
 package lima
 
 import (
+	"bytes"
 	_ "embed"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"text/template"
 
@@ -40,7 +42,6 @@ type Config struct {
 }
 
 type Instance struct {
-	ConfigFile    string
 	InventoryFile string
 	Sites         map[string]*trellis.Site
 	Name          string `json:"name"`
@@ -55,16 +56,29 @@ type Instance struct {
 	Username      string `json:"username,omitempty"`
 }
 
-func (i *Instance) CreateConfig() error {
+func (i *Instance) ConfigFile() string {
+	return filepath.Join(i.Dir, "lima.yaml")
+}
+
+func (i *Instance) GenerateConfig() (*bytes.Buffer, error) {
+	var contents bytes.Buffer
+
 	tpl := template.Must(template.New("lima").Parse(ConfigTemplate))
 
-	file, err := os.Create(i.ConfigFile)
-	if err != nil {
-		return fmt.Errorf("%v: %w", ConfigErr, err)
+	if err := tpl.Execute(&contents, i); err != nil {
+		return &contents, fmt.Errorf("%v: %w", ConfigErr, err)
 	}
 
-	err = tpl.Execute(file, i)
+	return &contents, nil
+}
+
+func (i *Instance) UpdateConfig() error {
+	contents, err := i.GenerateConfig()
 	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(i.ConfigFile(), contents.Bytes(), 0666); err != nil {
 		return fmt.Errorf("%v: %w", ConfigErr, err)
 	}
 
@@ -86,15 +100,6 @@ func (i *Instance) CreateInventoryFile() error {
 	err = tpl.Execute(file, i)
 	if err != nil {
 		return fmt.Errorf("Could not template Ansible inventory file: %v", err)
-	}
-
-	return nil
-}
-
-func (i *Instance) DeleteConfig() error {
-	err := os.Remove(i.ConfigFile)
-	if err != nil {
-		return fmt.Errorf("Could not delete config file: %v", err)
 	}
 
 	return nil

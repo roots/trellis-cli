@@ -10,7 +10,7 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-func TestCreateConfig(t *testing.T) {
+func TestGenerateConfig(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 	if err := trellis.LoadProject(); err != nil {
@@ -18,11 +18,9 @@ func TestCreateConfig(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	configFile := filepath.Join(dir, "lima.yaml")
 
 	instance := &Instance{
-		Dir:        dir,
-		ConfigFile: configFile,
+		Dir: dir,
 		Config: Config{
 			Images: []Image{
 				{
@@ -40,12 +38,83 @@ func TestCreateConfig(t *testing.T) {
 		Sites: trellis.Environments["development"].WordPressSites,
 	}
 
-	err := instance.CreateConfig()
+	content, err := instance.GenerateConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	content, err := os.ReadFile(configFile)
+	absSitePath := filepath.Join(trellis.Path, "../site")
+
+	expected := fmt.Sprintf(`vmType: "vz"
+rosetta:
+  enabled: false
+images:
+- location: http://ubuntu.com/focal
+  arch: aarch64
+
+mounts:
+- location: %s
+  mountPoint: /srv/www/example.com/current
+  writable: true
+
+mountType: "virtiofs"
+ssh:
+  forwardAgent: true
+networks:
+- vzNAT: true
+
+portForwards:
+- guestPort: 80
+  hostPort: 1234
+
+containerd:
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    echo "127.0.0.1 $(hostname)" >> /etc/hosts
+`, absSitePath)
+
+	if content.String() != expected {
+		t.Errorf("expected %s\ngot %s", expected, content.String())
+	}
+}
+
+func TestUpdateConfig(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+	if err := trellis.LoadProject(); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+
+	instance := &Instance{
+		Dir: dir,
+		Config: Config{
+			Images: []Image{
+				{
+					Location: "http://ubuntu.com/focal",
+					Arch:     "aarch64",
+				},
+			},
+			PortForwards: []PortForward{
+				{
+					HostPort:  1234,
+					GuestPort: 80,
+				},
+			},
+		},
+		Sites: trellis.Environments["development"].WordPressSites,
+	}
+
+	err := instance.UpdateConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(instance.ConfigFile())
 
 	if err != nil {
 		t.Fatal(err)

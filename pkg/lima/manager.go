@@ -80,20 +80,18 @@ func (m *Manager) GetInstance(name string) (Instance, bool) {
 func (m *Manager) CreateInstance(name string) error {
 	instance := m.newInstance(name)
 
-	if err := instance.CreateConfig(); err != nil {
-		return err
-	}
-
-	err := command.WithOptions(
+	cmd := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
-	).Cmd("limactl", []string{"start", "--tty=false", "--name=" + instance.Name, instance.ConfigFile}).Run()
+	).Cmd("limactl", []string{"create", "--tty=false", "--name=" + instance.Name, "-"})
 
+	configContents, err := instance.GenerateConfig()
 	if err != nil {
 		return err
 	}
 
-	return postStart(m, instance)
+	cmd.Stdin = configContents
+	return cmd.Run()
 }
 
 func (m *Manager) DeleteInstance(name string) error {
@@ -111,10 +109,6 @@ func (m *Manager) DeleteInstance(name string) error {
 		).Cmd("limactl", []string{"delete", instance.Name}).Run()
 
 		if err != nil {
-			return err
-		}
-
-		if err := instance.DeleteConfig(); err != nil {
 			return err
 		}
 
@@ -158,6 +152,10 @@ func (m *Manager) StartInstance(name string) error {
 		return nil
 	}
 
+	if err := instance.UpdateConfig(); err != nil {
+		return err
+	}
+
 	err := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
@@ -167,7 +165,24 @@ func (m *Manager) StartInstance(name string) error {
 		return err
 	}
 
-	return postStart(m, instance)
+	user, err := instance.getUsername()
+	if err != nil {
+		return fmt.Errorf("Could not get username: %v", err)
+	}
+
+	instance.Username = string(user)
+
+	// Hydrate instance with data from limactl that is only available after starting (mainly the forwarded SSH local port)
+	err = m.hydrateInstance(&instance)
+	if err != nil {
+		return err
+	}
+
+	if err = m.addHosts(instance); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Manager) StopInstance(name string) error {
@@ -213,7 +228,6 @@ func (m *Manager) hydrateInstance(instance *Instance) error {
 }
 
 func (m *Manager) initInstance(instance *Instance) {
-	instance.ConfigFile = filepath.Join(m.ConfigPath, instance.Name+".yml")
 	instance.InventoryFile = m.InventoryPath()
 	instance.Sites = m.Sites
 }
@@ -279,27 +293,6 @@ func (m *Manager) instances() (instances map[string]Instance) {
 
 func (m *Manager) removeHosts(instance Instance) error {
 	return m.HostsResolver.RemoveHosts(instance.Name)
-}
-
-func postStart(manager *Manager, instance Instance) error {
-	user, err := instance.getUsername()
-	if err != nil {
-		return fmt.Errorf("Could not get username: %v", err)
-	}
-
-	instance.Username = string(user)
-
-	// Hydrate instance with data from limactl that is only available after starting (mainly the forwarded SSH local port)
-	err = manager.hydrateInstance(&instance)
-	if err != nil {
-		return err
-	}
-
-	if err = manager.addHosts(instance); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func getMacOSVersion() (string, error) {

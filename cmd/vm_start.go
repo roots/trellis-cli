@@ -73,9 +73,15 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	// VM doesn't exist yet, create it
+	// VM doesn't exist yet, create and start it
 	if err = manager.CreateInstance(siteName); err != nil {
 		c.UI.Error("Error creating VM.")
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	if err = manager.StartInstance(siteName); err != nil {
+		c.UI.Error("Error starting VM.")
 		c.UI.Error(err.Error())
 		return 1
 	}
