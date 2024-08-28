@@ -21,8 +21,6 @@ const (
 	GlobPattern = "group_vars/*/wordpress_sites.yml"
 )
 
-const cliConfigFile = "cli.yml"
-
 type Options struct {
 	Detector  Detector
 	ConfigDir string
@@ -183,14 +181,14 @@ func (t *Trellis) LoadProject() error {
 		return errors.New("No Trellis project detected in the current directory or any of its parent directories.")
 	}
 
-	if err = t.LoadProjectCliConfig(); err != nil {
-		return err
-	}
-
 	t.Path = path
 	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
 	os.Chdir(t.Path)
+
+	if err = t.LoadProjectCliConfig(); err != nil {
+		return err
+	}
 
 	if t.CliConfig.VirtualenvIntegration {
 		if t.Virtualenv.Initialized() {
