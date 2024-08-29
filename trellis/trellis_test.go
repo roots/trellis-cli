@@ -354,7 +354,7 @@ func TestLoadGlobalCliConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
 
-	configFilePath := app_paths.ConfigPath(cliConfigFile)
+	configFilePath := app_paths.ConfigPath("cli.yml")
 	configContents := `
 ask_vault_pass: true
 `
@@ -382,12 +382,12 @@ func TestLoadProjectCliConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("TRELLIS_CONFIG_DIR", tempDir)
 
-	configFilePath := app_paths.ConfigPath(cliConfigFile)
+	globalConfigFilePath := app_paths.ConfigPath("cli.yml")
 	configContents := `
 ask_vault_pass: true
 `
 
-	if err := os.WriteFile(configFilePath, []byte(configContents), 0666); err != nil {
+	if err := os.WriteFile(globalConfigFilePath, []byte(configContents), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -401,7 +401,7 @@ ask_vault_pass: true
 ask_vault_pass: false
 `
 
-	if err := os.WriteFile(filepath.Join(tp.ConfigPath(), cliConfigFile), []byte(projectConfigContents), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(tp.Path, "trellis.cli.yml"), []byte(projectConfigContents), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -411,5 +411,36 @@ ask_vault_pass: false
 
 	if tp.CliConfig.AskVaultPass != false {
 		t.Errorf("expected project CLI config to override AskVaultPass to false")
+	}
+}
+
+func TestProjectCliConfigIsLoadedFromProjectRoot(t *testing.T) {
+	defer LoadFixtureProject(t)()
+
+	tp := NewTrellis()
+
+	configFilePath := filepath.Join(tp.Path, "trellis.cli.yml")
+
+	projectConfigContents := `
+ask_vault_pass: true
+`
+
+	if err := os.WriteFile(configFilePath, []byte(projectConfigContents), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.Remove(configFilePath)
+
+	// Change directory outside the `trellis` directory to test that
+	// `trellis.cli.yml` is still properly loaded
+	defer TestChdir(t, "..")()
+
+	err := tp.LoadProject()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if tp.CliConfig.AskVaultPass != true {
+		t.Errorf("expected load project to load project CLI config file")
 	}
 }
