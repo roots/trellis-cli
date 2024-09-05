@@ -17,7 +17,7 @@ require (
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.30.1
 	golang.org/x/crypto v0.21.0
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.23.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
