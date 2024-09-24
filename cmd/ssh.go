@@ -124,7 +124,7 @@ Options:
 }
 
 func (c *SshCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteSite(flag.NewFlagSet("", flag.ContinueOnError))
+	return c.Trellis.AutocompleteSite(c.flags)
 }
 
 func (c *SshCommand) AutocompleteFlags() complete.Flags {
