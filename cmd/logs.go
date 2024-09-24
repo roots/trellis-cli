@@ -193,7 +193,7 @@ Options:
 }
 
 func (c *LogsCommand) AutocompleteArgs() complete.Predictor {
-	return c.Trellis.AutocompleteSite(flag.NewFlagSet("", flag.ContinueOnError))
+	return c.Trellis.AutocompleteSite(c.flags)
 }
 
 func (c *LogsCommand) AutocompleteFlags() complete.Flags {
