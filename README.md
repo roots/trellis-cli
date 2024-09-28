@@ -76,6 +76,39 @@ setup after downloading the Windows build:
 4. Edit path from system variables and add new named `%TRELLIS%`
 5. Save the changes
 
+## Verify Attestation
+trellis-cli artifacts can be [cryptographically verified via GitHub CLI](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds#verifying-artifact-attestations-with-the-github-cli).
+
+```console
+# The archive with both predicates
+$ gh attestation verify --repo roots/trellis-cli /path/to/trellis_Darwin_arm64.tar.gz
+## ...snipped...
+✓ Verification succeeded!
+
+sha256:xxx was attested by:
+REPO                   PREDICATE_TYPE                  WORKFLOW
+roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
+roots/trellis-cli  https://spdx.dev/Document/v2.3  .github/workflows/release.yml@refs/tags/v9.8.7
+
+# The binary
+$ gh attestation verify --repo roots/trellis-cli /path/to/trellis
+## ...snipped...
+✓ Verification succeeded!
+
+sha256:xxx was attested by:
+REPO                   PREDICATE_TYPE                  WORKFLOW
+roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
+
+# The SBOM
+$ gh attestation verify --repo roots/trellis-cli /path/to/trellis_Darwin_arm64.tar.gz.sbom.json
+## ...snipped...
+✓ Verification succeeded!
+
+sha256:xxx was attested by:
+REPO                   PREDICATE_TYPE                  WORKFLOW
+roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
+```
+
 ## Shell Integration
 
 ### Autocompletes

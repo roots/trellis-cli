@@ -29,6 +29,8 @@ archives:
       format: zip
 checksum:
   name_template: '{{ .ProjectName }}_checksums.txt'
+sboms:
+  - artifacts: archive
 changelog:
   sort: asc
   filters:
