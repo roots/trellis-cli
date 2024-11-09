@@ -15,6 +15,7 @@ mounts:
 mountType: "virtiofs"
 ssh:
   forwardAgent: true
+  loadDotSSHPubKeys: true
 networks:
 - vzNAT: true
 {{ if .Config.PortForwards }}
