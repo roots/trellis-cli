@@ -60,6 +60,7 @@ mounts:
 mountType: "virtiofs"
 ssh:
   forwardAgent: true
+  loadDotSSHPubKeys: true
 networks:
 - vzNAT: true
 
@@ -137,6 +138,7 @@ mounts:
 mountType: "virtiofs"
 ssh:
   forwardAgent: true
+  loadDotSSHPubKeys: true
 networks:
 - vzNAT: true
 
