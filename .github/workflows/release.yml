@@ -78,7 +78,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: sboms
-      - uses: actions/attest-sbom@v1
+      - uses: actions/attest-sbom@v2
         with:
           subject-path: ${{ matrix.attestation.subject }}
           sbom-path: ${{ matrix.attestation.sbom }}
