@@ -56,7 +56,7 @@ jobs:
         with:
           path: dist
           name: build-provenance
-      - uses: actions/attest-build-provenance@v1
+      - uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             dist/trellis_*/trellis
