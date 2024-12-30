@@ -9,26 +9,26 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func experimentalCommandHelpFunc(app string, f cli.HelpFunc) cli.HelpFunc {
+func deprecatedCommandHelpFunc(commandNames []string, f cli.HelpFunc) cli.HelpFunc {
 	return func(commands map[string]cli.CommandFactory) string {
 		var buf bytes.Buffer
-		if len(experimentalCommands) > 0 {
-			buf.WriteString("\n\nExperimental commands:\n")
+		if len(commandNames) > 0 {
+			buf.WriteString("\n\nDeprecated commands:\n")
 		}
 
 		maxKeyLen := 0
-		keys := make([]string, 0, len(experimentalCommands))
+		keys := make([]string, 0, len(commandNames))
 		filteredCommands := make(map[string]cli.CommandFactory)
 
 		for key, command := range commands {
-			for _, experimentalKey := range experimentalCommands {
-				if key != experimentalKey {
+			for _, deprecatedKey := range commandNames {
+				if key != deprecatedKey {
 					filteredCommands[key] = command
 				}
 			}
 		}
 
-		for _, key := range experimentalCommands {
+		for _, key := range commandNames {
 			if len(key) > maxKeyLen {
 				maxKeyLen = len(key)
 			}
