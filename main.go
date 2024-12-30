@@ -19,8 +19,9 @@ import (
 // To be replaced by goreleaser build flags.
 var version = "canary"
 var updaterRepo = ""
-var experimentalCommands = []string{
-	"vm",
+var deprecatedCommands = []string{
+	"down",
+	"up",
 }
 
 func main() {
@@ -212,7 +213,7 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
-	c.HelpFunc = experimentalCommandHelpFunc(c.Name, cli.BasicHelpFunc("trellis"))
+	c.HelpFunc = deprecatedCommandHelpFunc(deprecatedCommands, cli.BasicHelpFunc("trellis"))
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
