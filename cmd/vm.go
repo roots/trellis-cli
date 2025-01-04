@@ -18,7 +18,7 @@ func newVmManager(trellis *trellis.Trellis, ui cli.Ui) (manager vm.Manager, err 
 	switch trellis.CliConfig.Vm.Manager {
 	case "auto":
 		switch runtime.GOOS {
-		case "darwin":
+		case "darwin", "linux":
 			return lima.NewManager(trellis, ui)
 		default:
 			return nil, fmt.Errorf("No VM managers are supported on %s yet.", runtime.GOOS)
@@ -28,7 +28,6 @@ func newVmManager(trellis *trellis.Trellis, ui cli.Ui) (manager vm.Manager, err 
 	case "mock":
 		return vm.NewMockManager(trellis, ui)
 	}
-
 	return nil, fmt.Errorf("VM manager not found")
 }
 
