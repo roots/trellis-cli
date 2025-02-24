@@ -21,6 +21,7 @@ type VmConfig struct {
 	HostsResolver string    `yaml:"hosts_resolver"`
 	Images        []VmImage `yaml:"images"`
 	Ubuntu        string    `yaml:"ubuntu"`
+	InstanceName  string    `yaml:"instance_name"`
 }
 
 type Config struct {

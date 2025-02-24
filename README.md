@@ -228,6 +228,7 @@ Current supported settings:
 | `manager` | VM manager (Options: `auto` (depends on OS), `lima`)| string | "auto" |
 | `ubuntu` | Ubuntu OS version (Options: `18.04`, `20.04`, `22.04`, `24.04`)| string |
 | `hosts_resolver` | VM hosts resolver (Options: `hosts_file`)| string |
+| `instance_name` | Custom name for the VM instance | string | First site name alphabetically |
 | `images` | Custom OS image | object | Set based on `ubuntu` version |
 
 #### `images`
@@ -246,6 +247,9 @@ open:
   site: "https://mysite.com"
   admin: "https://mysite.com/wp/wp-admin"
 virtualenv_integration: true
+vm:
+  manager: "lima"
+  instance_name: "custom-instance-name"  # Optional: Set a specific VM instance name
 ```
 
 Example env var usage:
