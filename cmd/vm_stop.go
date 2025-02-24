@@ -47,7 +47,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
+	instanceName, err := c.Trellis.GetVmInstanceName()
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -59,7 +59,7 @@ func (c *VmStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := manager.StopInstance(siteName); err != nil {
+	if err := manager.StopInstance(instanceName); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

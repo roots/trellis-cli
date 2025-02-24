@@ -51,7 +51,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
+	instanceName, err := c.Trellis.GetVmInstanceName()
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -64,7 +64,7 @@ func (c *VmDeleteCommand) Run(args []string) int {
 	}
 
 	if c.force || c.confirmDeletion() {
-		if err := manager.DeleteInstance(siteName); err != nil {
+		if err := manager.DeleteInstance(instanceName); err != nil {
 			c.UI.Error("Error: " + err.Error())
 			return 1
 		}
