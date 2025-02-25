@@ -1,7 +1,6 @@
 module github.com/roots/trellis-cli
 
 go 1.23
-
 require (
 	github.com/digitalocean/godo v1.129.0
 	github.com/fatih/color v1.18.0
@@ -17,7 +16,7 @@ require (
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.40.2
 	golang.org/x/crypto v0.32.0
-	golang.org/x/oauth2 v0.24.0
+	golang.org/x/oauth2 v0.27.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
