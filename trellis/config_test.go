@@ -340,3 +340,112 @@ wordpress_sites:
 		t.Errorf("expected %v, got %v", expectedHosts, allHosts)
 	}
 }
+
+func TestGetParentDomain(t *testing.T) {
+	cases := []struct {
+		siteName     string
+		parentDomain string
+	}{
+		{
+			"example.com",
+			"example.com",
+		},
+		{
+			"www.example.com",
+			"example.com",
+		},
+		{
+			"sub.example.com",
+			"example.com",
+		},
+		{
+			"deep.sub.example.com",
+			"example.com",
+		},
+		{
+			"example.co.uk",
+			"example.co.uk",
+		},
+		{
+			"sub.example.co.uk",
+			"example.co.uk",
+		},
+	}
+
+	for _, tc := range cases {
+		result := GetParentDomain(tc.siteName)
+		if result != tc.parentDomain {
+			t.Errorf("GetParentDomain(%s) => expected %s, got %s", tc.siteName, tc.parentDomain, result)
+		}
+	}
+}
+
+func TestMainSiteName(t *testing.T) {
+	cases := []struct {
+		name           string
+		configYaml     string
+		expectedResult string
+	}{
+		{
+			"single site",
+			`
+wordpress_sites:
+  example.com:
+    site_hosts:
+    - canonical: example.com
+`,
+			"example.com",
+		},
+		{
+			"main domain and subdomain",
+			`
+wordpress_sites:
+  example.com:
+    site_hosts:
+    - canonical: example.com
+  sub.example.com:
+    site_hosts:
+    - canonical: sub.example.com
+`,
+			"example.com",
+		},
+		{
+			"multiple subdomains only",
+			`
+wordpress_sites:
+  sub.example.com:
+    site_hosts:
+    - canonical: sub.example.com
+  blog.example.com:
+    site_hosts:
+    - canonical: blog.example.com
+`,
+			"blog.example.com", // should return the first one alphabetically
+		},
+		{
+			"multiple domains",
+			`
+wordpress_sites:
+  example.com:
+    site_hosts:
+    - canonical: example.com
+  another-example.com:
+    site_hosts:
+    - canonical: another-example.com
+`,
+			"another-example.com", // should return the first one alphabetically
+		},
+	}
+
+	for _, tc := range cases {
+		config := &Config{}
+		if err := yaml.Unmarshal([]byte(tc.configYaml), &config); err != nil {
+			t.Fatal(err)
+		}
+
+		result := config.MainSiteName()
+		if result != tc.expectedResult {
+			t.Errorf("%s => expected %s, got %s", tc.name, tc.expectedResult, result)
+		}
+	}
+}

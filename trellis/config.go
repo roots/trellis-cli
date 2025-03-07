@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/roots/trellis-cli/dns"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -161,4 +162,45 @@ func (c *Config) AllHostsByDomain() map[string][]dns.Host {
 	}
 
 	return hostsByDomain
+}
+
+// GetParentDomain returns the parent domain of a given site name
+func GetParentDomain(siteName string) string {
+	parsedDomain, err := publicsuffix.Parse(siteName)
+	if err != nil {
+		return siteName
+	}
+
+	// If it's already a top-level domain (no subdomain)
+	if parsedDomain.TRD == "" {
+		return siteName
+	}
+
+	// Return the domain without the subdomain part
+	return fmt.Sprintf("%s.%s", parsedDomain.SLD, parsedDomain.TLD)
+}
+
+// MainSiteName returns the name of the main site that should be used for VM naming
+// It returns the first site that matches the parent domain, or the first site if no match
+func (c *Config) MainSiteName() string {
+	if len(c.WordPressSites) == 0 {
+		return DefaultSiteName
+	}
+
+	// Get all site names and sort them for consistent results
+	siteNames := []string{}
+	for name := range c.WordPressSites {
+		siteNames = append(siteNames, name)
+	}
+	sort.Strings(siteNames)
+
+	// First look for the first non-subdomain site
+	for _, name := range siteNames {
+		if !strings.Contains(name, ".") || GetParentDomain(name) == name {
+			return name
+		}
+	}
+
+	// If all sites are subdomains, use the first site
+	return siteNames[0]
 }

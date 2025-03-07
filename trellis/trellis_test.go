@@ -240,29 +240,83 @@ func TestSiteFromEnvironmentAndName(t *testing.T) {
 }
 
 func TestMainSiteFromEnvironment(t *testing.T) {
-	expected := &Site{}
-
-	environments := make(map[string]*Config)
-	environments["a"] = &Config{
-		WordPressSites: make(map[string]*Site),
+	cases := []struct {
+		name            string
+		sites           map[string]*Site
+		expectedSite    string
+		shouldHaveError bool
+	}{
+		{
+			"single site",
+			map[string]*Site{
+				"example.com": {},
+			},
+			"example.com",
+			false,
+		},
+		{
+			"parent domain and subdomain",
+			map[string]*Site{
+				"example.com":       {},
+				"sub.example.com":   {},
+				"other.example.com": {},
+			},
+			"example.com",
+			false,
+		},
+		{
+			"only subdomains",
+			map[string]*Site{
+				"sub.example.com":   {},
+				"blog.example.com": {},
+			},
+			"blog.example.com", // alphabetically first
+			false,
+		},
+		{
+			"multiple parent domains",
+			map[string]*Site{
+				"example.com":         {},
+				"another-example.com": {},
+			},
+			"another-example.com", // alphabetically first
+			false,
+		},
+		{
+			"no sites",
+			map[string]*Site{},
+			"",
+			true,
+		},
 	}
 
-	environments["a"].WordPressSites["a1"] = expected
-	environments["a"].WordPressSites["a2"] = &Site{}
-	environments["a"].WordPressSites["a3"] = &Site{}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			environments := make(map[string]*Config)
+			environments["development"] = &Config{
+				WordPressSites: tc.sites,
+			}
 
-	trellis := Trellis{
-		Environments: environments,
-	}
+			trellis := Trellis{
+				Environments: environments,
+			}
 
-	name, actual, _ := trellis.MainSiteFromEnvironment("a")
+			name, _, err := trellis.MainSiteFromEnvironment("development")
 
-	if name != "a1" {
-		t.Errorf("expected a1 got %s", name)
-	}
+			if tc.shouldHaveError {
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %s", err)
+				}
 
-	if actual != expected {
-		t.Error("expected site not returned")
+				if name != tc.expectedSite {
+					t.Errorf("expected site name '%s', got '%s'", tc.expectedSite, name)
+				}
+			}
+		})
 	}
 }
 
