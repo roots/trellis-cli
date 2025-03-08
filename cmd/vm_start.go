@@ -67,7 +67,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 0
 	}
 
-	if !errors.Is(err, vm.VmNotFoundErr) {
+	if (!errors.Is(err, vm.VmNotFoundErr)) {
 		c.UI.Error("Error starting VM.")
 		c.UI.Error(err.Error())
 		return 1
@@ -78,6 +78,11 @@ func (c *VmStartCommand) Run(args []string) int {
 		c.UI.Error("Error creating VM.")
 		c.UI.Error(err.Error())
 		return 1
+	}
+
+	// Save the instance name for future reference
+	if err = c.Trellis.SaveVMInstanceName(siteName); err != nil {
+		c.UI.Warn("Warning: Failed to save VM instance name. VM was created successfully, but future commands may not recognize it.")
 	}
 
 	if err = manager.StartInstance(siteName); err != nil {
