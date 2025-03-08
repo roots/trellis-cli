@@ -12,12 +12,6 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-func NewProvisionCommand(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
-	c := &ProvisionCommand{UI: ui, Trellis: trellis}
-	c.init()
-	return c
-}
-
 type ProvisionCommand struct {
 	UI        cli.Ui
 	flags     *flag.FlagSet

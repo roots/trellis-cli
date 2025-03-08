@@ -17,7 +17,7 @@ func TestGetVMInstanceName(t *testing.T) {
 		Environments: map[string]*Config{
 			"development": {
 				WordPressSites: map[string]*Site{
-					"example.com":     {},
+					"example.com":      {},
 					"another-site.com": {},
 				},
 			},

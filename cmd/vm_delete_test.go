@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -68,9 +69,16 @@ func TestVmDeleteRemovesInstanceFile(t *testing.T) {
 	
 	// Create the lima directory and instance file
 	limaDir := filepath.Join(mockTrellis.ConfigPath(), "lima")
-	os.MkdirAll(limaDir, 0755)
+	err := os.MkdirAll(limaDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create lima directory: %v", err)
+	}
+	
 	instancePath := filepath.Join(limaDir, "instance")
-	os.WriteFile(instancePath, []byte("example.com"), 0644)
+	err = os.WriteFile(instancePath, []byte("example.com"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write instance file: %v", err)
+	}
 	
 	// Verify file exists before test
 	if _, err := os.Stat(instancePath); os.IsNotExist(err) {
@@ -82,12 +90,15 @@ func TestVmDeleteRemovesInstanceFile(t *testing.T) {
 	vmDeleteCommand.force = true // Skip confirmation prompt
 	
 	// Replace VM manager with mock
-	originalNewVmManager := newVmManager
 	mockManager := &MockVmManager{}
+	
+	// Save original function and restore after test
+	originalManagerFunc := newVmManager
+	defer func() { newVmManager = originalManagerFunc }()
+	
 	newVmManager = func(t *trellis.Trellis, ui cli.Ui) (vm.Manager, error) {
 		return mockManager, nil
 	}
-	defer func() { newVmManager = originalNewVmManager }()
 	
 	// Run command
 	code := vmDeleteCommand.Run([]string{})
@@ -98,7 +109,7 @@ func TestVmDeleteRemovesInstanceFile(t *testing.T) {
 	}
 	
 	// Check instance file was removed
-	_, err := os.Stat(instancePath)
+	_, err = os.Stat(instancePath)
 	if !os.IsNotExist(err) {
 		t.Error("expected instance file to be deleted")
 	}

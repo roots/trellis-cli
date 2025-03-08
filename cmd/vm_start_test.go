@@ -11,6 +11,64 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
+// Store original functions to restore later
+var (
+	originalNewVmManager     = newVmManager
+	originalNewProvisionCmd  = NewProvisionCommand
+)
+
+// MockVmManager for testing
+type MockVmManager struct {
+	createCalled bool
+	startCalled  bool
+	siteName     string
+}
+
+func (m *MockVmManager) CreateInstance(name string) error {
+	m.createCalled = true
+	m.siteName = name
+	return nil
+}
+
+func (m *MockVmManager) StartInstance(name string) error {
+	m.startCalled = true
+	m.siteName = name
+	// First call returns VmNotFoundErr to trigger creation
+	if !m.createCalled {
+		return vm.VmNotFoundErr
+	}
+	return nil
+}
+
+func (m *MockVmManager) StopInstance(name string) error {
+	return nil
+}
+
+func (m *MockVmManager) DeleteInstance(name string) error {
+	return nil
+}
+
+// Add the missing InventoryPath method required by the vm.Manager interface
+func (m *MockVmManager) InventoryPath() string {
+	return "/mock/inventory/path"
+}
+
+// Update the OpenShell method with the correct signature
+func (m *MockVmManager) OpenShell(sshUser string, hostName string, additionalArgs []string) error {
+	// Mock implementation
+	return nil
+}
+
+// Mock version of NewProvisionCommand for testing
+type MockProvisionCommand struct {
+	UI      cli.Ui
+	Trellis *trellis.Trellis
+	Run     func(args []string) int
+}
+
+func (c *MockProvisionCommand) Synopsis() string { return "" }
+func (c *MockProvisionCommand) Help() string     { return "" }
+
 func TestVmStartRunValidations(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 
@@ -58,37 +116,6 @@ func TestVmStartRunValidations(t *testing.T) {
 	}
 }
 
-// MockVmManager for testing
-type MockVmManager struct {
-	createCalled bool
-	startCalled  bool
-	siteName     string
-}
-
-func (m *MockVmManager) CreateInstance(name string) error {
-	m.createCalled = true
-	m.siteName = name
-	return nil
-}
-
-func (m *MockVmManager) StartInstance(name string) error {
-	m.startCalled = true
-	m.siteName = name
-	// First call returns VmNotFoundErr to trigger creation
-	if !m.createCalled {
-		return vm.VmNotFoundErr
-	}
-	return nil
-}
-
-func (m *MockVmManager) StopInstance(name string) error {
-	return nil
-}
-
-func (m *MockVmManager) DeleteInstance(name string) error {
-	return nil
-}
-
 func TestVmStartSavesInstanceName(t *testing.T) {
 	cleanup := trellis.LoadFixtureProject(t)
 	defer cleanup()
@@ -102,23 +129,26 @@ func TestVmStartSavesInstanceName(t *testing.T) {
 	vmStartCommand := NewVmStartCommand(ui, mockTrellis)
 	
 	// Replace VM manager with mock
-	originalNewVmManager := newVmManager
 	mockManager := &MockVmManager{}
+	
+	// Save original function and replace with test double
+	defer func() { newVmManager = originalNewVmManager }()
 	newVmManager = func(t *trellis.Trellis, ui cli.Ui) (vm.Manager, error) {
 		return mockManager, nil
 	}
-	defer func() { newVmManager = originalNewVmManager }()
 	
-	// Mock provision command to return success
-	originalNewProvisionCommand := NewProvisionCommand
+	// Mock provision command
+	defer func() { NewProvisionCommand = originalNewProvisionCmd }()
 	NewProvisionCommand = func(ui cli.Ui, trellis *trellis.Trellis) *ProvisionCommand {
-		cmd := &ProvisionCommand{UI: ui, Trellis: trellis}
-		cmd.Run = func(args []string) int {
-			return 0
+		// Create an actual ProvisionCommand instead of trying to cast from MockProvisionCommand
+		cmd := &ProvisionCommand{
+			UI:      ui, 
+			Trellis: trellis,
 		}
+		
+		// No need for type casting, return the real command
 		return cmd
 	}
-	defer func() { NewProvisionCommand = originalNewProvisionCommand }()
 	
 	// Run command
 	code := vmStartCommand.Run([]string{})
@@ -139,6 +169,7 @@ func TestVmStartSavesInstanceName(t *testing.T) {
 	data, err := os.ReadFile(instancePath)
 	if err != nil {
 		t.Errorf("expected instance file to exist: %v", err)
+		return
 	}
 	
 	instanceName := strings.TrimSpace(string(data))
