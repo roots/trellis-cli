@@ -49,9 +49,15 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
+	// CHANGE: Use GetVMInstanceName instead of MainSiteFromEnvironment
+	siteName, err := c.Trellis.GetVMInstanceName()
 	if err != nil {
-		c.UI.Error("Error: could not automatically set VM name: " + err.Error())
+		c.UI.Error("Error: could not get VM name: " + err.Error())
+		return 1
+	}
+
+	if siteName == "" {
+		c.UI.Error("Error: could not automatically set VM name. No site found in development environment.")
 		return 1
 	}
 
@@ -78,6 +84,11 @@ func (c *VmStartCommand) Run(args []string) int {
 		c.UI.Error("Error creating VM.")
 		c.UI.Error(err.Error())
 		return 1
+	}
+
+	// Save the instance name for future reference
+	if err = c.Trellis.SaveVMInstanceName(siteName); err != nil {
+		c.UI.Warn("Warning: Failed to save VM instance name. VM was created successfully, but future commands may not recognize it.")
 	}
 
 	if err = manager.StartInstance(siteName); err != nil {

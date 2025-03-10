@@ -3,6 +3,8 @@ package cmd
 import (
 	"flag"
 	"strings"
+	"os"
+	"path/filepath"
 
 	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/cli"
@@ -67,7 +69,11 @@ func (c *VmDeleteCommand) Run(args []string) int {
 		if err := manager.DeleteInstance(siteName); err != nil {
 			c.UI.Error("Error: " + err.Error())
 			return 1
-		}
+			}
+		
+		// Remove instance file if it exists
+		instancePath := filepath.Join(c.Trellis.ConfigPath(), "lima", "instance")
+		os.Remove(instancePath) // Ignore errors as file may not exist
 	}
 
 	return 0

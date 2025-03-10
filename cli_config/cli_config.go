@@ -19,8 +19,9 @@ type VmImage struct {
 type VmConfig struct {
 	Manager       string    `yaml:"manager"`
 	HostsResolver string    `yaml:"hosts_resolver"`
-	Images        []VmImage `yaml:"images"`
 	Ubuntu        string    `yaml:"ubuntu"`
+	InstanceName  string    `yaml:"instance_name"` // Custom name for the Lima VM instance
+	Images        []VmImage `yaml:"images"`        // VM image configuration (as a slice)
 }
 
 type Config struct {
