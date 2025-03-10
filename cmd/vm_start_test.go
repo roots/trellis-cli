@@ -206,7 +206,7 @@ func TestVmStartUsesGetVMInstanceName(t *testing.T) {
 	}
 
 	// Create command with our custom mock
-	vmStartCommand := NewVmStartCommand(ui, mockTrellisWithVMName)
+	vmStartCommand := NewVmStartCommand(ui, mockTrellisWithVMName.Trellis)
 
 	// Replace VM manager with mock
 	mockManager := &MockVmManager{}
