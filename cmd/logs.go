@@ -80,6 +80,49 @@ func (c *LogsCommand) Run(args []string) int {
 		return 1
 	}
 
+	if environment == "development" {
+		// Use findDevInventory to auto-detect the VM provider
+		devInventory := findDevInventory(c.Trellis, c.UI)
+
+		// If we have a valid inventory and found a VM manager, use it
+		if devInventory != "" {
+			manager, managerErr := newVmManager(c.Trellis, c.UI)
+
+			if managerErr == nil {
+				// For Lima, we'll use the OpenShell method with the appropriate tail command
+				tailCmd := c.tailCmd(siteName, "tail")
+
+				if c.goaccess || c.goaccessFlags != "" {
+					_, err := exec.LookPath("goaccess")
+					if err == nil {
+						// For goaccess, we need to pipe the output to the local goaccess command
+						tailCmd = c.tailCmd(siteName, "goaccess")
+
+						// Run the command in the VM but pipe stdout to local goaccess
+						// With Lima we need to run the tail command within the VM shell
+						err := manager.OpenShell(siteName, fmt.Sprintf("/srv/www/%s/logs", siteName), []string{tailCmd})
+						if err != nil {
+							c.UI.Error(fmt.Sprintf("Error running VM shell: %s", err))
+							return 1
+						}
+						return 0
+					}
+				}
+
+				// Run the tail command in the VM
+				logDir := fmt.Sprintf("/srv/www/%s/logs", siteName)
+				err := manager.OpenShell(siteName, logDir, []string{tailCmd})
+				if err != nil {
+					c.UI.Error(fmt.Sprintf("Error running VM shell: %s", err))
+					return 1
+				}
+				return 0
+			}
+		}
+		// If no VM manager found or there was an error, fall back to SSH (for Vagrant)
+	}
+
+	// Original SSH-based method (for Vagrant or remote environments)
 	sshHost := c.Trellis.SshHost(environment, siteName, "web")
 
 	_, err := exec.LookPath("goaccess")
