@@ -26,7 +26,7 @@ archives:
     {{- else }}{{ .Arch }}{{ end }}
   format_overrides:
     - goos: windows
-      format: zip
+      formats: ['zip']
 checksum:
   name_template: '{{ .ProjectName }}_checksums.txt'
 sboms:
