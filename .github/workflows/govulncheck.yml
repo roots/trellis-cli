@@ -1,0 +1,21 @@
+name: govulncheck
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: 'go.mod'
+          go-package: ./...
