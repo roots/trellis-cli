@@ -39,6 +39,7 @@ var DefaultCliConfig = cli_config.Config{
 		Manager:       "auto",
 		HostsResolver: "hosts_file",
 		Ubuntu:        "24.04",
+		InstanceName:  "",
 	},
 }
 
@@ -233,6 +234,20 @@ func (t *Trellis) ValidateEnvironment(name string) (err error) {
 
 	return fmt.Errorf("Error: %s is not a valid environment, valid options are %s", name, t.EnvironmentNames())
 }
+
+func (t *Trellis) GetVmInstanceName() (string, error) {
+	if t.CliConfig.Vm.InstanceName != "" {
+		return t.CliConfig.Vm.InstanceName, nil
+	}
+
+	// Fallback: get main site from environment if no instance name is set.
+	siteName, _, err := t.MainSiteFromEnvironment("development")
+	if err != nil {
+		return "", fmt.Errorf("Error: could not automatically set VM name: %w", err)
+	}
+	return siteName, nil
+}
+
 
 func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	var names []string
