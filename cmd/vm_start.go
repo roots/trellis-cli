@@ -49,9 +49,9 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
+	instanceName, err := c.Trellis.GetVmInstanceName()
 	if err != nil {
-		c.UI.Error("Error: could not automatically set VM name: " + err.Error())
+		c.UI.Error(err.Error())
 		return 1
 	}
 
@@ -61,7 +61,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = manager.StartInstance(siteName)
+	err = manager.StartInstance(instanceName)
 	if err == nil {
 		c.printInstanceInfo()
 		return 0
@@ -74,13 +74,13 @@ func (c *VmStartCommand) Run(args []string) int {
 	}
 
 	// VM doesn't exist yet, create and start it
-	if err = manager.CreateInstance(siteName); err != nil {
+	if err = manager.CreateInstance(instanceName); err != nil {
 		c.UI.Error("Error creating VM.")
 		c.UI.Error(err.Error())
 		return 1
 	}
 
-	if err = manager.StartInstance(siteName); err != nil {
+	if err = manager.StartInstance(instanceName); err != nil {
 		c.UI.Error("Error starting VM.")
 		c.UI.Error(err.Error())
 		return 1
