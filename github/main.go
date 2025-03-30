@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archives"
 )
 
 var (
@@ -53,7 +54,19 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 		return nil, err
 	}
 
-	if err := archiver.Unarchive(archivePath, path); err != nil {
+	ctx := context.TODO()
+
+	archiveFile, err := os.Open(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening release archive: %v", err)
+	}
+	defer archiveFile.Close()
+
+	var format archives.Zip
+
+	if err := format.Extract(ctx, archiveFile, func(ctx context.Context, fi archives.FileInfo) error {
+		return extractToDisk(fi, path)
+	}); err != nil {
 		return nil, fmt.Errorf("Error extracting the release archive: %v", err)
 	}
 
@@ -134,4 +147,29 @@ func DownloadFile(filepath string, url string, client *http.Client) error {
 	}
 
 	return nil
+}
+
+func extractToDisk(fi archives.FileInfo, dest string) error {
+	destPath := filepath.Join(dest, fi.NameInArchive)
+	if fi.IsDir() {
+		return os.MkdirAll(destPath, os.ModePerm)
+	}
+
+	src, err := fi.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(destPath, fi.Mode().Perm())
 }
