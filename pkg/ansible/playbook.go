@@ -10,11 +10,11 @@ type Playbook struct {
 	Env       string
 	Verbose   bool
 	ExtraVars map[string]string
-	args      []string
+	Args      []string
 }
 
 func (p *Playbook) AddArg(name string, value string) *Playbook {
-	p.args = append(p.args, name+"="+value)
+	p.Args = append(p.Args, name+"="+value)
 	return p
 }
 
@@ -28,7 +28,7 @@ func (p *Playbook) AddExtraVar(name string, value string) *Playbook {
 }
 
 func (p *Playbook) AddExtraVars(extraVars string) *Playbook {
-	p.args = append(p.args, fmt.Sprintf("-e %s", extraVars))
+	p.Args = append(p.Args, fmt.Sprintf("-e %s", extraVars))
 	return p
 }
 
@@ -52,7 +52,7 @@ func (p *Playbook) CmdArgs() []string {
 		args = append(args, "-vvvv")
 	}
 
-	args = append(args, p.args...)
+	args = append(args, p.Args...)
 
 	if p.Env != "" {
 		p.AddExtraVar("env", p.Env)
