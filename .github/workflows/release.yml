@@ -12,11 +12,9 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    outputs:
-      build-provenance-artifact-id: ${{ steps.upload-build-provenance.outputs.artifact-id }}
-      sbom-artifact-id: ${{ steps.upload-sbom.outputs.artifact-id }}
-      sbom-attestations: ${{ steps.upload-sbom.outputs.attestations }}
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,59 +30,55 @@ jobs:
           args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_ACCESS_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        id: upload-build-provenance
-        with:
-          name: build-provenance
-          path: |
-            dist/trellis_*/trellis
-            dist/trellis_*/trellis.exe
-            dist/trellis_*.tar.gz
-            dist/trellis_*.zip
-            dist/**/*.sbom.json
-      - uses: typisttech/upload-goreleaser-sboms-action@v0
-        id: upload-sbom
 
-  attest-build-provenance:
-    needs: [goreleaser]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      attestations: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          name: build-provenance
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-path: |
-            dist/trellis_*/trellis
-            dist/trellis_*/trellis.exe
-            dist/trellis_*.tar.gz
-            dist/trellis_*.zip
-            dist/**/*.sbom.json
-      
-  attest-sbom:
-    needs: [goreleaser]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      attestations: write
-    strategy:
-      matrix:
-        attestation: ${{ fromJSON(needs.goreleaser.outputs.sbom-attestations) }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: sboms
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+
       - uses: actions/attest-sbom@v2
         with:
-          subject-path: ${{ matrix.attestation.subject }}
-          sbom-path: ${{ matrix.attestation.sbom }}
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Darwin_arm64.tar.gz.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Darwin_x86_64.tar.gz.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Linux_arm64.tar.gz.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Linux_i386.tar.gz.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Linux_x86_64.tar.gz.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Windows_arm64.zip.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Windows_i386.zip.sbom.json
+      - uses: actions/attest-sbom@v2
+        with:
+          show-summary: false
+          subject-checksums: ./dist/trellis_checksums.txt
+          sbom-path: ./dist/trellis_Windows_x86_64.zip.sbom.json
 
   verify:
-    needs: [goreleaser, attest-build-provenance, attest-sbom]
+    needs: [goreleaser]
     runs-on: ubuntu-latest
     steps:
       - run: gh release download --clobber --dir artifacts -p '*.tar.gz' -p '*.zip' -p '*.sbom.json' --repo $REPO $TAG
@@ -98,22 +92,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-
-  cleanup:
-    needs: [goreleaser, verify]
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - run: >
-          gh api --method DELETE -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/$REPO/actions/artifacts/$ARTIFACT_ID
+      - run: ls *.sbom.json | xargs -I {} gh attestation verify --predicate-type https://spdx.dev/Document/v2.3 --repo $REPO {}
+        working-directory: artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          ARTIFACT_ID: ${{ needs.goreleaser.outputs.build-provenance-artifact-id }}
-      - run: >
-          gh api --method DELETE -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/$REPO/actions/artifacts/$ARTIFACT_ID
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          ARTIFACT_ID: ${{ needs.goreleaser.outputs.sbom-artifact-id }}
