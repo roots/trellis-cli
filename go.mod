@@ -10,7 +10,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
-	github.com/mholt/archives v0.1.2
+	github.com/mholt/archives v0.1.3
 	github.com/mitchellh/cli v1.1.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/posener/complete v1.2.3
@@ -51,6 +51,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -61,7 +62,6 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sorairolake/lzip-go v0.3.5 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/net v0.38.0 // indirect
