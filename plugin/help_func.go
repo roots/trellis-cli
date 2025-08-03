@@ -3,7 +3,7 @@ package plugin
 import (
 	"bytes"
 	"fmt"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 func helpFunc(pluginRootCommands []string, f cli.HelpFunc) cli.HelpFunc {

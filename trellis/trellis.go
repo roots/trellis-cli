@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cli_config"
 	"gopkg.in/ini.v1"
