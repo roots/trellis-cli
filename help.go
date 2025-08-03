@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 func deprecatedCommandHelpFunc(commandNames []string, f cli.HelpFunc) cli.HelpFunc {

@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 )
 
 // Tests based on
-// https://github.com/mitchellh/cli/blob/5454ffe87bc5c6d8b6b21c825617755e18a07828/cli_test.go#L1125-L1225
+// https://github.com/hashicorp/cli/blob/5454ffe87bc5c6d8b6b21c825617755e18a07828/cli_test.go#L1125-L1225
 
 // envComplete is the env var that the complete library sets to specify
 // it should be calculating an auto-completion.

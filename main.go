@@ -13,7 +13,7 @@ import (
 	"github.com/roots/trellis-cli/update"
 
 	"github.com/fatih/color"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 // To be replaced by goreleaser build flags.

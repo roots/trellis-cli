@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/digitalocean/godo"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/mitchellh/go-homedir"
 	"golang.org/x/crypto/ssh"
 )

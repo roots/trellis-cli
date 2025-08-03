@@ -11,7 +11,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mcuadros/go-version"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
