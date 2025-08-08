@@ -248,7 +248,6 @@ func (t *Trellis) GetVmInstanceName() (string, error) {
 	return siteName, nil
 }
 
-
 func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
 	var names []string
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/digitalocean/godo"
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/digitalocean"
 	"github.com/roots/trellis-cli/trellis"

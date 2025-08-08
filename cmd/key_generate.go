@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/go-homedir"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"

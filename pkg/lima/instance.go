@@ -107,9 +107,10 @@ func (i *Instance) CreateInventoryFile() error {
 
 /*
 Gets the IP address of the instance using the output of `ip route`:
-  default via 192.168.64.1 proto dhcp src 192.168.64.2 metric 100
-  192.168.64.0/24 proto kernel scope link src 192.168.64.2
-  192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
+
+	default via 192.168.64.1 proto dhcp src 192.168.64.2 metric 100
+	192.168.64.0/24 proto kernel scope link src 192.168.64.2
+	192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
 */
 func (i *Instance) IP() (ip string, err error) {
 	output, err := command.Cmd(

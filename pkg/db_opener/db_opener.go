@@ -10,4 +10,3 @@ type DBCredentials struct {
 	DBName     string `json:"db_name"`
 	WPEnv      string `json:"wp_env"`
 }
-
