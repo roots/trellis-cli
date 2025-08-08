@@ -208,6 +208,86 @@ func TestLogsRunGoAccess(t *testing.T) {
 	}
 }
 
+func TestLogsTailCommand(t *testing.T) {
+	cases := []struct {
+		name     string
+		access   bool
+		error    bool
+		goaccess bool
+		number   string
+		siteName string
+		mode     string
+		expected string
+	}{
+		{
+			"default",
+			false,
+			false,
+			false,
+			"",
+			"example.com",
+			"tail",
+			"tail -f /srv/www/example.com/logs/*[^gz]?",
+		},
+		{
+			"access logs",
+			true,
+			false,
+			false,
+			"",
+			"example.com",
+			"tail",
+			"tail -f /srv/www/example.com/logs/access.log",
+		},
+		{
+			"error logs",
+			false,
+			true,
+			false,
+			"",
+			"example.com",
+			"tail",
+			"tail -f /srv/www/example.com/logs/error.log",
+		},
+		{
+			"with number",
+			false,
+			false,
+			false,
+			"10",
+			"example.com",
+			"tail",
+			"tail -n 10 -f /srv/www/example.com/logs/*[^gz]?",
+		},
+		{
+			"goaccess mode",
+			false,
+			false,
+			true,
+			"",
+			"example.com",
+			"goaccess",
+			"tail -n +0 -f /srv/www/example.com/logs/*",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &LogsCommand{
+				access:   tc.access,
+				error:    tc.error,
+				goaccess: tc.goaccess,
+				number:   tc.number,
+			}
+
+			result := cmd.tailCmd(tc.siteName, tc.mode)
+			if result != tc.expected {
+				t.Errorf("expected command %q, got %q", tc.expected, result)
+			}
+		})
+	}
+}
+
 func TestLogsHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
