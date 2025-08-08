@@ -11,8 +11,8 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/digitalocean/godo/util"
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/digitalocean"
 	"github.com/roots/trellis-cli/trellis"
@@ -263,16 +263,16 @@ func (c *DropletCreateCommand) createDroplet(region string, size string, image s
 		},
 	)
 
-	s.Start()
+	_ = s.Start()
 	err = util.WaitForActive(context.TODO(), c.doClient.Client, monitorUri)
 
 	if err != nil {
-		s.StopFail()
+		_ = s.StopFail()
 		c.UI.Error(err.Error())
 		return nil, err
 	}
 
-	s.Stop()
+	_ = s.Stop()
 
 	return droplet, nil
 }
@@ -382,13 +382,13 @@ func (c *DropletCreateCommand) waitForSSH(droplet *godo.Droplet) (*godo.Droplet,
 			FailMessage: "Timeout waiting for SSH",
 		},
 	)
-	s.Start()
+	_ = s.Start()
 	err = digitalocean.CheckSSH(ip, ctx)
 
 	if err != nil {
-		s.StopFail()
+		_ = s.StopFail()
 	}
-	s.Stop()
+	_ = s.Stop()
 
 	return droplet, nil
 }

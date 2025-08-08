@@ -8,8 +8,8 @@ import (
 
 	"github.com/digitalocean/godo"
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/digitalocean"
 	"github.com/roots/trellis-cli/trellis"
@@ -261,5 +261,5 @@ func (c *DropletDnsCommand) selectIP() (ip string, err error) {
 	}
 
 	ip, err = droplets[i].PublicIPv4()
-	return ip, nil
+	return ip, err
 }

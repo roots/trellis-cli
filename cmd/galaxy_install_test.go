@@ -103,7 +103,7 @@ func TestGalaxyInstallRun(t *testing.T) {
 			galaxyInstallCommand := GalaxyInstallCommand{ui, trellis}
 
 			for _, file := range tc.roleFiles {
-				os.Create(file)
+				_, _ = os.Create(file)
 			}
 
 			code := galaxyInstallCommand.Run(tc.args)

@@ -25,7 +25,7 @@ func anotherFakeOption() CommandOption {
 func TestCmdWithOptions(t *testing.T) {
 	cmd := WithOptions(fakeOption(), anotherFakeOption()).Cmd("foo", []string{})
 
-	expected := fmt.Sprintf("foo arg1 arg2")
+	expected := "foo arg1 arg2"
 	actual := cmd.String()
 
 	if actual != expected {
@@ -64,7 +64,9 @@ func TestWithUiOutput(t *testing.T) {
 	defer Restore()
 
 	ui := cli.NewMockUi()
-	WithOptions(WithUiOutput(ui)).Cmd("foo", []string{"arg"}).Run()
+	if err := WithOptions(WithUiOutput(ui)).Cmd("foo", []string{"arg"}).Run(); err != nil {
+		t.Fatal(err)
+	}
 
 	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
 
@@ -78,6 +80,6 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
+	fmt.Fprint(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }

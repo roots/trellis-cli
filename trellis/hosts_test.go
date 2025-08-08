@@ -17,12 +17,12 @@ func TestUpdateHosts(t *testing.T) {
 
 	hostsFile, err := trellis.UpdateHosts("production", "1.2.3.4")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	content, err := os.ReadFile(hostsFile)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	const hostsContent = `

@@ -21,7 +21,7 @@ func (t *Trellis) PredictSite(flags *flag.FlagSet) complete.PredictFunc {
 		}
 
 		flags.SetOutput(io.Discard)
-		flags.Parse(args.Completed)
+		_ = flags.Parse(args.Completed)
 		cmdArgs := flags.Args()
 
 		switch len(cmdArgs) {
@@ -42,7 +42,7 @@ func (t *Trellis) PredictEnvironment(flags *flag.FlagSet) complete.PredictFunc {
 		}
 
 		flags.SetOutput(io.Discard)
-		flags.Parse(args.Completed)
+		_ = flags.Parse(args.Completed)
 		cmdArgs := flags.Args()
 
 		switch len(cmdArgs) {

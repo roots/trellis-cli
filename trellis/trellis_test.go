@@ -18,7 +18,7 @@ func TestCreateConfigDir(t *testing.T) {
 		ConfigDir: configPath,
 	}
 
-	trellis.CreateConfigDir()
+	_ = trellis.CreateConfigDir()
 
 	_, err := os.Stat(configPath)
 	if err != nil {

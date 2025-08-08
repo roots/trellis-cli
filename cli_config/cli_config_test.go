@@ -26,7 +26,9 @@ open:
 		t.Fatal(err)
 	}
 
-	conf.LoadFile(path)
+	if err := conf.LoadFile(path); err != nil {
+		t.Fatal(err)
+	}
 
 	if conf.LoadPlugins != true {
 		t.Errorf("expected LoadPlugins to be true (default value)")
@@ -53,7 +55,9 @@ func TestLoadEnv(t *testing.T) {
 		AskVaultPass: false,
 	}
 
-	conf.LoadEnv("TRELLIS_")
+	if err := conf.LoadEnv("TRELLIS_"); err != nil {
+		t.Fatal(err)
+	}
 
 	if conf.AskVaultPass != true {
 		t.Errorf("expected AskVaultPass to be true")

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -125,7 +125,10 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	os.Chdir(path)
+	if err := os.Chdir(path); err != nil {
+		c.UI.Error(fmt.Sprintf("Error changing to project directory: %s", err))
+		return 1
+	}
 
 	if err := c.trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
@@ -146,7 +149,7 @@ func (c *NewCommand) Run(args []string) int {
 	// Update default configs
 	for env, config := range c.trellis.Environments {
 		c.trellis.UpdateDefaultConfig(config, c.name, c.host, env)
-		c.trellis.WriteYamlFile(
+		_ = c.trellis.WriteYamlFile(
 			config,
 			filepath.Join("group_vars", env, "wordpress_sites.yml"),
 			c.YamlHeader("https://roots.io/trellis/docs/wordpress-sites/"),
@@ -154,7 +157,7 @@ func (c *NewCommand) Run(args []string) int {
 
 		stringGenerator := trellis.RandomStringGenerator{Length: 64}
 		vault := c.trellis.GenerateVaultConfig(c.name, env, &stringGenerator)
-		c.trellis.WriteYamlFile(
+		_ = c.trellis.WriteYamlFile(
 			vault,
 			filepath.Join("group_vars", env, "vault.yml"),
 			c.YamlHeader("https://roots.io/trellis/docs/vault/"),
@@ -243,11 +246,6 @@ func (c *NewCommand) YamlHeader(doc string) string {
 	const header = "# Created by trellis-cli v%s\n# Documentation: %s\n\n"
 
 	return fmt.Sprintf(header, c.CliVersion, doc)
-}
-
-func addTrellisFile(path string) error {
-	path = filepath.Join(path, ".trellis.yml")
-	return os.WriteFile(path, []byte{}, 0666)
 }
 
 func askDomain(ui cli.Ui, path string) (host string, err error) {

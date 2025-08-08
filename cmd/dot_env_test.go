@@ -134,7 +134,7 @@ func TestIntegrationDotEnv(t *testing.T) {
 	dotEnv := exec.Command(bin, "dotenv")
 	dotEnv.Dir = filepath.Join(dummy, "trellis")
 
-	dotEnv.Run()
+	_ = dotEnv.Run()
 
 	if _, err := os.Stat(actualPath); os.IsNotExist(err) {
 		t.Error(".env file not generated")

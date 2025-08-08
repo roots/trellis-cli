@@ -142,9 +142,7 @@ func (c *Config) AllHosts() []string {
 		for _, siteHost := range site.SiteHosts {
 			hosts = append(hosts, siteHost.Canonical)
 
-			for _, redirect := range siteHost.Redirects {
-				hosts = append(hosts, redirect)
-			}
+			hosts = append(hosts, siteHost.Redirects...)
 		}
 	}
 
