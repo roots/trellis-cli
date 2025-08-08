@@ -63,9 +63,6 @@ func (c *VmShellCommand) Run(args []string) int {
 		c.workdir = "/srv/www/" + siteName + "/current"
 	}
 
-	shellArgs := []string{"--workdir", c.workdir}
-	shellArgs = append(shellArgs, args...)
-
 	if err := manager.OpenShell(instanceName, c.workdir, args); err != nil {
 		c.UI.Error(err.Error())
 		return 1

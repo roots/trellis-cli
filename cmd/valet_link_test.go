@@ -142,7 +142,7 @@ func TestValetLinkRun(t *testing.T) {
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
 	if err := trellisProject.LoadProject(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	trellis := trellis.NewMockTrellis(true)

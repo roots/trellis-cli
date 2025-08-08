@@ -168,16 +168,16 @@ func (c *InitCommand) deleteVirtualenv() error {
 			FailMessage: "Error deleting virtualenv",
 		},
 	)
-	spinner.Start()
+	_ = spinner.Start()
 	err := c.Trellis.Virtualenv.Delete()
 
 	if err != nil {
-		spinner.StopFail()
+		_ = spinner.StopFail()
 		c.UI.Error(err.Error())
 		return err
 	}
 
-	spinner.Stop()
+	_ = spinner.Stop()
 
 	return nil
 }
@@ -191,10 +191,10 @@ func (c *InitCommand) createVirtualenv(virtualenvCmd *exec.Cmd) error {
 		},
 	)
 
-	spinner.Start()
+	_ = spinner.Start()
 	err := c.Trellis.Virtualenv.Create()
 	if err != nil {
-		spinner.StopFail()
+		_ = spinner.StopFail()
 		c.UI.Error(err.Error())
 		c.UI.Error("")
 		c.UI.Error("Project initialization failed due to the error above.")
@@ -207,7 +207,7 @@ func (c *InitCommand) createVirtualenv(virtualenvCmd *exec.Cmd) error {
 	}
 
 	c.Trellis.VenvInitialized = true
-	spinner.Stop()
+	_ = spinner.Stop()
 
 	return nil
 }
@@ -219,16 +219,16 @@ func (c *InitCommand) upgradePip() error {
 			FailMessage: "Error upgrading pip",
 		},
 	)
-	spinner.Start()
+	_ = spinner.Start()
 	pipUpgradeOutput, err := command.Cmd("python3", []string{"-m", "pip", "install", "--upgrade", "pip"}).CombinedOutput()
 
 	if err != nil {
-		spinner.StopFail()
+		_ = spinner.StopFail()
 		c.UI.Error(string(pipUpgradeOutput))
 		return err
 	}
 
-	spinner.Stop()
+	_ = spinner.Stop()
 	return nil
 }
 
@@ -240,7 +240,7 @@ func (c *InitCommand) pipInstall() error {
 			StopMessage: "Dependencies installed",
 		},
 	)
-	spinner.Start()
+	_ = spinner.Start()
 	pipCmd := command.Cmd("pip", []string{"install", "-r", "requirements.txt"})
 
 	// Wrap pipCmd's Stdout in a custom writer that only displays output once the timer has elapsed.
@@ -250,7 +250,7 @@ func (c *InitCommand) pipInstall() error {
 
 	go func() {
 		<-timer.C
-		spinner.Pause()
+		_ = spinner.Pause()
 		writer.writer = os.Stdout
 		c.UI.Warn("\n\npip install taking longer than expected. Switching to verbose output:\n")
 	}()
@@ -260,11 +260,11 @@ func (c *InitCommand) pipInstall() error {
 	err := pipCmd.Run()
 
 	if err != nil {
-		spinner.StopFail()
+		_ = spinner.StopFail()
 		c.UI.Error(errorOutput.String())
 		return err
 	}
 
-	spinner.Stop()
+	_ = spinner.Stop()
 	return nil
 }

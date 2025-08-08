@@ -27,7 +27,7 @@ func TestCompletionFunctions(t *testing.T) {
 	defer TestChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	flags := flag.NewFlagSet("", flag.ContinueOnError)
@@ -109,7 +109,7 @@ func TestCompletionFunctions(t *testing.T) {
 			// element if we have one since we usually output a final newline
 			// which results in a blank.
 			var outBuf bytes.Buffer
-			io.Copy(&outBuf, r)
+			_, _ = io.Copy(&outBuf, r)
 			actual := strings.Split(outBuf.String(), "\n")
 			if len(actual) > 0 {
 				actual = actual[:len(actual)-1]

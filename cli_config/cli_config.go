@@ -56,15 +56,15 @@ func (c *Config) LoadFile(path string) error {
 		return fmt.Errorf("%w: %s", InvalidConfigErr, err)
 	}
 
-	if c.Vm.Manager != "lima" && c.Vm.Manager != "auto" && c.Vm.Manager != "mock" {
+	if c.Vm.Manager != "" && c.Vm.Manager != "lima" && c.Vm.Manager != "auto" && c.Vm.Manager != "mock" {
 		return fmt.Errorf("%w: unsupported value for `vm.manager`. Must be one of: auto, lima", InvalidConfigErr)
 	}
 
-	if c.Vm.Ubuntu != "18.04" && c.Vm.Ubuntu != "20.04" && c.Vm.Ubuntu != "22.04" && c.Vm.Ubuntu != "24.04" {
+	if c.Vm.Ubuntu != "" && c.Vm.Ubuntu != "18.04" && c.Vm.Ubuntu != "20.04" && c.Vm.Ubuntu != "22.04" && c.Vm.Ubuntu != "24.04" {
 		return fmt.Errorf("%w: unsupported value for `vm.ubuntu`. Must be one of: 18.04, 20.04, 22.04, 24.04", InvalidConfigErr)
 	}
 
-	if c.Vm.HostsResolver != "hosts_file" {
+	if c.Vm.HostsResolver != "" && c.Vm.HostsResolver != "hosts_file" {
 		return fmt.Errorf("%w: unsupported value for `vm.hosts_resolver`. Must be one of: hosts_file", InvalidConfigErr)
 	}
 

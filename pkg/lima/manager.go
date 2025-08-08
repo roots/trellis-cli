@@ -283,7 +283,9 @@ func (m *Manager) instances() (instances map[string]Instance) {
 
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		instance := &Instance{}
-		json.Unmarshal([]byte(line), instance)
+		if err := json.Unmarshal([]byte(line), instance); err != nil {
+			continue
+		}
 		m.initInstance(instance)
 		instances[instance.Name] = *instance
 	}

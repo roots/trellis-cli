@@ -163,11 +163,11 @@ latest_release:
   zipurl: https://api.github.com/repos/roots/trellis-cli/zipball/v1.0
   url: https://github.com/roots/trellis-cli/releases/tag/v1.0
 `, now.Add(-time.Hour*25).Format(time.RFC3339)),
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.1",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.1",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1"
-}`),
+}`,
 			&github.Release{
 				Version: "v1.1",
 				URL:     "https://github.com/roots/trellis-cli/releases/tag/v1.1",
@@ -184,22 +184,22 @@ latest_release:
   zipurl: https://api.github.com/repos/roots/trellis-cli/zipball/v1.0
   url: https://github.com/roots/trellis-cli/releases/tag/v1.0
 `, now.Add(-time.Hour*25).Format(time.RFC3339)),
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.0",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.0",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.0"
-}`),
+}`,
 			nil,
 		},
 		{
 			"no_cache_newer_version",
 			"v1.0",
 			"",
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.1",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.1",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.1"
-}`),
+}`,
 			&github.Release{
 				Version: "v1.1",
 				URL:     "https://github.com/roots/trellis-cli/releases/tag/v1.1",
@@ -210,22 +210,22 @@ latest_release:
 			"no_cache_same_version",
 			"v1.0",
 			"",
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.0",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.0",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.0"
-}`),
+}`,
 			nil,
 		},
 		{
 			"no_cache_older_version",
 			"v1.1",
 			"",
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.0",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.0",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.0"
-}`),
+}`,
 			nil,
 		},
 	}
@@ -239,7 +239,7 @@ latest_release:
 
 		if tc.githubResponse != "" {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				rw.Write([]byte(tc.githubResponse))
+				_, _ = rw.Write([]byte(tc.githubResponse))
 			}))
 			defer server.Close()
 

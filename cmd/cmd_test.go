@@ -25,6 +25,6 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
+	fmt.Fprint(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }

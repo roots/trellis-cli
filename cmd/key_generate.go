@@ -121,7 +121,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 	publicKeyPath := filepath.Join(c.path, publicKeyName)
 	trellisPublicKeysPath := filepath.Join(c.Trellis.Path, "public_keys")
 	trellisPublicKeyPath := filepath.Join(trellisPublicKeysPath, publicKeyName)
-	os.Mkdir(trellisPublicKeysPath, os.ModePerm)
+	_ = os.Mkdir(trellisPublicKeysPath, os.ModePerm)
 
 	keyExists, _ := os.Stat(keyPath)
 	publicKeyExists, _ := os.Stat(trellisPublicKeyPath)

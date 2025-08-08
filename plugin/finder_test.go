@@ -136,7 +136,7 @@ func TestFind(t *testing.T) {
 	for _, tc := range cases {
 		// cleanup files from previous test case.
 		os.RemoveAll(tempDir)
-		os.MkdirAll(tempDir, 0700)
+		_ = os.MkdirAll(tempDir, 0700)
 
 		if _, err := createTempFile(tc.pluginFileName, tc.pluginFileMode); err != nil {
 			t.Fatalf("unexpected error creating plugin file: %v", err)

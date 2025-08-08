@@ -137,7 +137,7 @@ func TestLogsRunGoAccess(t *testing.T) {
 
 	// fake goaccess binary to satisfy ok.LookPath
 	goAccessPath := filepath.Join(tmpDir, "goaccess")
-	os.OpenFile(goAccessPath, os.O_CREATE, 0555)
+	_, _ = os.OpenFile(goAccessPath, os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmpDir))
 

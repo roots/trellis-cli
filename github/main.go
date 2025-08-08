@@ -44,7 +44,9 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 		release = NewReleaseFromVersion(repo, version)
 	}
 
-	os.Chdir(path)
+	if err := os.Chdir(path); err != nil {
+		return nil, fmt.Errorf("Error changing to directory %s: %v", path, err)
+	}
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
 	err = DownloadFile(archivePath, release.ZipUrl, Client)
@@ -106,7 +108,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(string(body))
+		return nil, fmt.Errorf("%s", string(body))
 	}
 
 	release := &Release{}

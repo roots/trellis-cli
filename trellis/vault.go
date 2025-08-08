@@ -3,7 +3,6 @@ package trellis
 import (
 	"bufio"
 	"crypto/rand"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -129,7 +128,7 @@ func assertAvailablePRNG() {
 
 	_, err := io.ReadFull(rand.Reader, buf)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Unable to generate random salt values. crypto/rand is unavailable: Read() failed with %#v", err))
+		log.Fatalf("Unable to generate random salt values. crypto/rand is unavailable: Read() failed with %#v", err)
 	}
 }
 

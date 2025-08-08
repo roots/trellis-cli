@@ -84,7 +84,7 @@ func TestIntegrationAlias(t *testing.T) {
 	alias := exec.Command(bin, "alias")
 	alias.Dir = path.Join(dummy, "trellis")
 
-	alias.Run()
+	_ = alias.Run()
 
 	if _, err := os.Stat(actualPath); os.IsNotExist(err) {
 		t.Error("wp-cli.trellis-alias.yml file not generated")

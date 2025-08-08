@@ -155,7 +155,9 @@ func (t *Trellis) ActivateProject() bool {
 		return false
 	}
 
-	os.Chdir(t.Path)
+	// Attempt to change to the trellis directory
+	// but don't fail detection if it fails
+	_ = os.Chdir(t.Path)
 
 	return true
 }
@@ -167,7 +169,9 @@ the directory is changed to the project path.
 */
 func (t *Trellis) LoadProject() error {
 	if t.Path != "" {
-		os.Chdir(t.Path)
+		if err := os.Chdir(t.Path); err != nil {
+			return fmt.Errorf("Error changing to project directory %s: %v", t.Path, err)
+		}
 		return nil
 	}
 
@@ -185,7 +189,9 @@ func (t *Trellis) LoadProject() error {
 	t.Path = path
 	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
-	os.Chdir(t.Path)
+	if err := os.Chdir(t.Path); err != nil {
+		return fmt.Errorf("Error changing to project directory %s: %v", t.Path, err)
+	}
 
 	if err = t.LoadProjectCliConfig(); err != nil {
 		return err
@@ -330,7 +336,7 @@ func (t *Trellis) LoadProjectCliConfig() error {
 		}
 	}
 
-	t.CliConfig.LoadEnv("TRELLIS_")
+	_ = t.CliConfig.LoadEnv("TRELLIS_")
 
 	if t.CliConfig.AskVaultPass {
 		// https://docs.ansible.com/ansible/latest/reference_appendices/config.html#default-ask-vault-pass

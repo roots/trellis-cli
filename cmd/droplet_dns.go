@@ -261,5 +261,5 @@ func (c *DropletDnsCommand) selectIP() (ip string, err error) {
 	}
 
 	ip, err = droplets[i].PublicIPv4()
-	return ip, nil
+	return ip, err
 }

@@ -24,7 +24,7 @@ func TestNewManager(t *testing.T) {
 
 	tmp := t.TempDir()
 
-	os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
+	_, _ = os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmp))
 
@@ -57,7 +57,7 @@ func TestNewManagerUnsupportedOS(t *testing.T) {
 
 	tmp := t.TempDir()
 
-	os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
+	_, _ = os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmp))
 
@@ -329,10 +329,6 @@ default
 	if hostsStorage[instanceName] != ip {
 		t.Errorf("expected hosts entry to be %s, got %s", ip, hostsStorage[instanceName])
 	}
-}
-
-func newMockHostsResolver(hosts map[string]string) MockHostsResolver {
-	return MockHostsResolver{Hosts: hosts}
 }
 
 func (h *MockHostsResolver) AddHosts(name string, ip string) error {

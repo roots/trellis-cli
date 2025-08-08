@@ -2,7 +2,6 @@ package github
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +28,9 @@ func TestNewReleaseFromVersion(t *testing.T) {
 
 func TestDownloadRelease(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
 
 	var dir = "roots-trellis"
 
@@ -82,11 +83,11 @@ func TestFetechLatestRelease(t *testing.T) {
 	}{
 		{
 			"success response",
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.0",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.0",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.0"
-}`),
+}`,
 			"",
 			&Release{
 				Version: "v1.0",
@@ -107,7 +108,7 @@ func TestFetechLatestRelease(t *testing.T) {
 			if tc.responseError != "" {
 				http.Error(rw, tc.responseError, 400)
 			} else {
-				rw.Write([]byte(tc.response))
+				_, _ = rw.Write([]byte(tc.response))
 			}
 		}))
 		defer server.Close()

@@ -31,7 +31,7 @@ func (c *OpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	var openArgs = []string{}
+	var openArgs []string
 
 	if len(args) == 0 {
 		_, site, siteErr := c.Trellis.MainSiteFromEnvironment("development")

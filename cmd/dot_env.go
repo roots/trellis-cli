@@ -55,7 +55,7 @@ func (c *DotEnvCommand) Run(args []string) int {
 			FailMessage: "Error templating .env file",
 		},
 	)
-	spinner.Start()
+	_ = spinner.Start()
 
 	environment := "development"
 	if len(args) == 1 {
@@ -85,12 +85,12 @@ func (c *DotEnvCommand) Run(args []string) int {
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := dotenv.Run(); err != nil {
-		spinner.StopFail()
+		_ = spinner.StopFail()
 		c.UI.Error(mockUi.ErrorWriter.String())
 		return 1
 	}
 
-	spinner.Stop()
+	_ = spinner.Stop()
 	return 0
 }
 

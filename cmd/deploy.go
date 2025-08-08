@@ -80,7 +80,7 @@ func (c *DeployCommand) Run(args []string) int {
 	}
 
 	if environment == "development" {
-		if c.Trellis.CliConfig.AllowDevelopmentDeploys == false {
+		if !c.Trellis.CliConfig.AllowDevelopmentDeploys {
 			c.UI.Error(`
   Error: deploying to the development environment is not supported by default.
 
