@@ -11,35 +11,8 @@ import (
 
 // CreateHelp is a helper function for commands to get properly formatted help
 func CreateHelp(commandName string, synopsis string, rawHelp string) string {
-	// During tests or when TTY is not available, return raw help text for backward compatibility
-	if !isTerminal() {
-		return rawHelp
-	}
-
-	// Check if we're in a context where we should suppress pterm output
-	// This happens when namespace commands are showing help
-	if shouldSuppressPtermOutput() {
-		return "" // Return empty string to prevent any output
-	}
-
-	// Print pterm help directly and return empty string
-	// This prevents CLI framework from showing duplicate content
-	PtermHelpFunc(commandName, synopsis, rawHelp)
-	return ""
-}
-
-func isTerminal() bool {
-	return term.IsTerminal(int(os.Stdout.Fd()))
-}
-
-var suppressPtermOutput bool
-
-func shouldSuppressPtermOutput() bool {
-	return suppressPtermOutput
-}
-
-func setSuppressPtermOutput(suppress bool) {
-	suppressPtermOutput = suppress
+	renderer := GetHelpRenderer()
+	return renderer.RenderCommand(commandName, synopsis, rawHelp)
 }
 
 // PtermHelpFunc creates a stylized help output for subcommands

@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
-	"github.com/pterm/pterm"
 )
 
 type NamespaceCommand struct {
-	SynopsisText string
-	HelpText     string
-	Subcommands  map[string]string // name -> description mapping
+	SynopsisText  string
+	HelpText      string
+	Subcommands   map[string]string // name -> description mapping
+	calledFromRun bool              // Internal flag to track if Help() is called from Run()
 }
 
 func (c *NamespaceCommand) Run(args []string) int {
@@ -20,12 +20,9 @@ func (c *NamespaceCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	// Suppress subcommand help when showing namespace help
-	setSuppressPtermOutput(true)
-	defer setSuppressPtermOutput(false)
-
 	// Always show help for namespace commands
 	// Don't return cli.RunResultHelp as it causes subcommand help to show
+	c.calledFromRun = true
 	fmt.Print(c.Help())
 	return 0
 }
@@ -40,13 +37,32 @@ func (c *NamespaceCommand) Help() string {
 		return c.HelpText
 	}
 
-	// Define color scheme
-	dim := pterm.NewStyle(pterm.FgDarkGray)
-	cyan := pterm.NewStyle(pterm.FgCyan)
-	green := pterm.NewStyle(pterm.FgGreen)
-	brightWhite := pterm.NewStyle(pterm.FgLightWhite, pterm.Bold)
+	// Get the renderer
+	renderer := GetHelpRenderer()
 
-	// Parse the namespace from HelpText (e.g., "Usage: trellis db <subcommand>")
+	// If the renderer is PlainHelpRenderer, return the basic help text
+	if _, isPlain := renderer.(*PlainHelpRenderer); isPlain {
+		var output strings.Builder
+		if c.HelpText != "" {
+			output.WriteString(c.HelpText + "\n\n")
+		}
+		if c.SynopsisText != "" {
+			output.WriteString(c.SynopsisText + "\n")
+		}
+
+		// Only add subcommands if called from Run() (not from --help)
+		// When --help is used, the framework adds subcommands automatically
+		if c.calledFromRun && len(c.Subcommands) > 0 {
+			output.WriteString("\nSubcommands:\n")
+			for name, desc := range c.Subcommands {
+				output.WriteString(fmt.Sprintf("    %-15s %s\n", name, desc))
+			}
+		}
+
+		return output.String()
+	}
+
+	// For pterm renderer, parse namespace name and use fancy rendering
 	lines := strings.Split(c.HelpText, "\n")
 	var namespaceName string
 	if len(lines) > 0 && strings.HasPrefix(lines[0], "Usage: trellis ") {
@@ -56,41 +72,15 @@ func (c *NamespaceCommand) Help() string {
 		}
 	}
 
-	// Build styled output as a string
-	var output strings.Builder
-
-	output.WriteString("\n")
-	output.WriteString(cyan.Sprint("┌─╼ "))
-	output.WriteString(brightWhite.Sprint("trellis " + namespaceName))
-	output.WriteString("\n")
-	output.WriteString(cyan.Sprint("└─╼ "))
-	output.WriteString(dim.Sprint(c.SynopsisText))
-	output.WriteString("\n\n")
-
-	// Print usage
-	if len(lines) > 0 {
-		usageLine := strings.TrimPrefix(lines[0], "Usage: ")
-		output.WriteString(dim.Sprint("$ "))
-		output.WriteString(usageLine)
-		output.WriteString("\n\n")
+	// Get subcommands from the namespaceCommands map in main
+	// This is needed because pterm renderer needs to know the subcommands
+	// but they're not stored in the NamespaceCommand struct anymore
+	var subcommands map[string]string
+	if namespaceName != "" {
+		// We need to get the subcommands from somewhere
+		// For now, we'll use what we have if available
+		subcommands = c.Subcommands
 	}
 
-	// Print subcommands section
-	output.WriteString(" ")
-	output.WriteString(cyan.Sprint("◉ "))
-	output.WriteString(dim.Sprint("SUBCOMMANDS"))
-	output.WriteString("\n\n")
-
-	// Display subcommands from the Subcommands map
-	if len(c.Subcommands) > 0 {
-		for cmdName, cmdDesc := range c.Subcommands {
-			output.WriteString(fmt.Sprintf("   %s %-15s %s\n",
-				green.Sprint("→"),
-				cmdName,
-				dim.Sprint(cmdDesc)))
-		}
-	}
-
-	output.WriteString("\n")
-	return output.String()
+	return renderer.RenderNamespace(namespaceName, c.SynopsisText, subcommands)
 }
