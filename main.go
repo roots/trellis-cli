@@ -15,6 +15,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/hashicorp/cli"
+	"golang.org/x/term"
 )
 
 // To be replaced by goreleaser build flags.
@@ -292,12 +293,16 @@ func showCommandHelp(commandName string, version string) {
 
 func main() {
 	// Intercept --help to prevent CLI framework confusion
-	args := preprocessArgs(os.Args[1:])
+	// But only when in TTY mode (not in tests)
+	args := os.Args[1:]
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		args = preprocessArgs(os.Args[1:])
 
-	// Handle help requests immediately, bypassing CLI framework
-	if showHelpFor != "" {
-		handleHelpRequest(version, deprecatedCommands)
-		os.Exit(0)
+		// Handle help requests immediately, bypassing CLI framework
+		if showHelpFor != "" {
+			handleHelpRequest(version, deprecatedCommands)
+			os.Exit(0)
+		}
 	}
 
 	c := cli.NewCLI("trellis", version)

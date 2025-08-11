@@ -14,6 +14,13 @@ import (
 // ptermHelpFunc creates a minimal, modern help function using pterm
 func ptermHelpFunc(version string, deprecatedCommands []string, baseHelp cli.HelpFunc) cli.HelpFunc {
 	return func(commands map[string]cli.CommandFactory) string {
+		// During tests or when TTY is not available, use base help and return its output
+		// This allows plugin system to append its content
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
+			// Call baseHelp and return its output so plugin wrapper can append to it
+			return baseHelp(commands)
+		}
+
 		// Define minimal color scheme - modern terminal aesthetic
 		dim := pterm.NewStyle(pterm.FgDarkGray)
 		brightWhite := pterm.NewStyle(pterm.FgLightWhite, pterm.Bold)
