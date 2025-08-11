@@ -52,7 +52,7 @@ func (r *PtermHelpRenderer) ShouldIntercept() bool {
 
 func (r *PtermHelpRenderer) RenderMain(commands map[string]cli.CommandFactory, version string) string {
 	// Define minimal color scheme - modern terminal aesthetic
-	dim := pterm.NewStyle(pterm.FgDarkGray)
+	dim := pterm.NewStyle(pterm.FgWhite)
 	brightWhite := pterm.NewStyle(pterm.FgLightWhite, pterm.Bold)
 	cyan := pterm.NewStyle(pterm.FgCyan)
 	green := pterm.NewStyle(pterm.FgGreen)
@@ -232,7 +232,7 @@ func (r *PtermHelpRenderer) RenderCommand(commandName string, synopsis string, h
 
 func (r *PtermHelpRenderer) RenderNamespace(namespaceName string, synopsis string, subcommands map[string]string) string {
 	// Define color scheme
-	dim := pterm.NewStyle(pterm.FgDarkGray)
+	dim := pterm.NewStyle(pterm.FgWhite)
 	cyan := pterm.NewStyle(pterm.FgCyan)
 	green := pterm.NewStyle(pterm.FgGreen)
 	brightWhite := pterm.NewStyle(pterm.FgLightWhite, pterm.Bold)

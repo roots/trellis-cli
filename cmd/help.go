@@ -18,7 +18,7 @@ func CreateHelp(commandName string, synopsis string, rawHelp string) string {
 // PtermHelpFunc creates a stylized help output for subcommands
 func PtermHelpFunc(commandName string, synopsis string, helpText string) {
 	// Define color scheme
-	dim := pterm.NewStyle(pterm.FgDarkGray)
+	dim := pterm.NewStyle(pterm.FgWhite)
 	cyan := pterm.NewStyle(pterm.FgCyan)
 	green := pterm.NewStyle(pterm.FgGreen)
 	brightWhite := pterm.NewStyle(pterm.FgLightWhite, pterm.Bold)
