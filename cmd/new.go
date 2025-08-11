@@ -14,6 +14,7 @@ import (
 	"github.com/roots/trellis-cli/github"
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
+	"golang.org/x/term"
 )
 
 type NewCommand struct {
@@ -53,7 +54,18 @@ func (c *NewCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	// Check if we're in a terminal
+	isInteractive := term.IsTerminal(int(os.Stdout.Fd()))
+
+	// If running in non-terminal (tests), require the path argument
+	var commandArgumentValidator *CommandArgumentValidator
+	if !isInteractive {
+		commandArgumentValidator = &CommandArgumentValidator{required: 1, optional: 0}
+	} else {
+		// In terminal mode, allow wizard (0 args)
+		commandArgumentValidator = &CommandArgumentValidator{required: 0, optional: 1}
+	}
+
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
@@ -61,7 +73,13 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	path := args[0]
+	path := ""
+	if len(args) > 0 {
+		path = args[0]
+	} else {
+		// Default to current directory if no path provided (wizard mode)
+		path = "."
+	}
 
 	path, _ = filepath.Abs(path)
 	fi, statErr := os.Stat(path)
@@ -239,7 +257,7 @@ Options:
   -h, --help             show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("new", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *NewCommand) YamlHeader(doc string) string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cmd"
@@ -24,9 +25,233 @@ var deprecatedCommands = []string{
 	"up",
 }
 
+// NamespaceInfo contains metadata about namespace commands
+type NamespaceInfo struct {
+	Synopsis    string
+	Subcommands map[string]string
+}
+
+// namespaceCommands defines all namespace commands and their subcommands
+var namespaceCommands = map[string]NamespaceInfo{
+	"db": {
+		Synopsis: "Commands for database management",
+		Subcommands: map[string]string{
+			"open": "Open database with GUI applications",
+		},
+	},
+	"droplet": {
+		Synopsis: "Commands for DigitalOcean Droplets",
+		Subcommands: map[string]string{
+			"create": "Creates a DigitalOcean Droplet server and provisions it",
+			"dns":    "Creates DNS records for all WordPress sites' hosts in an environment",
+		},
+	},
+	"galaxy": {
+		Synopsis: "Commands for Ansible Galaxy",
+		Subcommands: map[string]string{
+			"install": "Installs Ansible Galaxy roles",
+		},
+	},
+	"key": {
+		Synopsis: "Commands for managing SSH keys",
+		Subcommands: map[string]string{
+			"generate": "Generates an SSH key",
+		},
+	},
+	"vault": {
+		Synopsis: "Commands for Ansible Vault",
+		Subcommands: map[string]string{
+			"edit":    "Opens vault file in editor",
+			"encrypt": "Encrypts files with Ansible Vault",
+			"decrypt": "Decrypts files with Ansible Vault",
+			"view":    "Views vault encrypted file contents",
+		},
+	},
+	"valet": {
+		Synopsis: "Commands for Laravel Valet",
+		Subcommands: map[string]string{
+			"link": "Links a Trellis site for use with Laravel Valet",
+		},
+	},
+	"vm": {
+		Synopsis: "Commands for managing development virtual machines",
+		Subcommands: map[string]string{
+			"delete":  "Deletes the development virtual machine",
+			"shell":   "Executes shell in the VM",
+			"start":   "Starts a development virtual machine",
+			"stop":    "Stops the development virtual machine",
+			"sudoers": "Generates sudoers content for passwordless updating of /etc/hosts",
+		},
+	},
+	"xdebug-tunnel": {
+		Synopsis: "Commands for Xdebug tunnel",
+		Subcommands: map[string]string{
+			"open":  "Opens a remote SSH tunnel to allow remote Xdebug connections",
+			"close": "Closes the remote SSH Xdebug tunnel",
+		},
+	},
+}
+
+// Help renderer for the application
+var helpRenderer cmd.HelpRenderer
+
+func preprocessArgsIfNeeded(args []string) ([]string, string) {
+	// Only preprocess if the renderer needs it (pterm renderer)
+	if !helpRenderer.ShouldIntercept() {
+		return args, ""
+	}
+
+	if len(args) == 0 {
+		return args, ""
+	}
+
+	showHelpFor := ""
+	// Check for help requests and remove --help from args
+	newArgs := []string{}
+	for i, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			// Set help flag based on command context
+			if len(newArgs) == 0 {
+				showHelpFor = "main"
+			} else if len(newArgs) == 1 {
+				// Check if this is a namespace command
+				if _, isNamespace := namespaceCommands[newArgs[0]]; isNamespace {
+					showHelpFor = "namespace:" + newArgs[0]
+				} else {
+					// Let CLI framework handle regular commands
+					newArgs = append(newArgs, arg)
+					continue
+				}
+			} else {
+				// For subcommands like "db open --help", let CLI framework handle it
+				newArgs = append(newArgs, arg)
+				continue
+			}
+			// Don't add --help to newArgs
+			continue
+		} else if arg == "help" && i == 0 {
+			showHelpFor = "main"
+			continue
+		}
+		newArgs = append(newArgs, arg)
+	}
+
+	return newArgs, showHelpFor
+}
+
+func handleHelpRequest(showHelpFor string, version string) {
+	if showHelpFor == "main" {
+		// Show main help using the renderer
+		commands := createCommandMap()
+		helpRenderer.RenderMain(commands, version)
+		return
+	}
+
+	if strings.HasPrefix(showHelpFor, "namespace:") {
+		namespaceName := strings.TrimPrefix(showHelpFor, "namespace:")
+		info, exists := namespaceCommands[namespaceName]
+		if !exists {
+			fmt.Printf("Unknown namespace: %s\n", namespaceName)
+			return
+		}
+		helpRenderer.RenderNamespace(namespaceName, info.Synopsis, info.Subcommands)
+		return
+	}
+}
+
+func createCommandMap() map[string]cli.CommandFactory {
+	// Return a complete command map for help purposes with proper synopses
+	commands := map[string]cli.CommandFactory{
+		// Project commands
+		"new": func() (cli.Command, error) { return &mockCommand{synopsis: "Creates a new Trellis project"}, nil },
+		"init": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Initializes an existing Trellis project"}, nil
+		},
+
+		// Dev commands
+		"exec": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Exec runs a command in the Trellis virtualenv"}, nil
+		},
+		"ssh": func() (cli.Command, error) { return &mockCommand{synopsis: "Connects to host via SSH"}, nil },
+		"up": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Starts and provisions the Vagrant environment by running 'vagrant up'"}, nil
+		},
+		"down": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Stops the Vagrant machine by running 'vagrant halt'"}, nil
+		},
+
+		// Deploy commands
+		"deploy": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Deploys a site to the specified environment"}, nil
+		},
+		"provision": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Provisions the specified environment"}, nil
+		},
+		"rollback": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Rollback the last deploy of the site on the specified environment"}, nil
+		},
+
+		// Utils commands
+		"alias": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Generate WP CLI aliases for remote environments"}, nil
+		},
+		"check": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Checks if the required and optional Trellis dependencies are installed"}, nil
+		},
+		"dotenv": func() (cli.Command, error) { return &mockCommand{synopsis: "Template .env files to local system"}, nil },
+		"info": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Displays information about this Trellis project"}, nil
+		},
+		"logs": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Tails the Nginx log files for an environment"}, nil
+		},
+		"open": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Opens user-defined URLs (and more) which can act as shortcuts/bookmarks specific to your Trellis projects"}, nil
+		},
+		"shell-init": func() (cli.Command, error) {
+			return &mockCommand{synopsis: "Prints a script which can be eval'd to set up Trellis' virtualenv integration in various shells"}, nil
+		},
+	}
+
+	// Add namespace commands from the centralized definition
+	for name, info := range namespaceCommands {
+		nameCopy := name // Capture loop variable
+		infoCopy := info // Capture loop variable
+		commands[nameCopy] = func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				SynopsisText: infoCopy.Synopsis,
+				Subcommands:  infoCopy.Subcommands,
+			}, nil
+		}
+	}
+
+	return commands
+}
+
+// mockCommand is a simple command implementation for help display
+type mockCommand struct {
+	synopsis string
+}
+
+func (m *mockCommand) Run([]string) int { return 0 }
+func (m *mockCommand) Synopsis() string { return m.synopsis }
+func (m *mockCommand) Help() string     { return "" }
+
 func main() {
+	// Initialize the help renderer based on environment
+	helpRenderer = cmd.GetHelpRenderer()
+
+	// Preprocess args if needed (only for pterm renderer)
+	args, showHelpFor := preprocessArgsIfNeeded(os.Args[1:])
+
+	// Handle help requests if intercepted
+	if showHelpFor != "" {
+		handleHelpRequest(showHelpFor, version)
+		os.Exit(0)
+	}
+
 	c := cli.NewCLI("trellis", version)
-	c.Args = os.Args[1:]
+	c.Args = args
 
 	ui := &cli.ColoredUi{
 		ErrorColor: cli.UiColorRed,
@@ -67,9 +292,11 @@ func main() {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"db": func() (cli.Command, error) {
+			info := namespaceCommands["db"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis db <subcommand> [<args>]",
-				SynopsisText: "Commands for database management",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"db open": func() (cli.Command, error) {
@@ -85,9 +312,11 @@ func main() {
 			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"droplet": func() (cli.Command, error) {
+			info := namespaceCommands["droplet"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
-				SynopsisText: "Commands for DigitalOcean Droplets",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"droplet create": func() (cli.Command, error) {
@@ -100,9 +329,11 @@ func main() {
 			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"galaxy": func() (cli.Command, error) {
+			info := namespaceCommands["galaxy"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis galaxy <subcommand> [<args>]",
-				SynopsisText: "Commands for Ansible Galaxy",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"galaxy install": func() (cli.Command, error) {
@@ -115,9 +346,11 @@ func main() {
 			return cmd.NewInitCommand(ui, trellis), nil
 		},
 		"key": func() (cli.Command, error) {
+			info := namespaceCommands["key"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis key <subcommand> [<args>]",
-				SynopsisText: "Commands for managing SSH keys",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"key generate": func() (cli.Command, error) {
@@ -148,9 +381,11 @@ func main() {
 			return cmd.NewUpCommand(ui, trellis), nil
 		},
 		"vault": func() (cli.Command, error) {
+			info := namespaceCommands["vault"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis vault <subcommand> [<args>]",
-				SynopsisText: "Commands for Ansible Vault",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"vault edit": func() (cli.Command, error) {
@@ -166,9 +401,11 @@ func main() {
 			return cmd.NewVaultViewCommand(ui, trellis), nil
 		},
 		"valet": func() (cli.Command, error) {
+			info := namespaceCommands["valet"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis valet <subcommand> [<args>]",
-				SynopsisText: "Commands for Laravel Valet",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"valet link": func() (cli.Command, error) {
@@ -178,9 +415,11 @@ func main() {
 			return &cmd.VenvHookCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"vm": func() (cli.Command, error) {
+			info := namespaceCommands["vm"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis vm <subcommand> [<args>]",
-				SynopsisText: "Commands for managing development virtual machines",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"vm delete": func() (cli.Command, error) {
@@ -199,9 +438,11 @@ func main() {
 			return &cmd.VmSudoersCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"xdebug-tunnel": func() (cli.Command, error) {
+			info := namespaceCommands["xdebug-tunnel"]
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis xdebug-tunnel <subcommand> [<args>]",
-				SynopsisText: "Commands for Xdebug tunnel",
+				SynopsisText: info.Synopsis,
+				Subcommands:  info.Subcommands,
 			}, nil
 		},
 		"xdebug-tunnel open": func() (cli.Command, error) {
@@ -213,7 +454,9 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
-	c.HelpFunc = deprecatedCommandHelpFunc(deprecatedCommands, cli.BasicHelpFunc("trellis"))
+
+	// Use pterm for enhanced help
+	c.HelpFunc = ptermHelpFunc(version, deprecatedCommands, cli.BasicHelpFunc("trellis"))
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))

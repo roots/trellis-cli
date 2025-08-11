@@ -116,7 +116,7 @@ Options:
   -h, --help show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vm start", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VmStartCommand) printInstanceInfo() {

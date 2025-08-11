@@ -126,7 +126,7 @@ Options:
   -h, --help     show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("rollback", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *RollbackCommand) AutocompleteArgs() complete.Predictor {

@@ -123,7 +123,7 @@ Options:
   -h, --help         show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("up", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *UpCommand) AutocompleteArgs() complete.Predictor {

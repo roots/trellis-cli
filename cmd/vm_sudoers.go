@@ -57,5 +57,5 @@ Options:
   -h, --help show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vm sudoers", c.Synopsis(), strings.TrimSpace(helpText))
 }

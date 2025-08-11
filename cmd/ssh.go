@@ -120,7 +120,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("ssh", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *SshCommand) AutocompleteArgs() complete.Predictor {

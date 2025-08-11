@@ -74,5 +74,5 @@ Options:
   -h, --help show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("exec", c.Synopsis(), strings.TrimSpace(helpText))
 }

@@ -196,7 +196,7 @@ Options:
   -h, --help        show this help
 `
 
-	return strings.TrimSpace(fmt.Sprintf(helpText, c.dbOpenerFactory.GetSupportedApps()))
+	return CreateHelp("db open", c.Synopsis(), strings.TrimSpace(fmt.Sprintf(helpText, c.dbOpenerFactory.GetSupportedApps())))
 }
 
 func (c *DBOpenCommand) AutocompleteArgs() complete.Predictor {

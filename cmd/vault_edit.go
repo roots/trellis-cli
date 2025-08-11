@@ -116,7 +116,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vault edit", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VaultEditCommand) AutocompleteArgs() complete.Predictor {

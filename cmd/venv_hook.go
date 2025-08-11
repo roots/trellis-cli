@@ -55,7 +55,7 @@ Options:
   -h, --help  show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("venv-hook", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VenvHookCommand) exportEnv(key string, value string) {

@@ -224,7 +224,7 @@ Options:
   -h, --help          Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("alias", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *AliasCommand) AutocompleteArgs() complete.Predictor {

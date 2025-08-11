@@ -218,7 +218,7 @@ Options:
   -h, --help            show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("droplet-create", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *DropletCreateCommand) AutocompleteArgs() complete.Predictor {

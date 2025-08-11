@@ -70,5 +70,5 @@ To activate the integration, add one of the following lines to your shell profil
 Options:
   -h, --help  show this help
 `
-	return strings.TrimSpace(helpText)
+	return CreateHelp("shell-init", c.Synopsis(), strings.TrimSpace(helpText))
 }

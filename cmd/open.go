@@ -108,7 +108,7 @@ Options:
   -h, --help  show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("open", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *OpenCommand) AutocompleteArgs() complete.Predictor {

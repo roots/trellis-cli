@@ -81,5 +81,5 @@ Options:
   -h, --help show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vm stop", c.Synopsis(), strings.TrimSpace(helpText))
 }
