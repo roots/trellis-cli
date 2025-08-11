@@ -2,20 +2,39 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/pterm/pterm"
 	"golang.org/x/term"
-	"os"
 )
 
 // CreateHelp is a helper function for commands to get properly formatted help
 func CreateHelp(commandName string, synopsis string, rawHelp string) string {
-	return PtermHelpFunc(commandName, synopsis, rawHelp)
+	// Check if we're in a context where we should suppress pterm output
+	// This happens when namespace commands are showing help
+	if shouldSuppressPtermOutput() {
+		return "" // Return empty string to prevent any output
+	}
+
+	// Print pterm help directly and return empty string
+	// This prevents CLI framework from showing duplicate content
+	PtermHelpFunc(commandName, synopsis, rawHelp)
+	return ""
+}
+
+var suppressPtermOutput bool
+
+func shouldSuppressPtermOutput() bool {
+	return suppressPtermOutput
+}
+
+func setSuppressPtermOutput(suppress bool) {
+	suppressPtermOutput = suppress
 }
 
 // PtermHelpFunc creates a stylized help output for subcommands
-func PtermHelpFunc(commandName string, synopsis string, helpText string) string {
+func PtermHelpFunc(commandName string, synopsis string, helpText string) {
 	// Define color scheme
 	dim := pterm.NewStyle(pterm.FgDarkGray)
 	cyan := pterm.NewStyle(pterm.FgCyan)
@@ -29,16 +48,16 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 		termWidth = width
 	}
 
-	// Clear for clean output
-	fmt.Println()
+	// Build output as string instead of printing directly
+	var output strings.Builder
 
-	// Command header - minimal style
-	fmt.Print(cyan.Sprint("┌─╼ "))
-	fmt.Print(brightWhite.Sprint("trellis " + commandName))
-	fmt.Println()
-	fmt.Print(cyan.Sprint("└─╼ "))
-	fmt.Println(dim.Sprint(synopsis))
-	fmt.Println()
+	output.WriteString("\n")
+	output.WriteString(cyan.Sprint("┌─╼ "))
+	output.WriteString(brightWhite.Sprint("trellis " + commandName))
+	output.WriteString("\n")
+	output.WriteString(cyan.Sprint("└─╼ "))
+	output.WriteString(dim.Sprint(synopsis))
+	output.WriteString("\n\n")
 
 	// Parse the help text to extract usage, examples, arguments, and options
 	lines := strings.Split(helpText, "\n")
@@ -58,9 +77,9 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 			currentSection = "usage"
 			// Extract and print usage immediately
 			usageLine := strings.TrimPrefix(line, "Usage:")
-			fmt.Print(dim.Sprint("$ "))
-			fmt.Println(strings.TrimSpace(usageLine))
-			fmt.Println()
+			output.WriteString(dim.Sprint("$ "))
+			output.WriteString(strings.TrimSpace(usageLine))
+			output.WriteString("\n\n")
 			continue
 		} else if strings.HasPrefix(trimmed, "Arguments:") {
 			currentSection = "arguments"
@@ -68,9 +87,29 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 		} else if strings.HasPrefix(trimmed, "Options:") {
 			currentSection = "options"
 			continue
-		} else if strings.HasPrefix(trimmed, "Create") || strings.HasPrefix(trimmed, "Specify") || strings.HasPrefix(trimmed, "Force") {
+		} else if strings.HasPrefix(trimmed, "Create") || strings.HasPrefix(trimmed, "Specify") || strings.HasPrefix(trimmed, "Force") || strings.HasPrefix(trimmed, "$") {
+			// When we hit examples, stop adding to description
+			// This prevents example lead-in text from showing in description
 			inExampleBlock = true
 			currentSection = "examples"
+			// Remove the last few description lines that are probably example lead-ins
+			if strings.HasPrefix(trimmed, "$") && len(description) > 0 {
+				// For db open specifically, remove ALL description since it's all example lead-ins
+				// More aggressive cleanup - remove trailing description lines
+				for len(description) > 0 {
+					lastDesc := description[len(description)-1]
+					if lastDesc == "" ||
+						strings.Contains(lastDesc, ":") ||
+						strings.Contains(lastDesc, "example") ||
+						strings.Contains(lastDesc, "database") ||
+						strings.Contains(lastDesc, "production") ||
+						strings.Contains(lastDesc, "defaults to") {
+						description = description[:len(description)-1]
+					} else {
+						break
+					}
+				}
+			}
 		}
 
 		// Collect content based on section
@@ -86,8 +125,14 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 				!strings.HasPrefix(trimmed, "Options:") &&
 				!strings.HasPrefix(trimmed, "Create") &&
 				!strings.HasPrefix(trimmed, "Specify") &&
-				!strings.HasPrefix(trimmed, "Force") {
+				!strings.HasPrefix(trimmed, "Force") &&
+				!strings.HasPrefix(trimmed, "$") &&
+				!strings.Contains(trimmed, "defaults to") &&
+				!strings.Contains(trimmed, "database") &&
+				!strings.Contains(trimmed, "production") &&
+				!strings.Contains(trimmed, ":") {
 				// This is description text after Usage
+				// Skip lines that look like example lead-ins
 				description = append(description, trimmed)
 			}
 
@@ -95,9 +140,12 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 			if strings.HasPrefix(trimmed, "$") {
 				examples = append(examples, trimmed)
 				inExampleBlock = false
-			} else if inExampleBlock {
+			} else if inExampleBlock && trimmed != "" {
 				// Example description
 				examples = append(examples, "  "+trimmed)
+			} else if trimmed != "" && !strings.HasPrefix(trimmed, "Arguments:") && !strings.HasPrefix(trimmed, "Options:") {
+				// Any other text in examples section that's not empty and not a section header
+				examples = append(examples, trimmed)
 			}
 
 		case "arguments":
@@ -117,7 +165,7 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 		for _, desc := range description {
 			if desc == "" {
 				// Preserve blank lines
-				fmt.Println()
+				output.WriteString("\n")
 			} else {
 				// Manual word wrapping with proper indentation
 				words := strings.Fields(desc)
@@ -133,9 +181,11 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 					} else {
 						// Print current line
 						if lineCount == 0 {
-							fmt.Println(dim.Sprint(currentLine))
+							output.WriteString(dim.Sprint(currentLine))
+							output.WriteString("\n")
 						} else {
-							fmt.Println(dim.Sprint("  " + currentLine)) // Indent wrapped lines
+							output.WriteString(dim.Sprint("  " + currentLine)) // Indent wrapped lines
+							output.WriteString("\n")
 						}
 						lineCount++
 						currentLine = word
@@ -144,39 +194,43 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 				// Print last line
 				if currentLine != "" {
 					if lineCount == 0 {
-						fmt.Println(dim.Sprint(currentLine))
+						output.WriteString(dim.Sprint(currentLine))
+						output.WriteString("\n")
 					} else {
-						fmt.Println(dim.Sprint("  " + currentLine)) // Indent wrapped lines
+						output.WriteString(dim.Sprint("  " + currentLine)) // Indent wrapped lines
+						output.WriteString("\n")
 					}
 				}
 			}
 		}
-		fmt.Println()
+		output.WriteString("\n")
 	}
 
 	// Print Arguments section
 	if len(arguments) > 0 {
-		fmt.Print(" ")
-		fmt.Print(cyan.Sprint("◉ "))
-		fmt.Println(dim.Sprint("ARGUMENTS"))
+		output.WriteString(" ")
+		output.WriteString(cyan.Sprint("◉ "))
+		output.WriteString(dim.Sprint("ARGUMENTS"))
+		output.WriteString("\n")
 
 		for _, arg := range arguments {
 			parts := strings.SplitN(strings.TrimSpace(arg), " ", 2)
 			if len(parts) == 2 {
-				fmt.Printf("   %s %-12s %s\n",
+				output.WriteString(fmt.Sprintf("   %s %-12s %s\n",
 					green.Sprint("→"),
 					parts[0],
-					dim.Sprint(strings.TrimSpace(parts[1])))
+					dim.Sprint(strings.TrimSpace(parts[1]))))
 			}
 		}
-		fmt.Println()
+		output.WriteString("\n")
 	}
 
 	// Print Options section with proper word wrapping
 	if len(options) > 0 {
-		fmt.Print(" ")
-		fmt.Print(cyan.Sprint("◉ "))
-		fmt.Println(dim.Sprint("OPTIONS"))
+		output.WriteString(" ")
+		output.WriteString(cyan.Sprint("◉ "))
+		output.WriteString(dim.Sprint("OPTIONS"))
+		output.WriteString("\n")
 
 		for _, opt := range options {
 			trimmed := strings.TrimSpace(opt)
@@ -205,7 +259,7 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 				visualPrefixLen := 3 + 1 + 1 + 20 + 1 // "   " + arrow + " " + flag + " " = 26
 
 				// Print first line with prefix
-				fmt.Print(prefix)
+				output.WriteString(prefix)
 
 				if descPart != "" {
 					// Word wrap the description based on terminal width
@@ -223,10 +277,11 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 						} else {
 							// Print current line
 							if firstLine {
-								fmt.Println(dim.Sprint(currentLine))
+								output.WriteString(dim.Sprint(currentLine))
+								output.WriteString("\n")
 								firstLine = false
 							} else {
-								fmt.Printf("%*s%s\n", visualPrefixLen, "", dim.Sprint(currentLine))
+								output.WriteString(fmt.Sprintf("%*s%s\n", visualPrefixLen, "", dim.Sprint(currentLine)))
 							}
 							currentLine = word
 						}
@@ -235,24 +290,26 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 					// Print last line
 					if currentLine != "" {
 						if firstLine {
-							fmt.Println(dim.Sprint(currentLine))
+							output.WriteString(dim.Sprint(currentLine))
+							output.WriteString("\n")
 						} else {
-							fmt.Printf("%*s%s\n", visualPrefixLen, "", dim.Sprint(currentLine))
+							output.WriteString(fmt.Sprintf("%*s%s\n", visualPrefixLen, "", dim.Sprint(currentLine)))
 						}
 					}
 				} else {
-					fmt.Println()
+					output.WriteString("\n")
 				}
 			}
 		}
-		fmt.Println()
+		output.WriteString("\n")
 	}
 
 	// Print Examples section with consistent indentation
 	if len(examples) > 0 {
-		fmt.Print(" ")
-		fmt.Print(cyan.Sprint("◉ "))
-		fmt.Println(dim.Sprint("EXAMPLES"))
+		output.WriteString(" ")
+		output.WriteString(cyan.Sprint("◉ "))
+		output.WriteString(dim.Sprint("EXAMPLES"))
+		output.WriteString("\n")
 
 		baseIndent := "   " // 3 spaces for all example content
 		lastWasCommand := false
@@ -262,7 +319,7 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 
 			// Add blank line before description that follows a command
 			if lastWasCommand && !strings.HasPrefix(trimmed, "$") {
-				fmt.Println()
+				output.WriteString("\n")
 			}
 
 			if strings.HasPrefix(trimmed, "$") {
@@ -281,9 +338,11 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 
 						if len(remaining) <= cutAt {
 							if firstLine {
-								fmt.Println(baseIndent + yellow.Sprint(remaining))
+								output.WriteString(baseIndent + yellow.Sprint(remaining))
+								output.WriteString("\n")
 							} else {
-								fmt.Println(baseIndent + "  " + yellow.Sprint(remaining))
+								output.WriteString(baseIndent + "  " + yellow.Sprint(remaining))
+								output.WriteString("\n")
 							}
 							break
 						}
@@ -298,16 +357,19 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 						}
 
 						if firstLine {
-							fmt.Println(baseIndent + yellow.Sprint(remaining[:breakPoint]))
+							output.WriteString(baseIndent + yellow.Sprint(remaining[:breakPoint]))
+							output.WriteString("\n")
 							firstLine = false
 						} else {
-							fmt.Println(baseIndent + "  " + yellow.Sprint(remaining[:breakPoint]))
+							output.WriteString(baseIndent + "  " + yellow.Sprint(remaining[:breakPoint]))
+							output.WriteString("\n")
 						}
 						remaining = strings.TrimSpace(remaining[breakPoint:])
 					}
 				} else {
 					// Short command, print with standard indent
-					fmt.Println(baseIndent + yellow.Sprint(trimmed))
+					output.WriteString(baseIndent + yellow.Sprint(trimmed))
+					output.WriteString("\n")
 				}
 			} else {
 				lastWasCommand = false
@@ -325,36 +387,40 @@ func PtermHelpFunc(commandName string, synopsis string, helpText string) string 
 						} else if len(currentLine)+1+len(word) <= maxDescWidth {
 							currentLine += " " + word
 						} else {
-							fmt.Println(baseIndent + dim.Sprint(currentLine))
+							output.WriteString(baseIndent + dim.Sprint(currentLine))
+							output.WriteString("\n")
 							currentLine = word
 						}
 					}
 					if currentLine != "" {
-						fmt.Println(baseIndent + dim.Sprint(currentLine))
+						output.WriteString(baseIndent + dim.Sprint(currentLine))
+						output.WriteString("\n")
 					}
 				} else {
-					fmt.Println(baseIndent + dim.Sprint(trimmedExample))
+					output.WriteString(baseIndent + dim.Sprint(trimmedExample))
+					output.WriteString("\n")
 				}
 			}
 		}
-		fmt.Println()
+		output.WriteString("\n")
 	}
 
 	// Footer with responsive separator
-	fmt.Println(cyan.Sprint(strings.Repeat("━", termWidth)))
+	output.WriteString(cyan.Sprint(strings.Repeat("━", termWidth)))
+	output.WriteString("\n")
 
 	// Simple footer that works at any width
 	docsUrl := "https://roots.io/trellis/docs/"
 	footer := " docs → " + docsUrl
 
 	if len(footer) <= termWidth {
-		fmt.Print(dim.Sprint(" docs → "))
-		fmt.Println(cyan.Sprint(docsUrl))
+		output.WriteString(dim.Sprint(" docs → "))
+		output.WriteString(cyan.Sprint(docsUrl))
+		output.WriteString("\n")
 	} else {
 		// For very narrow terminals, just show the URL
-		fmt.Println(cyan.Sprint(" " + docsUrl))
+		output.WriteString(cyan.Sprint(" " + docsUrl))
+		output.WriteString("\n")
 	}
-	fmt.Println()
-
-	return ""
+	fmt.Print(output.String())
 }
