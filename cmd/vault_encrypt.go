@@ -165,7 +165,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vault encrypt", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VaultEncryptCommand) AutocompleteArgs() complete.Predictor {

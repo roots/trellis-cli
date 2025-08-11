@@ -211,7 +211,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("droplet-dns", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *DropletDnsCommand) AutocompleteArgs() complete.Predictor {

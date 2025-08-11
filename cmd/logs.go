@@ -189,7 +189,7 @@ Options:
   -h, --help            Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("logs", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *LogsCommand) AutocompleteArgs() complete.Predictor {

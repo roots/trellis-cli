@@ -115,7 +115,7 @@ Options:
   -h, --help  show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("dot-env", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *DotEnvCommand) AutocompleteArgs() complete.Predictor {

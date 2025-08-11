@@ -213,7 +213,9 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
-	c.HelpFunc = deprecatedCommandHelpFunc(deprecatedCommands, cli.BasicHelpFunc("trellis"))
+
+	// Use pterm for enhanced help
+	c.HelpFunc = ptermHelpFunc(version, deprecatedCommands, cli.BasicHelpFunc("trellis"))
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))

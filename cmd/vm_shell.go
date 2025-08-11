@@ -101,5 +101,5 @@ Options:
   -h, --help     Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vm shell", c.Synopsis(), strings.TrimSpace(helpText))
 }

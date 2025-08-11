@@ -98,7 +98,7 @@ Options:
   -h, --help    show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("xdebug-tunnel open", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *XdebugTunnelOpenCommand) AutocompleteFlags() complete.Flags {

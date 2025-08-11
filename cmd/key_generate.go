@@ -288,7 +288,7 @@ Options:
   -h, --help           show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("key-generate", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *KeyGenerateCommand) AutocompleteArgs() complete.Predictor {

@@ -114,7 +114,7 @@ Options:
   -h, --help  show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("check", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func checkRequirement(req trellis.Requirement) (result trellis.RequirementResult, err error) {

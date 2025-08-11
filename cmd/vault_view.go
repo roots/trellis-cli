@@ -140,7 +140,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vault view", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VaultViewCommand) AutocompleteArgs() complete.Predictor {

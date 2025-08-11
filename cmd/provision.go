@@ -140,7 +140,7 @@ Options:
   -h, --help        Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("provision", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *ProvisionCommand) AutocompleteArgs() complete.Predictor {

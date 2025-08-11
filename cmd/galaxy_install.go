@@ -120,5 +120,5 @@ Options:
   -h, --help  show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("galaxy-install", c.Synopsis(), strings.TrimSpace(helpText))
 }

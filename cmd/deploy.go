@@ -157,7 +157,7 @@ Options:
   -h, --help        show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("deploy", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *DeployCommand) AutocompleteArgs() complete.Predictor {

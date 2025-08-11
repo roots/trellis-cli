@@ -53,7 +53,7 @@ func (c *NewCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 1, optional: 0}
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 1}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {
 		c.UI.Error(commandArgumentErr.Error())
@@ -61,7 +61,13 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	path := args[0]
+	path := ""
+	if len(args) > 0 {
+		path = args[0]
+	} else {
+		// Default to current directory if no path provided
+		path = "."
+	}
 
 	path, _ = filepath.Abs(path)
 	fi, statErr := os.Stat(path)
@@ -239,7 +245,7 @@ Options:
   -h, --help             show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("new", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *NewCommand) YamlHeader(doc string) string {

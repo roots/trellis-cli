@@ -163,7 +163,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vault decrypt", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VaultDecryptCommand) AutocompleteArgs() complete.Predictor {

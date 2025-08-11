@@ -92,7 +92,7 @@ Options:
   -h, --help  Show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("vm delete", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func (c *VmDeleteCommand) AutocompleteFlags() complete.Flags {

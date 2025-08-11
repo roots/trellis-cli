@@ -148,7 +148,7 @@ Options:
   -h, --help   show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("init", c.Synopsis(), strings.TrimSpace(helpText))
 }
 
 func virtualenvError(ui cli.Ui) {

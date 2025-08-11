@@ -61,5 +61,5 @@ Options:
   -h, --help         show this help
 `
 
-	return strings.TrimSpace(helpText)
+	return CreateHelp("down", c.Synopsis(), strings.TrimSpace(helpText))
 }
