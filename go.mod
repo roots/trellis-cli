@@ -1,6 +1,6 @@
 module github.com/roots/trellis-cli
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/digitalocean/godo v1.164.0
@@ -17,7 +17,7 @@ require (
 	github.com/theckman/yacspin v0.13.12
 	github.com/weppos/publicsuffix-go v0.50.0
 	golang.org/x/crypto v0.41.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.31.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
