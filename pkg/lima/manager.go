@@ -320,12 +320,7 @@ func ensureRequirements() error {
 	}
 
 	if err = Installed(); err != nil {
-		return fmt.Errorf(err.Error() + `
-Install or upgrade Lima to continue:
-
-  brew install lima
-
-See https://github.com/lima-vm/lima#getting-started for manual installation options.`)
+		return fmt.Errorf("%s\nInstall or upgrade Lima to continue:\n\n  brew install lima\n\nSee https://github.com/lima-vm/lima#getting-started for manual installation options.", err.Error())
 	}
 
 	return nil
