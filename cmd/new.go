@@ -25,6 +25,7 @@ type NewCommand struct {
 	name           string
 	host           string
 	skipVirtualenv bool
+	skipBedrock    bool
 	trellisVersion string
 	vaultPass      string
 }
@@ -44,6 +45,7 @@ func (c *NewCommand) init() {
 	c.flags.StringVar(&c.trellisVersion, "trellis-version", "latest", "Version of Trellis to create the project with (default: latest).")
 	c.flags.StringVar(&c.vaultPass, "vault-pass", ".vault_pass", "Path for the generated Vault pass file")
 	c.flags.BoolVar(&c.skipVirtualenv, "skip-virtualenv", false, "Skip creating a new virtual environment for this project")
+	c.flags.BoolVar(&c.skipBedrock, "skip-bedrock", false, "Skip downloading Bedrock")
 }
 
 func (c *NewCommand) Run(args []string) int {
@@ -117,12 +119,17 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	bedrockRelease, err := github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
-	if err != nil {
-		c.UI.Error("Aborting: error while downloading Bedrock")
-		c.UI.Error(err.Error())
-		c.UI.Error("\nThis could be a temporary network error. Please delete this project folder and try again.")
-		return 1
+	var bedrockRelease *github.Release
+
+	if !c.skipBedrock {
+		var err error
+		bedrockRelease, err = github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
+		if err != nil {
+			c.UI.Error("Aborting: error while downloading Bedrock")
+			c.UI.Error(err.Error())
+			c.UI.Error("\nThis could be a temporary network error. Please delete this project folder and try again.")
+			return 1
+		}
 	}
 
 	if err := os.Chdir(path); err != nil {
@@ -184,7 +191,10 @@ func (c *NewCommand) Run(args []string) int {
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis %s\n", trellisRelease.Version)
-	fmt.Printf("  Bedrock v%s\n", bedrockRelease.Version)
+
+	if !c.skipBedrock {
+		fmt.Printf("  Bedrock v%s\n", bedrockRelease.Version)
+	}
 
 	return 0
 }
@@ -233,6 +243,7 @@ Options:
       --force            (default: false) Forces the creation of the project even if the target path is not empty
       --name             Main site name (the domain name). Bypasses the name prompt if specified. Example: mydomain.com
       --host             Main site hostname. Bypasses the host prompt if specified. Example: mydomain.com or www.mydomain.com
+      --skip-bedrock     (default: false) Skip downloading Bedrock
       --skip-virtualenv  (default: false) Skip creating a new virtual environment for this project
       --trellis-version  (default: latest) Version of Trellis to start the project with. Options: "latest", "dev", or any version (such as "1.0.0")
       --vault-pass       (default: .vault_pass) Path for the generated Vault pass file
