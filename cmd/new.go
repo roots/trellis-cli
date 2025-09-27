@@ -122,7 +122,6 @@ func (c *NewCommand) Run(args []string) int {
 	var bedrockRelease *github.Release
 
 	if !c.skipBedrock {
-		var err error
 		bedrockRelease, err = github.DownloadRelease("roots/bedrock", "latest", path, filepath.Join(path, "site"))
 		if err != nil {
 			c.UI.Error("Aborting: error while downloading Bedrock")
