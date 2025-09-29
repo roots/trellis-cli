@@ -220,6 +220,16 @@ func main() {
 		plugin.Register(c, pluginPaths, []string{"trellis"})
 	}
 
+	if c.IsVersion() {
+		ui.Info(c.Version)
+
+		if c.Version != "canary" {
+			ui.Info(fmt.Sprintf("https://github.com/roots/trellis-cli/releases/tag/v%s", c.Version))
+		}
+
+		os.Exit(0)
+	}
+
 	exitStatus, err := c.Run()
 
 	if err != nil {
