@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.7
 
 require (
-	github.com/digitalocean/godo v1.165.0
+	github.com/digitalocean/godo v1.166.0
 	github.com/fatih/color v1.18.0
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/cli v1.1.7
