@@ -40,7 +40,7 @@ func TestPlaybookAll(t *testing.T) {
 
 	expected := []string{
 		"server.yml",
-		"--inventory-file=hosts/custom",
+		"--inventory=hosts/custom",
 		"--tags=users",
 		"-e env=production",
 		"-e site=example.com",

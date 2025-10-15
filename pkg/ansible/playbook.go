@@ -34,7 +34,7 @@ func (p *Playbook) AddExtraVars(extraVars string) *Playbook {
 
 func (p *Playbook) SetInventory(path string) *Playbook {
 	if path != "" {
-		p.AddArg("--inventory-file", path)
+		p.AddArg("--inventory", path)
 	}
 
 	return p
