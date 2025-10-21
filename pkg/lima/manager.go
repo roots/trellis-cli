@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	ConfigPathError    = errors.New("could not create config directory")
-	UnsupportedOSError = errors.New("Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
+	ErrConfigPath    = errors.New("could not create config directory")
+	ErrUnsupportedOS = errors.New("unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
 )
 
 type Manager struct {
@@ -60,7 +60,7 @@ func NewManager(trellis *trellis.Trellis, ui cli.Ui) (manager *Manager, err erro
 	}
 
 	if err = manager.createConfigPath(); err != nil {
-		return nil, fmt.Errorf("%w: %v", ConfigPathError, err)
+		return nil, fmt.Errorf("%w: %v", ErrConfigPath, err)
 	}
 
 	return manager, nil
@@ -144,7 +144,7 @@ func (m *Manager) StartInstance(name string) error {
 	instance, ok := m.GetInstance(name)
 
 	if !ok {
-		return vm.VmNotFoundErr
+		return vm.ErrVmNotFound
 	}
 
 	if instance.Running() {
@@ -312,11 +312,11 @@ func getMacOSVersion() (string, error) {
 func ensureRequirements() error {
 	macOSVersion, err := getMacOSVersion()
 	if err != nil {
-		return UnsupportedOSError
+		return ErrUnsupportedOS
 	}
 
 	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
-		return fmt.Errorf("%w", UnsupportedOSError)
+		return fmt.Errorf("%w", ErrUnsupportedOS)
 	}
 
 	if err = Installed(); err != nil {

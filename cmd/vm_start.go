@@ -67,7 +67,7 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 0
 	}
 
-	if !errors.Is(err, vm.VmNotFoundErr) {
+	if !errors.Is(err, vm.ErrVmNotFound) {
 		c.UI.Error("Error starting VM.")
 		c.UI.Error(err.Error())
 		return 1

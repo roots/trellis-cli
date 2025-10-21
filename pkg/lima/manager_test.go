@@ -75,7 +75,7 @@ func TestNewManagerUnsupportedOS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := "Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later."
+	expected := "unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later."
 
 	if err.Error() != expected {
 		t.Errorf("expected error to be %q, got %q", expected, err.Error())

@@ -150,7 +150,9 @@ func (v *Virtualenv) updateFile(path string) error {
 
 	fileInfo, _ := f.Stat()
 	permissions := fileInfo.Mode()
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	contents, err := v.replaceShebang(f)
 	if err != nil {

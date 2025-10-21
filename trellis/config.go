@@ -126,7 +126,7 @@ func (s *Site) MainHost() string {
 }
 
 func (s *Site) MainUrl() string {
-	var protocol string = "http"
+	var protocol = "http"
 
 	if s.SslEnabled() {
 		protocol = "https"

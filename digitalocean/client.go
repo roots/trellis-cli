@@ -18,7 +18,7 @@ import (
 const baseTag = "trellis"
 
 var (
-	ErrNotFound = errors.New("Not found")
+	ErrNotFound = errors.New("not found")
 )
 
 type Client struct {

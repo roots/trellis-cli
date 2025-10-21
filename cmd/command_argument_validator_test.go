@@ -65,15 +65,15 @@ func TestCommandArgumentValidatorValidate(t *testing.T) {
 
 		actual := validator.validate(tc.args)
 
-		if "" == tc.expectedMessage && actual != nil {
+		if tc.expectedMessage == "" && actual != nil {
 			t.Errorf("expected result to be valid, got %s", actual)
 		}
 
-		if "" != tc.expectedMessage && actual == nil {
+		if tc.expectedMessage != "" && actual == nil {
 			t.Errorf("expected result to be invalid, got nil")
 		}
 
-		if "" != tc.expectedMessage && actual != nil {
+		if tc.expectedMessage != "" && actual != nil {
 			if !strings.Contains(actual.Error(), tc.expectedMessage) {
 				t.Errorf("expected error to contains %s, got %s", tc.expectedMessage, actual)
 			}

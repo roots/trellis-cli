@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	VmNotFoundErr = errors.New("vm does not exist")
+	ErrVmNotFound = errors.New("vm does not exist")
 )
 
 type Manager interface {
