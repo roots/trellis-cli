@@ -36,42 +36,42 @@ jobs:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
 
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Darwin_arm64.tar.gz.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Darwin_x86_64.tar.gz.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Linux_arm64.tar.gz.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Linux_i386.tar.gz.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Linux_x86_64.tar.gz.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Windows_arm64.zip.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
           sbom-path: ./dist/trellis_Windows_i386.zip.sbom.json
-      - uses: actions/attest-sbom@v2
+      - uses: actions/attest-sbom@v3
         with:
           show-summary: false
           subject-checksums: ./dist/trellis_checksums.txt
