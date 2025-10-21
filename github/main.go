@@ -33,14 +33,15 @@ func NewReleaseFromVersion(repo string, version string) *Release {
 }
 
 func DownloadRelease(repo string, version string, path string, dest string) (release *Release, err error) {
-	if version == "latest" {
+	switch version {
+	case "latest":
 		release, err = FetchLatestRelease(repo, Client)
 		if err != nil {
 			return nil, fmt.Errorf("Error fetching release information from the GitHub API: %v", err)
 		}
-	} else if version == "dev" {
+	case "dev":
 		release = NewReleaseFromVersion(repo, "master")
-	} else {
+	default:
 		release = NewReleaseFromVersion(repo, version)
 	}
 
@@ -62,7 +63,7 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	if err != nil {
 		return nil, fmt.Errorf("Error opening release archive: %v", err)
 	}
-	defer archiveFile.Close()
+	defer func() { _ = archiveFile.Close() }()
 
 	var format archives.Zip
 
@@ -99,7 +100,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 
@@ -125,13 +126,13 @@ func DownloadFile(filepath string, url string, client *http.Client) error {
 	if err != nil {
 		return fmt.Errorf("Could not create file %s: %v", filepath, err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("Could not download file %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
@@ -161,7 +162,7 @@ func extractToDisk(fi archives.FileInfo, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	dst, err := os.Create(destPath)
 	if err != nil {

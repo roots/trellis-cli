@@ -380,7 +380,7 @@ func testCreateFile(t *testing.T, path string) func() {
 		t.Fatalf("err: %s", err)
 	}
 
-	return func() { file.Close() }
+	return func() { _ = file.Close() }
 }
 
 func TestEnsurePipSuccessHelperProcess(t *testing.T) {

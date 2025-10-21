@@ -1,0 +1,19 @@
+version: "2"
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - "-ST1000"
+        - "-ST1003"
+        - "-ST1005"
+        - "-ST1012"
+        - "-ST1020"
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - os.Unsetenv
+        - os.Setenv
+        - os.Remove
+        - os.RemoveAll

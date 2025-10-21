@@ -91,12 +91,12 @@ func TestCompletionFunctions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			defer r.Close() // Only defer reader since writer is closed below
+			defer func() { _ = r.Close() }() // Only defer reader since writer is closed below
 			os.Stdout = w
 
 			// Run
 			exitCode, err := cli.Run()
-			w.Close()
+			_ = w.Close()
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -157,7 +157,7 @@ func testAutocomplete(t *testing.T, input string) func() {
 		os.Stderr = oldStderr
 
 		// Close our pipe
-		r.Close()
-		w.Close()
+		_ = r.Close()
+		_ = w.Close()
 	}
 }

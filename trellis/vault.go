@@ -18,7 +18,7 @@ func IsFileEncrypted(filepath string) (isEncrypted bool, err error) {
 		return false, err
 	}
 
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Scan()

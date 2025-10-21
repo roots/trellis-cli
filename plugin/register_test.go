@@ -38,10 +38,10 @@ func TestIntegrationPluginCommand(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, err := file.WriteString(spyCommand); err != nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	file.Close()
+	_ = file.Close()
 	err = os.Chmod(file.Name(), 0111)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
