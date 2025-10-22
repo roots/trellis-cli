@@ -81,9 +81,6 @@ func main() {
 		"dotenv": func() (cli.Command, error) {
 			return cmd.NewDotEnvCommand(ui, trellis), nil
 		},
-		"down": func() (cli.Command, error) {
-			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
-		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
@@ -143,9 +140,6 @@ func main() {
 		},
 		"ssh": func() (cli.Command, error) {
 			return cmd.NewSshCommand(ui, trellis), nil
-		},
-		"up": func() (cli.Command, error) {
-			return cmd.NewUpCommand(ui, trellis), nil
 		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
