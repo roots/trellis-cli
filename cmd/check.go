@@ -24,23 +24,6 @@ var Requirements = []trellis.Requirement{
 			return strings.Replace(output, "Python ", "", 1)
 		},
 	},
-	{
-		Name:              "Vagrant",
-		Command:           "vagrant",
-		Optional:          true,
-		Url:               "https://www.vagrantup.com/downloads.html",
-		VersionConstraint: ">= 2.1.0",
-		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "Vagrant ", "", 1)
-		},
-	},
-	{
-		Name:              "VirtualBox",
-		Command:           "VBoxManage",
-		Optional:          true,
-		Url:               "https://www.virtualbox.org/wiki/Downloads",
-		VersionConstraint: ">= 4.3.10",
-	},
 }
 
 func (c *CheckCommand) Run(args []string) int {

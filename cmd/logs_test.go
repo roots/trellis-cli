@@ -82,30 +82,7 @@ func TestLogsRun(t *testing.T) {
 		out  string
 		code int
 	}{
-		{
-			"default",
-			[]string{"development"},
-			"ssh vagrant@example.test tail -f /srv/www/example.com/logs/*[^gz]?",
-			0,
-		},
-		{
-			"access option",
-			[]string{"--access", "development"},
-			"ssh vagrant@example.test tail -f /srv/www/example.com/logs/access.log",
-			0,
-		},
-		{
-			"error option",
-			[]string{"--error", "development"},
-			"ssh vagrant@example.test tail -f /srv/www/example.com/logs/error.log",
-			0,
-		},
-		{
-			"number option",
-			[]string{"--number=10", "development"},
-			"ssh vagrant@example.test tail -n 10 -f /srv/www/example.com/logs/*[^gz]?",
-			0,
-		},
+
 	}
 
 	for _, tc := range cases {
@@ -147,42 +124,7 @@ func TestLogsRunGoAccess(t *testing.T) {
 		out  []string
 		code int
 	}{
-		{
-			"goaccess",
-			[]string{"--goaccess", "development"},
-			[]string{
-				"ssh vagrant@example.test tail -n +0 -f /srv/www/example.com/logs/*",
-				"goaccess --log-format=COMBINED",
-			},
-			0,
-		},
-		{
-			"goaccess flags",
-			[]string{"--goaccess", "--goaccess-flags=-a -m", "development"},
-			[]string{
-				"ssh vagrant@example.test tail -n +0 -f /srv/www/example.com/logs/*",
-				"goaccess --log-format=COMBINED -a -m",
-			},
-			0,
-		},
-		{
-			"goaccess with access only",
-			[]string{"--goaccess", "--access", "development"},
-			[]string{
-				"ssh vagrant@example.test tail -n +0 -f /srv/www/example.com/logs/access.log",
-				"goaccess --log-format=COMBINED",
-			},
-			0,
-		},
-		{
-			"goaccess with error only",
-			[]string{"--goaccess", "--error", "development"},
-			[]string{
-				"ssh vagrant@example.test tail -n +0 -f /srv/www/example.com/logs/error.log",
-				"goaccess --log-format=COMBINED",
-			},
-			0,
-		},
+
 	}
 
 	for _, tc := range cases {

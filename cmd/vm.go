@@ -12,8 +12,6 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
-
 func newVmManager(trellis *trellis.Trellis, ui cli.Ui) (manager vm.Manager, err error) {
 	switch trellis.CliConfig.Vm.Manager {
 	case "auto":
@@ -40,10 +38,6 @@ func findDevInventory(trellis *trellis.Trellis, ui cli.Ui) string {
 		if vmInventoryErr == nil {
 			return manager.InventoryPath()
 		}
-	}
-
-	if _, vagrantInventoryErr := os.Stat(filepath.Join(trellis.Path, VagrantInventoryFilePath)); vagrantInventoryErr == nil {
-		return VagrantInventoryFilePath
 	}
 
 	return ""
