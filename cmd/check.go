@@ -24,6 +24,16 @@ var Requirements = []trellis.Requirement{
 			return strings.Replace(output, "Python ", "", 1)
 		},
 	},
+	{
+		Name:              "Lima",
+		Command:           "limactl",
+		Optional:          true,
+		Url:               "https://lima-vm.io/",
+		VersionConstraint: ">= 1.0.2",
+		ExtractVersion: func(output string) string {
+			return strings.Replace(output, "limactl version ", "", 1)
+		},
+	},
 }
 
 func (c *CheckCommand) Run(args []string) int {
