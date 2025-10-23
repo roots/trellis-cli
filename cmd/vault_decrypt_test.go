@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -59,7 +59,7 @@ func TestVaultDecryptRun(t *testing.T) {
 	defer trellis.TestChdir(t, "../trellis/testdata/trellis")()
 
 	if err := trellisProject.LoadProject(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	cases := []struct {

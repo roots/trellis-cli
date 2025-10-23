@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
@@ -31,7 +31,7 @@ func (c *OpenCommand) Run(args []string) int {
 		return 1
 	}
 
-	var openArgs = []string{}
+	var openArgs []string
 
 	if len(args) == 0 {
 		_, site, siteErr := c.Trellis.MainSiteFromEnvironment("development")

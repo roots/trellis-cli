@@ -4,7 +4,7 @@ import (
 	"flag"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -41,6 +41,12 @@ func (c *VmShellCommand) Run(args []string) int {
 
 	args = c.flags.Args()
 
+	instanceName, err := c.Trellis.GetVmInstanceName()
+	if err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
 	siteName, _, err := c.Trellis.MainSiteFromEnvironment("development")
 	if err != nil {
 		c.UI.Error(err.Error())
@@ -57,10 +63,7 @@ func (c *VmShellCommand) Run(args []string) int {
 		c.workdir = "/srv/www/" + siteName + "/current"
 	}
 
-	shellArgs := []string{"--workdir", c.workdir}
-	shellArgs = append(shellArgs, args...)
-
-	if err := manager.OpenShell(siteName, c.workdir, args); err != nil {
+	if err := manager.OpenShell(instanceName, c.workdir, args); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

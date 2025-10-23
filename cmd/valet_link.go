@@ -6,7 +6,7 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -41,7 +41,7 @@ func (c *ValetLinkCommand) Run(args []string) int {
 		return 1
 	}
 
-	config, _ := c.Trellis.Environments[environment]
+	config := c.Trellis.Environments[environment]
 
 	c.UI.Info(fmt.Sprintf("Linking environment %s...", environment))
 

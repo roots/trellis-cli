@@ -67,15 +67,25 @@ func TestDetectTrellisProjectStructure(t *testing.T) {
 
 	trellisDir := filepath.Join(testDir, "trellis")
 	siteDir := filepath.Join(testDir, "site")
-	os.Mkdir(trellisDir, 0700)
-	os.Mkdir(siteDir, 0700)
-	os.Mkdir(filepath.Join(trellisDir, ConfigDir), 0700)
+	if err := os.Mkdir(trellisDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(siteDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(trellisDir, ConfigDir), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	devDir := filepath.Join(trellisDir, "group_vars", "development")
-	os.MkdirAll(devDir, 0700)
+	if err := os.MkdirAll(devDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	devConfig := filepath.Join(devDir, "wordpress_sites.yml")
-	os.WriteFile(devConfig, []byte{}, 0666)
+	if err := os.WriteFile(devConfig, []byte{}, 0666); err != nil {
+		t.Fatal(err)
+	}
 
 	project := &ProjectDetector{}
 

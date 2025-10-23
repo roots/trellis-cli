@@ -3,16 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/pkg/lima"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
 )
-
-const VagrantInventoryFilePath string = ".vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory"
 
 func newVmManager(trellis *trellis.Trellis, ui cli.Ui) (manager vm.Manager, err error) {
 	switch trellis.CliConfig.Vm.Manager {
@@ -39,10 +36,6 @@ func findDevInventory(trellis *trellis.Trellis, ui cli.Ui) string {
 		if vmInventoryErr == nil {
 			return manager.InventoryPath()
 		}
-	}
-
-	if _, vagrantInventoryErr := os.Stat(filepath.Join(trellis.Path, VagrantInventoryFilePath)); vagrantInventoryErr == nil {
-		return VagrantInventoryFilePath
 	}
 
 	return ""

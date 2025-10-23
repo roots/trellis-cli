@@ -126,7 +126,7 @@ func (s *Site) MainHost() string {
 }
 
 func (s *Site) MainUrl() string {
-	var protocol string = "http"
+	var protocol = "http"
 
 	if s.SslEnabled() {
 		protocol = "https"
@@ -142,9 +142,7 @@ func (c *Config) AllHosts() []string {
 		for _, siteHost := range site.SiteHosts {
 			hosts = append(hosts, siteHost.Canonical)
 
-			for _, redirect := range siteHost.Redirects {
-				hosts = append(hosts, redirect)
-			}
+			hosts = append(hosts, siteHost.Redirects...)
 		}
 	}
 

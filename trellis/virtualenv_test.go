@@ -115,7 +115,9 @@ func TestInitialized(t *testing.T) {
 		t.Error("Expected to be uniniatlized")
 	}
 
-	os.MkdirAll(venv.BinPath, os.ModePerm)
+	if err := os.MkdirAll(venv.BinPath, os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
 	testCreateFile(t, filepath.Join(venv.BinPath, "python"))()
 	testCreateFile(t, filepath.Join(venv.BinPath, "pip"))()
 
@@ -142,7 +144,9 @@ func TestInstalledPython3WithEnsurepip(t *testing.T) {
 	t.Setenv("PATH", tempDir)
 
 	pythonPath := filepath.Join(tempDir, "python3")
-	os.OpenFile(pythonPath, os.O_CREATE, 0555)
+	if _, err := os.OpenFile(pythonPath, os.O_CREATE, 0555); err != nil {
+		t.Fatal(err)
+	}
 
 	venv := NewVirtualenv(tempDir)
 
@@ -180,7 +184,9 @@ func TestInstalledPython3WithoutEnsurepip(t *testing.T) {
 	t.Setenv("PATH", tempDir)
 
 	pythonPath := filepath.Join(tempDir, "python3")
-	os.OpenFile(pythonPath, os.O_CREATE, 0555)
+	if _, err := os.OpenFile(pythonPath, os.O_CREATE, 0555); err != nil {
+		t.Fatal(err)
+	}
 
 	var output bytes.Buffer
 
@@ -211,7 +217,9 @@ func TestInstalledVirtualenv(t *testing.T) {
 	t.Setenv("PATH", tempDir)
 
 	venvPath := filepath.Join(tempDir, "virtualenv")
-	os.OpenFile(venvPath, os.O_CREATE, 0555)
+	if _, err := os.OpenFile(venvPath, os.O_CREATE, 0555); err != nil {
+		t.Fatal(err)
+	}
 
 	venv := NewVirtualenv(tempDir)
 
@@ -282,7 +290,9 @@ next line
 func TestUpdateBinShebangsNoSpaces(t *testing.T) {
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	venv := NewVirtualenv(dir)
 	content := `#!/trellis/virtualenv/bin/python\n`
@@ -292,7 +302,7 @@ func TestUpdateBinShebangsNoSpaces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	venv.UpdateBinShebangs("foo*")
+	_ = venv.UpdateBinShebangs("foo*")
 
 	output, err := os.ReadFile(path)
 	if err != nil {
@@ -308,7 +318,9 @@ func TestUpdateBinShebangsWithSpaces(t *testing.T) {
 	t.SkipNow()
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, "virtualenv", "bin"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	venv := NewVirtualenv(dir)
 
@@ -344,7 +356,7 @@ func TestUpdateBinShebangsWithSpaces(t *testing.T) {
 		}
 	}
 
-	venv.UpdateBinShebangs("foo*")
+	_ = venv.UpdateBinShebangs("foo*")
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -368,7 +380,7 @@ func testCreateFile(t *testing.T, path string) func() {
 		t.Fatalf("err: %s", err)
 	}
 
-	return func() { file.Close() }
+	return func() { _ = file.Close() }
 }
 
 func TestEnsurePipSuccessHelperProcess(t *testing.T) {
@@ -376,7 +388,7 @@ func TestEnsurePipSuccessHelperProcess(t *testing.T) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, strings.Join(os.Args[3:], " "))
+	fmt.Fprint(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }
 
@@ -385,6 +397,6 @@ func TestEnsurePipFailureHelperProcess(t *testing.T) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, strings.Join(os.Args[3:], " "))
+	fmt.Fprint(os.Stderr, strings.Join(os.Args[3:], " "))
 	os.Exit(1)
 }

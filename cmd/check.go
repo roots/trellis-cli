@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -25,21 +25,14 @@ var Requirements = []trellis.Requirement{
 		},
 	},
 	{
-		Name:              "Vagrant",
-		Command:           "vagrant",
+		Name:              "Lima",
+		Command:           "limactl",
 		Optional:          true,
-		Url:               "https://www.vagrantup.com/downloads.html",
-		VersionConstraint: ">= 2.1.0",
+		Url:               "https://lima-vm.io/",
+		VersionConstraint: ">= 1.0.2",
 		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "Vagrant ", "", 1)
+			return strings.Replace(output, "limactl version ", "", 1)
 		},
-	},
-	{
-		Name:              "VirtualBox",
-		Command:           "VBoxManage",
-		Optional:          true,
-		Url:               "https://www.virtualbox.org/wiki/Downloads",
-		VersionConstraint: ">= 4.3.10",
 	},
 }
 

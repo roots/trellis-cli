@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/cli"
 	"github.com/mcuadros/go-version"
-	"github.com/mitchellh/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	ConfigPathError    = errors.New("could not create config directory")
-	UnsupportedOSError = errors.New("Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
+	ErrConfigPath    = errors.New("could not create config directory")
+	ErrUnsupportedOS = errors.New("unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
 )
 
 type Manager struct {
@@ -60,7 +60,7 @@ func NewManager(trellis *trellis.Trellis, ui cli.Ui) (manager *Manager, err erro
 	}
 
 	if err = manager.createConfigPath(); err != nil {
-		return nil, fmt.Errorf("%w: %v", ConfigPathError, err)
+		return nil, fmt.Errorf("%w: %v", ErrConfigPath, err)
 	}
 
 	return manager, nil
@@ -144,7 +144,7 @@ func (m *Manager) StartInstance(name string) error {
 	instance, ok := m.GetInstance(name)
 
 	if !ok {
-		return vm.VmNotFoundErr
+		return vm.ErrVmNotFound
 	}
 
 	if instance.Running() {
@@ -283,7 +283,9 @@ func (m *Manager) instances() (instances map[string]Instance) {
 
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		instance := &Instance{}
-		json.Unmarshal([]byte(line), instance)
+		if err := json.Unmarshal([]byte(line), instance); err != nil {
+			continue
+		}
 		m.initInstance(instance)
 		instances[instance.Name] = *instance
 	}
@@ -310,20 +312,15 @@ func getMacOSVersion() (string, error) {
 func ensureRequirements() error {
 	macOSVersion, err := getMacOSVersion()
 	if err != nil {
-		return UnsupportedOSError
+		return ErrUnsupportedOS
 	}
 
 	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
-		return fmt.Errorf("%w", UnsupportedOSError)
+		return fmt.Errorf("%w", ErrUnsupportedOS)
 	}
 
 	if err = Installed(); err != nil {
-		return fmt.Errorf(err.Error() + `
-Install or upgrade Lima to continue:
-
-  brew install lima
-
-See https://github.com/lima-vm/lima#getting-started for manual installation options.`)
+		return fmt.Errorf("%s\nInstall or upgrade Lima to continue:\n\n  brew install lima\n\nSee https://github.com/lima-vm/lima#getting-started for manual installation options.", err.Error())
 	}
 
 	return nil

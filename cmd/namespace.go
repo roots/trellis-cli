@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 type NamespaceCommand struct {

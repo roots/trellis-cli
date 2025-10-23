@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -97,7 +97,9 @@ func TestKeyGenerateExistingPrivateKey(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	privateKeyPath := filepath.Join(tmpDir, "trellis_example_com_ed25519")
-	os.WriteFile(privateKeyPath, []byte{}, 0666)
+	if err := os.WriteFile(privateKeyPath, []byte{}, 0666); err != nil {
+		t.Fatal(err)
+	}
 
 	ui := cli.NewMockUi()
 	keyGenerateCommand := NewKeyGenerateCommand(ui, trellis)
@@ -122,7 +124,9 @@ func TestKeyGenerateExistingPublicKey(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	os.Mkdir(filepath.Join(trellis.Path, "public_keys"), os.ModePerm)
+	if err := os.MkdirAll(filepath.Join(trellis.Path, "public_keys"), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
 	publicKeyPath := filepath.Join(trellis.Path, "public_keys", "trellis_example_com_ed25519.pub")
 	err := os.WriteFile(publicKeyPath, []byte{}, 0666)
 
@@ -155,7 +159,7 @@ func TestKeyGenerateKeyscan(t *testing.T) {
 
 	// fake gh binary to satisfy ok.LookPath
 	ghPath := filepath.Join(tmpDir, "gh")
-	os.OpenFile(ghPath, os.O_CREATE, 0555)
+	_, _ = os.OpenFile(ghPath, os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmpDir))
 
@@ -211,7 +215,7 @@ func TestKeyGenerateHelperProcess(t *testing.T) {
 		case "good_host":
 			// return fake hash for a good host
 			host := "|1|5XBUprxMy6abCgLQkQ0= ssh-ed25519 AAAAC3NzaC1lZYqEOf"
-			fmt.Fprintf(os.Stdout, host)
+			fmt.Fprint(os.Stdout, host)
 			os.Exit(0)
 		case "bad_host":
 			// simulate error for a bad host
@@ -220,9 +224,9 @@ func TestKeyGenerateHelperProcess(t *testing.T) {
 	case "ssh-keygen":
 		tmpDir := os.Getenv("GO_TEST_HELPER_TMP_PATH")
 		path := filepath.Join(tmpDir, "trellis_example_com_ed25519.pub")
-		os.OpenFile(path, os.O_CREATE, 0644)
+		_, _ = os.OpenFile(path, os.O_CREATE, 0644)
 		path = filepath.Join(tmpDir, "trellis_example_com_ed25519")
-		os.OpenFile(path, os.O_CREATE, 0644)
+		_, _ = os.OpenFile(path, os.O_CREATE, 0644)
 		os.Exit(0)
 	case "gh":
 		// make all gh commands succeed. No output needed

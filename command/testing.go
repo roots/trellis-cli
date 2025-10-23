@@ -87,6 +87,6 @@ func CommandHelperProcess(t *testing.T) {
 		t.Fatalf("command not found: %s\nmocked commands: %v", command, commands)
 	}
 
-	fmt.Fprintf(os.Stdout, commandExecuted.Output)
+	fmt.Fprint(os.Stdout, commandExecuted.Output)
 	os.Exit(commandExecuted.ExitCode)
 }

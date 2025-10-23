@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cli_config"
 	"gopkg.in/ini.v1"
@@ -39,6 +39,7 @@ var DefaultCliConfig = cli_config.Config{
 		Manager:       "auto",
 		HostsResolver: "hosts_file",
 		Ubuntu:        "24.04",
+		InstanceName:  "",
 	},
 }
 
@@ -154,7 +155,9 @@ func (t *Trellis) ActivateProject() bool {
 		return false
 	}
 
-	os.Chdir(t.Path)
+	// Attempt to change to the trellis directory
+	// but don't fail detection if it fails
+	_ = os.Chdir(t.Path)
 
 	return true
 }
@@ -166,7 +169,9 @@ the directory is changed to the project path.
 */
 func (t *Trellis) LoadProject() error {
 	if t.Path != "" {
-		os.Chdir(t.Path)
+		if err := os.Chdir(t.Path); err != nil {
+			return fmt.Errorf("Error changing to project directory %s: %v", t.Path, err)
+		}
 		return nil
 	}
 
@@ -184,7 +189,9 @@ func (t *Trellis) LoadProject() error {
 	t.Path = path
 	t.Virtualenv = NewVirtualenv(t.ConfigPath())
 
-	os.Chdir(t.Path)
+	if err := os.Chdir(t.Path); err != nil {
+		return fmt.Errorf("Error changing to project directory %s: %v", t.Path, err)
+	}
 
 	if err = t.LoadProjectCliConfig(); err != nil {
 		return err
@@ -232,6 +239,19 @@ func (t *Trellis) ValidateEnvironment(name string) (err error) {
 	}
 
 	return fmt.Errorf("Error: %s is not a valid environment, valid options are %s", name, t.EnvironmentNames())
+}
+
+func (t *Trellis) GetVmInstanceName() (string, error) {
+	if t.CliConfig.Vm.InstanceName != "" {
+		return t.CliConfig.Vm.InstanceName, nil
+	}
+
+	// Fallback: get main site from environment if no instance name is set.
+	siteName, _, err := t.MainSiteFromEnvironment("development")
+	if err != nil {
+		return "", fmt.Errorf("Error: could not automatically set VM name: %w", err)
+	}
+	return siteName, nil
 }
 
 func (t *Trellis) SiteNamesFromEnvironment(environment string) []string {
@@ -316,7 +336,7 @@ func (t *Trellis) LoadProjectCliConfig() error {
 		}
 	}
 
-	t.CliConfig.LoadEnv("TRELLIS_")
+	_ = t.CliConfig.LoadEnv("TRELLIS_")
 
 	if t.CliConfig.AskVaultPass {
 		// https://docs.ansible.com/ansible/latest/reference_appendices/config.html#default-ask-vault-pass

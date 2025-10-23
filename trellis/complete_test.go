@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 )
 
 // Tests based on
-// https://github.com/mitchellh/cli/blob/5454ffe87bc5c6d8b6b21c825617755e18a07828/cli_test.go#L1125-L1225
+// https://github.com/hashicorp/cli/blob/5454ffe87bc5c6d8b6b21c825617755e18a07828/cli_test.go#L1125-L1225
 
 // envComplete is the env var that the complete library sets to specify
 // it should be calculating an auto-completion.
@@ -27,7 +27,7 @@ func TestCompletionFunctions(t *testing.T) {
 	defer TestChdir(t, "testdata/trellis")()
 
 	if err := trellis.LoadProject(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	flags := flag.NewFlagSet("", flag.ContinueOnError)
@@ -91,12 +91,12 @@ func TestCompletionFunctions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			defer r.Close() // Only defer reader since writer is closed below
+			defer func() { _ = r.Close() }() // Only defer reader since writer is closed below
 			os.Stdout = w
 
 			// Run
 			exitCode, err := cli.Run()
-			w.Close()
+			_ = w.Close()
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -109,7 +109,7 @@ func TestCompletionFunctions(t *testing.T) {
 			// element if we have one since we usually output a final newline
 			// which results in a blank.
 			var outBuf bytes.Buffer
-			io.Copy(&outBuf, r)
+			_, _ = io.Copy(&outBuf, r)
 			actual := strings.Split(outBuf.String(), "\n")
 			if len(actual) > 0 {
 				actual = actual[:len(actual)-1]
@@ -157,7 +157,7 @@ func testAutocomplete(t *testing.T, input string) func() {
 		os.Stderr = oldStderr
 
 		// Close our pipe
-		r.Close()
-		w.Close()
+		_ = r.Close()
+		_ = w.Close()
 	}
 }

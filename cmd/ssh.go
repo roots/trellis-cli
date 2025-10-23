@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
@@ -104,12 +104,6 @@ Connects to non-main production site host:
 Connects to production as web user:
 
   $ trellis ssh -u web production
-
-Connects to main development site host:
-
-  $ trellis ssh development
-
-  Note: development always connects with 'vagrant' user
 
 Arguments:
   ENVIRONMENT Name of environment (ie: production)

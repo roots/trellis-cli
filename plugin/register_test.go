@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 )
 
@@ -38,10 +38,10 @@ func TestIntegrationPluginCommand(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, err := file.WriteString(spyCommand); err != nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	file.Close()
+	_ = file.Close()
 	err = os.Chmod(file.Name(), 0111)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -109,7 +109,7 @@ func TestIntegrationPluginCommand(t *testing.T) {
 		spyCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, tc.args)
 		spyCommand.Env = []string{"PATH=" + tempDir + ":" + os.ExpandEnv("$PATH")}
 
-		spyCommand.Run()
+		_ = spyCommand.Run()
 
 		stdOut := mockUi.OutputWriter.String()
 		for _, expected := range tc.expectedStdOut {
@@ -167,7 +167,7 @@ func TestIntegrationPluginListInHelpFunc(t *testing.T) {
 	trellisCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, []string{"--help"})
 	trellisCommand.Env = []string{"PATH=" + tempDir + ":$PATH"}
 
-	trellisCommand.Run()
+	_ = trellisCommand.Run()
 	output := mockUi.ErrorWriter.String()
 
 	expected := "Available plugin commands"

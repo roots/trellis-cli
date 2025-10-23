@@ -13,16 +13,12 @@ import (
 	"github.com/roots/trellis-cli/update"
 
 	"github.com/fatih/color"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 // To be replaced by goreleaser build flags.
 var version = "canary"
 var updaterRepo = ""
-var deprecatedCommands = []string{
-	"down",
-	"up",
-}
 
 func main() {
 	c := cli.NewCLI("trellis", version)
@@ -80,9 +76,6 @@ func main() {
 		},
 		"dotenv": func() (cli.Command, error) {
 			return cmd.NewDotEnvCommand(ui, trellis), nil
-		},
-		"down": func() (cli.Command, error) {
-			return &cmd.DownCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
@@ -143,9 +136,6 @@ func main() {
 		},
 		"ssh": func() (cli.Command, error) {
 			return cmd.NewSshCommand(ui, trellis), nil
-		},
-		"up": func() (cli.Command, error) {
-			return cmd.NewUpCommand(ui, trellis), nil
 		},
 		"vault": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
@@ -213,11 +203,21 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
-	c.HelpFunc = deprecatedCommandHelpFunc(deprecatedCommands, cli.BasicHelpFunc("trellis"))
+	c.HelpFunc = cli.BasicHelpFunc("trellis")
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
 		plugin.Register(c, pluginPaths, []string{"trellis"})
+	}
+
+	if c.IsVersion() {
+		ui.Info(c.Version)
+
+		if c.Version != "canary" {
+			ui.Info(fmt.Sprintf("https://github.com/roots/trellis-cli/releases/tag/v%s", c.Version))
+		}
+
+		os.Exit(0)
 	}
 
 	exitStatus, err := c.Run()

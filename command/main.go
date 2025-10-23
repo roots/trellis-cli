@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 type UiErrorWriter struct {
@@ -56,7 +56,7 @@ func (c *Command) Cmd(command string, args []string) *exec.Cmd {
 }
 
 /*
-  Enables mocking of the underlying ExecCommand command (defaults to exec.Command) and no-ops the OptionApplier function so they have no effect.
+Enables mocking of the underlying ExecCommand command (defaults to exec.Command) and no-ops the OptionApplier function so they have no effect.
 */
 func Mock(f CommandFunc) {
 	OptionApplier = func(option CommandOption, cmd *exec.Cmd) {}
@@ -64,8 +64,8 @@ func Mock(f CommandFunc) {
 }
 
 /*
-  Restores the default ExecCommand and OptionApplier.
-  Should be used via `defer` after `Mock` is called.
+Restores the default ExecCommand and OptionApplier.
+Should be used via `defer` after `Mock` is called.
 */
 func Restore() {
 	OptionApplier = applyOption

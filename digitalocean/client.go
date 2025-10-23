@@ -18,7 +18,7 @@ import (
 const baseTag = "trellis"
 
 var (
-	ErrNotFound = errors.New("Not found")
+	ErrNotFound = errors.New("not found")
 )
 
 type Client struct {
@@ -99,9 +99,9 @@ func (do *Client) CreateSSHKey(key string) error {
 	u, err := user.Current()
 	if err != nil {
 		name = "trellis-cli-ssh-key"
+	} else {
+		name = u.Username
 	}
-
-	name = u.Username
 
 	createRequest := &godo.KeyCreateRequest{
 		Name:      name,

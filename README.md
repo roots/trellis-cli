@@ -2,6 +2,7 @@
 
 [![Build status]( https://img.shields.io/github/actions/workflow/status/roots/trellis-cli/ci.yml?branch=master&style=flat-square)](https://github.com/roots/trellis-cli/actions)
 ![GitHub release](https://img.shields.io/github/release/roots/trellis-cli?style=flat-square)
+[![Sponsor Roots](https://img.shields.io/badge/sponsor%20roots-525ddc?logo=github&style=flat-square&logoColor=ffffff&message=)](https://github.com/sponsors/roots)
 
 A command-line interface (CLI) to manage [Trellis](https://roots.io/trellis/) projects via the `trellis` command. It includes:
 * Smart autocompletion (based on your defined environments and sites)
@@ -9,18 +10,13 @@ A command-line interface (CLI) to manage [Trellis](https://roots.io/trellis/) pr
 * Easy [DigitalOcean](https://roots.io/r/digitalocean) droplet creation
 * Better Ansible Vault support for encrypting files
 
+## Support us
 
-## Sponsors
+We're dedicated to pushing modern WordPress development forward through our open source projects, and we need your support to keep building. You can support our work by purchasing [Radicle](https://roots.io/radicle/), our recommended WordPress stack, or by [sponsoring us on GitHub](https://github.com/sponsors/roots). Every contribution directly helps us create better tools for the WordPress ecosystem.
 
-**trellis-cli** is an open source project and completely free to use.
+### Sponsors
 
-However, the amount of effort needed to maintain and develop new features and products within the Roots ecosystem is not sustainable without proper financial backing. If you have the capability, please consider [sponsoring Roots](https://github.com/sponsors/roots).
-
-<p align="center"><a href="https://github.com/sponsors/roots"><img height="32" src="https://img.shields.io/badge/sponsor%20roots-525ddc?logo=github&logoColor=ffffff&message=" alt="Sponsor Roots"></a></p>
-
-<div align="center">
-<a href="https://carrot.com/"><img src="https://cdn.roots.io/app/uploads/carrot.svg" alt="Carrot" width="148" height="111"></a> <a href="https://wordpress.com/"><img src="https://cdn.roots.io/app/uploads/wordpress.svg" alt="WordPress.com" width="148" height="111"></a> <a href="https://worksitesafety.ca/careers/"><img src="https://cdn.roots.io/app/uploads/worksite-safety.svg" alt="Worksite Safety" width="148" height="111"></a> <a href="https://www.itineris.co.uk/"><img src="https://cdn.roots.io/app/uploads/itineris.svg" alt="Itineris" width="148" height="111"></a> <a href="https://bonsai.so/"><img src="https://cdn.roots.io/app/uploads/bonsai.svg" alt="Bonsai" width="148" height="111"></a> <a href="https://fusepress.co/sp/sign-up/"><img src="https://cdn.roots.io/app/uploads/fusepress.svg" alt="FusePress" width="148" height="111"></a>
-</div>
+<a href="https://carrot.com/"><img src="https://cdn.roots.io/app/uploads/carrot.svg" alt="Carrot" width="120" height="90"></a> <a href="https://wordpress.com/"><img src="https://cdn.roots.io/app/uploads/wordpress.svg" alt="WordPress.com" width="120" height="90"></a> <a href="https://www.itineris.co.uk/"><img src="https://cdn.roots.io/app/uploads/itineris.svg" alt="Itineris" width="120" height="90"></a> <a href="https://bonsai.so/"><img src="https://cdn.roots.io/app/uploads/bonsai.svg" alt="Bonsai" width="120" height="90"></a>
 
 ## Quick Install (macOS and Linux via Homebrew)
 
@@ -168,7 +164,6 @@ Supported commands so far:
 | `db` | Commands for database management |
 | `deploy` | Deploys a site to the specified environment |
 | `dotenv` | Template .env files to local system |
-| `down` | Stops the Vagrant machine by running `vagrant halt`|
 | `droplet` | Commands for DigitalOcean Droplets |
 | `exec` | Exec runs a command in the Trellis virtualenv |
 | `galaxy` | Commands for Ansible Galaxy |
@@ -181,7 +176,6 @@ Supported commands so far:
 | `provision` | Provisions the specified environment |
 | `rollback` | Rollsback the last deploy of the site on the specified environment |
 | `ssh` | Connects to host via SSH |
-| `up` | Starts and provisions the Vagrant environment by running `vagrant up` |
 | `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
 | `xdebug-tunnel` | Commands for managing Xdebug tunnels |
@@ -228,6 +222,7 @@ Current supported settings:
 | `manager` | VM manager (Options: `auto` (depends on OS), `lima`)| string | "auto" |
 | `ubuntu` | Ubuntu OS version (Options: `18.04`, `20.04`, `22.04`, `24.04`)| string |
 | `hosts_resolver` | VM hosts resolver (Options: `hosts_file`)| string |
+| `instance_name` | Custom name for the VM instance | string | First site name alphabetically |
 | `images` | Custom OS image | object | Set based on `ubuntu` version |
 
 #### `images`
@@ -246,6 +241,9 @@ open:
   site: "https://mysite.com"
   admin: "https://mysite.com/wp/wp-admin"
 virtualenv_integration: true
+vm:
+  manager: "lima"
+  instance_name: "custom-instance-name"  # Optional: Set a specific VM instance name
 ```
 
 Example env var usage:

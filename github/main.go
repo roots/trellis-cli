@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archives"
 )
 
 var (
@@ -32,18 +33,21 @@ func NewReleaseFromVersion(repo string, version string) *Release {
 }
 
 func DownloadRelease(repo string, version string, path string, dest string) (release *Release, err error) {
-	if version == "latest" {
+	switch version {
+	case "latest":
 		release, err = FetchLatestRelease(repo, Client)
 		if err != nil {
 			return nil, fmt.Errorf("Error fetching release information from the GitHub API: %v", err)
 		}
-	} else if version == "dev" {
+	case "dev":
 		release = NewReleaseFromVersion(repo, "master")
-	} else {
+	default:
 		release = NewReleaseFromVersion(repo, version)
 	}
 
-	os.Chdir(path)
+	if err := os.Chdir(path); err != nil {
+		return nil, fmt.Errorf("Error changing to directory %s: %v", path, err)
+	}
 	archivePath := fmt.Sprintf("%s.zip", release.Version)
 
 	err = DownloadFile(archivePath, release.ZipUrl, Client)
@@ -53,7 +57,19 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 		return nil, err
 	}
 
-	if err := archiver.Unarchive(archivePath, path); err != nil {
+	ctx := context.TODO()
+
+	archiveFile, err := os.Open(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening release archive: %v", err)
+	}
+	defer func() { _ = archiveFile.Close() }()
+
+	var format archives.Zip
+
+	if err := format.Extract(ctx, archiveFile, func(ctx context.Context, fi archives.FileInfo) error {
+		return extractToDisk(fi, path)
+	}); err != nil {
 		return nil, fmt.Errorf("Error extracting the release archive: %v", err)
 	}
 
@@ -84,7 +100,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 
@@ -93,7 +109,7 @@ func FetchLatestRelease(repo string, client *http.Client) (*Release, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(string(body))
+		return nil, fmt.Errorf("%s", string(body))
 	}
 
 	release := &Release{}
@@ -110,13 +126,13 @@ func DownloadFile(filepath string, url string, client *http.Client) error {
 	if err != nil {
 		return fmt.Errorf("Could not create file %s: %v", filepath, err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("Could not download file %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
@@ -134,4 +150,29 @@ func DownloadFile(filepath string, url string, client *http.Client) error {
 	}
 
 	return nil
+}
+
+func extractToDisk(fi archives.FileInfo, dest string) error {
+	destPath := filepath.Join(dest, fi.NameInArchive)
+	if fi.IsDir() {
+		return os.MkdirAll(destPath, os.ModePerm)
+	}
+
+	src, err := fi.Open()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = src.Close() }()
+
+	dst, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(destPath, fi.Mode().Perm())
 }

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -24,7 +24,7 @@ func TestNewManager(t *testing.T) {
 
 	tmp := t.TempDir()
 
-	os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
+	_, _ = os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmp))
 
@@ -57,7 +57,7 @@ func TestNewManagerUnsupportedOS(t *testing.T) {
 
 	tmp := t.TempDir()
 
-	os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
+	_, _ = os.OpenFile(filepath.Join(tmp, "limactl"), os.O_CREATE, 0555)
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmp))
 
@@ -75,7 +75,7 @@ func TestNewManagerUnsupportedOS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := "Unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later."
+	expected := "unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later."
 
 	if err.Error() != expected {
 		t.Errorf("expected error to be %q, got %q", expected, err.Error())
@@ -329,10 +329,6 @@ default
 	if hostsStorage[instanceName] != ip {
 		t.Errorf("expected hosts entry to be %s, got %s", ip, hostsStorage[instanceName])
 	}
-}
-
-func newMockHostsResolver(hosts map[string]string) MockHostsResolver {
-	return MockHostsResolver{Hosts: hosts}
 }
 
 func (h *MockHostsResolver) AddHosts(name string, ip string) error {

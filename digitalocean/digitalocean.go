@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/digitalocean/godo"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/mitchellh/go-homedir"
 	"golang.org/x/crypto/ssh"
 )
@@ -82,6 +82,9 @@ func LoadSSHKey(sshKeys []string) (keyPath string, contents []byte, publicKey ss
 
 func loadPublicKey(path string) (contents []byte, publicKey ssh.PublicKey, err error) {
 	path, err = homedir.Expand(path)
+	if err != nil {
+		return nil, nil, err
+	}
 	key, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, err

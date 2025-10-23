@@ -5,5 +5,9 @@ type MockProjectDetector struct {
 }
 
 func (p *MockProjectDetector) Detect(path string) (projectPath string, ok bool) {
-	return "trellis", p.detected
+	if p.detected {
+		// Return current directory for mock to avoid chdir errors
+		return ".", true
+	}
+	return "", false
 }

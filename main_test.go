@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/command"
 )
 
@@ -39,7 +39,7 @@ func TestIntegrationForceNoPlugin(t *testing.T) {
 	trellisCommand := command.WithOptions(command.WithUiOutput(mockUi)).Cmd(bin, []string{"--help"})
 	trellisCommand.Env = []string{"PATH=" + tempDir + ":$PATH", "TRELLIS_LOAD_PLUGINS=false"}
 
-	trellisCommand.Run()
+	_ = trellisCommand.Run()
 	output := mockUi.ErrorWriter.String()
 
 	for _, unexpected := range []string{"Available third party plugin commands are", "abc"} {

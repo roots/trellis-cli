@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -99,12 +99,6 @@ func TestSshRun(t *testing.T) {
 			"non_development",
 			[]string{"production"},
 			"ssh admin@example.com",
-			0,
-		},
-		{
-			"development",
-			[]string{"development"},
-			"ssh vagrant@example.test",
 			0,
 		},
 		{

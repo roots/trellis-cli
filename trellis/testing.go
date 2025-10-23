@@ -21,7 +21,9 @@ func LoadFixtureProject(t *testing.T) func() {
 
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	os.Chdir(basepath)
+	if err := os.Chdir(basepath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	cmd := exec.Command("cp", "-a", "testdata/trellis", tempDir)
 	output, err := cmd.CombinedOutput()
 
@@ -29,7 +31,9 @@ func LoadFixtureProject(t *testing.T) func() {
 		t.Fatalf("failed to copy trellis fixture project: %s\n%s", err, output)
 	}
 
-	os.Chdir(filepath.Join(tempDir, "trellis"))
+	if err := os.Chdir(filepath.Join(tempDir, "trellis")); err != nil {
+		t.Fatalf("err: %s", err)
+	}
 
 	return func() {
 		if err := os.Chdir(old); err != nil {
@@ -49,5 +53,9 @@ func TestChdir(t *testing.T, dir string) func() {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	return func() { os.Chdir(old) }
+	return func() {
+		if err := os.Chdir(old); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	}
 }

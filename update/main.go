@@ -69,11 +69,7 @@ func (n *Notifier) shouldCheckForUpdate() bool {
 
 	// skip on non-terminals
 	fd := os.Stdout.Fd()
-	if !(isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)) {
-		return false
-	}
-
-	return true
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 func (n *Notifier) getLatestReleaseInfo(stateFilePath string) (*github.Release, error) {

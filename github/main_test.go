@@ -1,7 +1,7 @@
 package github
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mholt/archiver"
+	"github.com/mholt/archives"
 )
 
 func TestNewReleaseFromVersion(t *testing.T) {
@@ -28,7 +28,9 @@ func TestNewReleaseFromVersion(t *testing.T) {
 
 func TestDownloadRelease(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
 
 	var dir = "roots-trellis"
 
@@ -37,11 +39,16 @@ func TestDownloadRelease(t *testing.T) {
 		t.Error(err)
 	}
 
+	_, err = os.Create(filepath.Join(dir, "test_file"))
+	if err != nil {
+		t.Error(err)
+	}
+
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-type", "application/octet-stream")
 		rw.Header().Set("Content-Disposition", "attachment; filename='release.zip'")
 
-		err = createZipFile([]string{dir}, rw)
+		err = createZipFile(filepath.Join(tmpDir, dir), rw)
 		if err != nil {
 			t.Error(err)
 		}
@@ -54,7 +61,13 @@ func TestDownloadRelease(t *testing.T) {
 
 	const expectedVersion = "1.0.0"
 
-	release, err := DownloadRelease("roots/trellis", expectedVersion, tmpDir, filepath.Join(tmpDir, "test_release_dir"))
+	destPath := filepath.Join(tmpDir, "test_release_dir")
+	release, err := DownloadRelease("roots/trellis", expectedVersion, tmpDir, destPath)
+
+	expectedPath := filepath.Join(tmpDir, "test_release_dir", "test_file")
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("expected extracted file %s to exist", expectedPath)
+	}
 
 	if expectedVersion != release.Version {
 		t.Errorf("expected version %s but got %s", expectedVersion, release.Version)
@@ -70,11 +83,11 @@ func TestFetechLatestRelease(t *testing.T) {
 	}{
 		{
 			"success response",
-			fmt.Sprintf(`{
+			`{
   "tag_name": "v1.0",
   "html_url": "https://github.com/roots/trellis-cli/releases/tag/v1.0",
   "zipball_url": "https://api.github.com/repos/roots/trellis-cli/zipball/v1.0"
-}`),
+}`,
 			"",
 			&Release{
 				Version: "v1.0",
@@ -95,7 +108,7 @@ func TestFetechLatestRelease(t *testing.T) {
 			if tc.responseError != "" {
 				http.Error(rw, tc.responseError, 400)
 			} else {
-				rw.Write([]byte(tc.response))
+				_, _ = rw.Write([]byte(tc.response))
 			}
 		}))
 		defer server.Close()
@@ -111,44 +124,21 @@ func TestFetechLatestRelease(t *testing.T) {
 	}
 }
 
-func createZipFile(files []string, writer io.Writer) error {
-	zip := archiver.NewZip()
+func createZipFile(dir string, writer io.Writer) error {
+	var format archives.Zip
+	ctx := context.Background()
 
-	err := zip.Create(writer)
+	files, err := archives.FilesFromDisk(ctx, nil, map[string]string{
+		dir: filepath.Base(dir),
+	})
+
 	if err != nil {
 		return err
 	}
 
-	defer zip.Close()
-
-	for _, fname := range files {
-		info, err := os.Stat(fname)
-		if err != nil {
-			return err
-		}
-
-		internalName, err := archiver.NameInArchive(info, fname, fname)
-		if err != nil {
-			return err
-		}
-
-		file, err := os.Open(fname)
-		if err != nil {
-			return err
-		}
-
-		err = zip.Write(archiver.File{
-			FileInfo: archiver.FileInfo{
-				FileInfo:   info,
-				CustomName: internalName,
-			},
-			ReadCloser: file,
-		})
-
-		if err != nil {
-			return err
-		}
+	err = format.Archive(ctx, writer, files)
+	if err != nil {
+		return err
 	}
-
 	return nil
 }

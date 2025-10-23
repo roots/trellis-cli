@@ -9,11 +9,58 @@ on:
       - master
 
 jobs:
+  gofmt:
+    name: Go Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - name: Check Go formatting
+        run: |
+          if [ -n "$(gofmt -s -l .)" ]; then
+            echo "Go code is not formatted. Please run 'gofmt -s -w .'"
+            gofmt -s -d .
+            exit 1
+          fi
+
+  golangci-lint:
+    name: Go Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --timeout=5m
+
+  go-mod-tidy:
+    name: Go Modules Tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - name: Check if go.mod is tidy
+        run: |
+          go mod tidy
+          if [ -n "$(git diff --name-only)" ]; then
+            echo "go.mod is not tidy. Please run 'go mod tidy'"
+            git diff
+            exit 1
+          fi
+
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - name: Test
@@ -22,10 +69,10 @@ jobs:
   release-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - uses: anchore/sbom-action/download-syft@v0
@@ -50,7 +97,10 @@ jobs:
       - name: Trellis version
         run: git log -1 --format="%h %s %aD"
         working-directory: /test/dummy/trellis
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
       - uses: actions/cache@v4
         with:
           path: |

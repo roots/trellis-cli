@@ -106,25 +106,25 @@ func (v *Virtualenv) Installed() (ok bool, cmd *exec.Cmd) {
 }
 
 /*
-  Updates the shebang lines in pip generated bin files to properly handle
-  paths with spaces.
+Updates the shebang lines in pip generated bin files to properly handle
+paths with spaces.
 
-  Pip does not properly handle paths with spaces in them when creating the bin
-  scripts:
+Pip does not properly handle paths with spaces in them when creating the bin
+scripts:
 
-    #!/path with spaces/bin/python
+	#!/path with spaces/bin/python
 
-  This is an invalid POSIX path so Python can't execute the script.
+This is an invalid POSIX path so Python can't execute the script.
 
-  As a workaround, this function replaces that invalid shebang with the workaround
-  that Virtualenv uses itself for the pip binary:
+As a workaround, this function replaces that invalid shebang with the workaround
+that Virtualenv uses itself for the pip binary:
 
-    #!/bin/sh
-    '''exec' "/path with spaces/bin/python" "$0" "$@"
-    ' '''
+	#!/bin/sh
+	'''exec' "/path with spaces/bin/python" "$0" "$@"
+	' '''
 
-  If this function is called on a BinPath without spaces, it's just a no-op
-  that doesn't modify any files.
+If this function is called on a BinPath without spaces, it's just a no-op
+that doesn't modify any files.
 */
 func (v *Virtualenv) UpdateBinShebangs(binGlob string) error {
 	if !strings.Contains(v.BinPath, " ") {
@@ -150,7 +150,9 @@ func (v *Virtualenv) updateFile(path string) error {
 
 	fileInfo, _ := f.Stat()
 	permissions := fileInfo.Mode()
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	contents, err := v.replaceShebang(f)
 	if err != nil {

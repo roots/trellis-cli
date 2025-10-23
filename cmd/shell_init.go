@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 //go:embed files/hookbook.sh
@@ -45,8 +45,8 @@ func (c *ShellInitCommand) Run(args []string) int {
 	}
 
 	executable, _ := os.Executable()
-	script = strings.Replace(script, "@SELF@", executable, -1)
-	script = strings.Replace(script, "@HOOKBOOK@", HookbookScript, -1)
+	script = strings.ReplaceAll(script, "@SELF@", executable)
+	script = strings.ReplaceAll(script, "@HOOKBOOK@", HookbookScript)
 	c.UI.Output(script)
 
 	return 0
