@@ -102,12 +102,6 @@ func TestSshRun(t *testing.T) {
 			0,
 		},
 		{
-			"development",
-			[]string{"development"},
-			"ssh vagrant@example.test",
-			0,
-		},
-		{
 			"production_with_user_flag",
 			[]string{"-u=web", "production"},
 			"ssh web@example.com",

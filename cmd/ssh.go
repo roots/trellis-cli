@@ -105,12 +105,6 @@ Connects to production as web user:
 
   $ trellis ssh -u web production
 
-Connects to main development site host:
-
-  $ trellis ssh development
-
-  Note: development always connects with 'vagrant' user
-
 Arguments:
   ENVIRONMENT Name of environment (ie: production)
   SITE        Name of the site (ie: example.com)

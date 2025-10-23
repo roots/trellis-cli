@@ -214,7 +214,7 @@ Usage: trellis alias [options]
 
 Generate WP CLI aliases for remote environments
 
-Don't include local env (useful for non-Vagrant users):
+Don't include local env (useful for non-Lima users):
 
   $ trellis alias --skip-local
 

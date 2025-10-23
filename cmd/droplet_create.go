@@ -182,7 +182,7 @@ Usage: trellis droplet create [options] ENVIRONMENT
 Creates a droplet (server) on DigitalOcean for the environment specified.
 
 Only remote servers (for staging and production) are currently supported.
-Development should be managed separately through Vagrant.
+Development should be managed separately through Lima.
 
 This command requires a DigitalOcean personal access token.
 Link: https://cloud.digitalocean.com/account/api/tokens/new
