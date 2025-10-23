@@ -39,10 +39,7 @@ func deprecatedCommandHelpFunc(commandNames []string, f cli.HelpFunc) cli.HelpFu
 		sort.Strings(keys)
 
 		for _, key := range keys {
-			commandFunc, ok := commands[key]
-			if !ok {
-				continue
-			}
+			commandFunc := commands[key]
 			command, _ := commandFunc()
 			key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", maxKeyLen-len(key)))
 			buf.WriteString(fmt.Sprintf("    %s    %s\n", key, command.Synopsis()))
