@@ -1,0 +1,17 @@
+config:
+  user.vendor-data: |
+    #cloud-config
+    manage_etc_hosts: localhost
+    users:
+      - name: {{ .Username }}
+        groups: sudo
+        sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        ssh_authorized_keys:
+          - {{ .SshPublicKey }}
+devices:
+{{ range $name, $device := .Devices -}}
+  {{ $name }}:
+    type: disk
+    source: {{ $device.Source }}
+    path: {{ $device.Dest }}
+{{ end }}
