@@ -36,10 +36,11 @@ var DefaultCliConfig = cli_config.Config{
 	Open:                    make(map[string]string),
 	VirtualenvIntegration:   true,
 	Vm: cli_config.VmConfig{
-		Manager:       "auto",
-		HostsResolver: "hosts_file",
-		Ubuntu:        "24.04",
-		InstanceName:  "",
+		Manager:         "auto",
+		HostsResolver:   "hosts_file",
+		Ubuntu:          "24.04",
+		InstanceName:    "",
+		ForwardHttpPort: true,
 	},
 }
 

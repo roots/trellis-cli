@@ -15,6 +15,12 @@ type MockHostsResolver struct {
 	Hosts map[string]string
 }
 
+type MockPortFinder struct{}
+
+func (p *MockPortFinder) Resolve() (int, error) {
+	return 60720, nil
+}
+
 func TestNewManager(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
@@ -120,7 +126,13 @@ func TestNewInstanceUbuntuVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	instance := manager.newInstance("test")
+	manager.PortFinder = &MockPortFinder{}
+
+	instance, err := manager.newInstance("test")
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if instance.Name != "test" {
 		t.Errorf("expected instance name to be %q, got %q", "test", instance.Name)
@@ -132,6 +144,14 @@ func TestNewInstanceUbuntuVersion(t *testing.T) {
 
 	if instance.Config.Images[0].Alias != "focal" {
 		t.Errorf("expected instance config to have focal image, got %q", instance.Config.Images[0].Alias)
+	}
+
+	if len(instance.Config.PortForwards) != 1 {
+		t.Errorf("expected instance config to have 1 port forwards, got %d", len(instance.Config.PortForwards))
+	}
+
+	if instance.Config.PortForwards[0].GuestPort != 80 || instance.Config.PortForwards[0].HostPort != 60720 {
+		t.Errorf("expected instance config to have port forward guest 80 to host 60720, got guest %d to host %d", instance.Config.PortForwards[0].GuestPort, instance.Config.PortForwards[0].HostPort)
 	}
 }
 func TestInstances(t *testing.T) {
@@ -197,6 +217,7 @@ func TestCreateInstance(t *testing.T) {
 
 	hostsStorage := make(map[string]string)
 	manager.HostsResolver = &MockHostsResolver{Hosts: hostsStorage}
+	manager.PortFinder = &MockPortFinder{}
 
 	instanceName := "test"
 	sshPort := 60720

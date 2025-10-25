@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,10 +28,17 @@ var (
 	ErrUnsupportedOS = errors.New("unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
 )
 
+type PortFinder interface {
+	Resolve() (int, error)
+}
+
+type TCPPortFinder struct{}
+
 type Manager struct {
 	ConfigPath    string
 	Sites         map[string]*trellis.Site
 	HostsResolver vm.HostsResolver
+	PortFinder    PortFinder
 	ui            cli.Ui
 	trellis       *trellis.Trellis
 }
@@ -55,6 +63,7 @@ func NewManager(trellis *trellis.Trellis, ui cli.Ui) (manager *Manager, err erro
 		ConfigPath:    limaConfigPath,
 		Sites:         trellis.Environments["development"].WordPressSites,
 		HostsResolver: hostsResolver,
+		PortFinder:    &TCPPortFinder{},
 		trellis:       trellis,
 		ui:            ui,
 	}
@@ -78,7 +87,10 @@ func (m *Manager) GetInstance(name string) (Instance, bool) {
 }
 
 func (m *Manager) CreateInstance(name string) error {
-	instance := m.newInstance(name)
+	instance, err := m.newInstance(name)
+	if err != nil {
+		return err
+	}
 
 	cmd := command.WithOptions(
 		command.WithTermOutput(),
@@ -172,7 +184,8 @@ func (m *Manager) StartInstance(name string) error {
 
 	instance.Username = string(user)
 
-	// Hydrate instance with data from limactl that is only available after starting (mainly the forwarded SSH local port)
+	// Hydrate instance with data from limactl that is only available after
+	// starting (mainly the forwarded local ports)
 	err = m.hydrateInstance(&instance)
 	if err != nil {
 		return err
@@ -232,7 +245,7 @@ func (m *Manager) initInstance(instance *Instance) {
 	instance.Sites = m.Sites
 }
 
-func (m *Manager) newInstance(name string) Instance {
+func (m *Manager) newInstance(name string) (Instance, error) {
 	instance := Instance{Name: name}
 	m.initInstance(&instance)
 
@@ -249,9 +262,24 @@ func (m *Manager) newInstance(name string) Instance {
 		images = imagesFromVersion(m.trellis.CliConfig.Vm.Ubuntu)
 	}
 
-	config := Config{Images: images}
+	portForwards := []PortForward{}
+
+	if m.trellis.CliConfig.Vm.ForwardHttpPort {
+		httpForwardPort, err := m.PortFinder.Resolve()
+		if err != nil {
+			return Instance{}, fmt.Errorf("Could not find a local free port for HTTP forwarding: %v", err)
+		}
+
+		portForwards = append(portForwards, PortForward{
+			GuestPort: 80,
+			HostPort:  httpForwardPort,
+		},
+		)
+	}
+
+	config := Config{Images: images, PortForwards: portForwards}
 	instance.Config = config
-	return instance
+	return instance, nil
 }
 
 func (m *Manager) createConfigPath() error {
@@ -328,4 +356,32 @@ func ensureRequirements() error {
 
 func imagesFromVersion(version string) []Image {
 	return UbuntuImages[version]
+}
+
+func (p *TCPPortFinder) Resolve() (int, error) {
+	lAddr0, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp4", lAddr0)
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() { _ = l.Close() }()
+	lAddr := l.Addr()
+
+	lTCPAddr, ok := lAddr.(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("expected *net.TCPAddr, got %v", lAddr)
+	}
+
+	port := lTCPAddr.Port
+
+	if port <= 0 {
+		return 0, fmt.Errorf("unexpected port %d", port)
+	}
+
+	return port, nil
 }
