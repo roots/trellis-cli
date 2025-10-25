@@ -17,11 +17,12 @@ type VmImage struct {
 }
 
 type VmConfig struct {
-	Manager       string    `yaml:"manager"`
-	HostsResolver string    `yaml:"hosts_resolver"`
-	Images        []VmImage `yaml:"images"`
-	Ubuntu        string    `yaml:"ubuntu"`
-	InstanceName  string    `yaml:"instance_name"`
+	Manager         string    `yaml:"manager"`
+	HostsResolver   string    `yaml:"hosts_resolver"`
+	Images          []VmImage `yaml:"images"`
+	Ubuntu          string    `yaml:"ubuntu"`
+	InstanceName    string    `yaml:"instance_name"`
+	ForwardHttpPort bool      `yaml:"forward_http_port"`
 }
 
 type Config struct {
