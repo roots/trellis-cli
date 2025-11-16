@@ -17,10 +17,19 @@ type Formatter struct {
 	currentTaskName string
 	taskStartTime   time.Time
 	lastRole        string
-	spinner         *pterm.SpinnerPrinter
+	progressbar     *pterm.ProgressbarPrinter
 }
 
-func (f *Formatter) Process(reader io.Reader) {
+var symbols = map[string]string{
+	"success": "✓",
+	"failed":  "✗",
+	"changed": "~",
+	"skipped": "→",
+}
+
+func (f *Formatter) Process(reader io.Reader, totalTasks int) {
+	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks).WithTitle("Overall Progress").Start()
+
 	for {
 		scanner := bufio.NewScanner(reader)
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -71,7 +80,7 @@ func (f *Formatter) handlePlayStart(line string) {
 		return
 	}
 
-	pterm.DefaultSection.WithLevel(1).Printf("PLAY [%s]", playStartEvent.Play.Name)
+	pterm.DefaultSection.WithLevel(1).Println(fmt.Sprintf("PLAY [%s]", playStartEvent.Play.Name))
 }
 
 func (f *Formatter) handleTaskStart(line string) {
@@ -100,16 +109,13 @@ func (f *Formatter) handleTaskStart(line string) {
 		}
 	}
 
-	pterm.DefaultSpinner.Sequence = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	f.spinner, _ = pterm.DefaultSpinner.Start(f.currentTaskName)
+	pterm.Printf("%s %s\n", pterm.Gray("●"), f.currentTaskName)
 }
 
 func (f *Formatter) handleRunnerOk(line string) {
-	if f.spinner != nil {
-		f.spinner.Stop()
-		pterm.Print("\033[1A")
-		pterm.Print("\033[2K\r")
-	}
+	pterm.Print("\033[1A")
+	pterm.Print("\033[2K\r")
+	f.progressbar.Increment()
 
 	var okEvent RunnerOnOkEvent
 	if err := json.Unmarshal([]byte(line), &okEvent); err != nil {
@@ -135,11 +141,9 @@ func (f *Formatter) handleRunnerOk(line string) {
 }
 
 func (f *Formatter) handleRunnerFailed(line string) {
-	if f.spinner != nil {
-		f.spinner.Stop()
-		pterm.Print("\033[1A")
-		pterm.Print("\033[2K\r")
-	}
+	pterm.Print("\033[1A")
+	pterm.Print("\033[2K\r")
+	f.progressbar.Increment()
 
 	var failedEvent RunnerOnFailedEvent
 	if err := json.Unmarshal([]byte(line), &failedEvent); err != nil {
@@ -157,16 +161,14 @@ func (f *Formatter) handleRunnerFailed(line string) {
 		}
 
 		f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
-		pterm.Error.Println("  Error:", r.Msg)
+		pterm.Error.Println(fmt.Sprintf("  Error: %s", r.Msg))
 	}
 }
 
 func (f *Formatter) handleRunnerSkipped(line string) {
-	if f.spinner != nil {
-		f.spinner.Stop()
-		pterm.Print("\033[1A")
-		pterm.Print("\033[2K\r")
-	}
+	pterm.Print("\033[1A")
+	pterm.Print("\033[2K\r")
+	f.progressbar.Increment()
 
 	var skippedEvent RunnerOnSkippedEvent
 	if err := json.Unmarshal([]byte(line), &skippedEvent); err != nil {
@@ -208,13 +210,6 @@ func (f *Formatter) handleStats(line string) {
 	}
 }
 
-var symbols = map[string]string{
-	"success": "✓",
-	"failed":  "✗",
-	"changed": "~",
-	"skipped": "→",
-}
-
 func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color) {
 	width := pterm.GetTerminalWidth()
 	duration := time.Since(f.taskStartTime)
@@ -238,7 +233,7 @@ func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color
 	pterm.Printf("%s %s %s\n", leftStr, pterm.Gray(dots), pterm.Gray(timeStr))
 }
 
-func Process(reader io.Reader) {
+func Process(reader io.Reader, totalTasks int) {
 	formatter := &Formatter{}
-	formatter.Process(reader)
+	formatter.Process(reader, totalTasks)
 }

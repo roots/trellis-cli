@@ -63,7 +63,14 @@ func (c *XdebugTunnelCloseCommand) Run(args []string) int {
 		},
 	}
 
-	xdebugClose := command.WithOptions(command.WithAnsibleOutput(c.UI), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
+	listTasksPlaybook := playbook
+	taskCount, err := ansible.GetTaskCount(listTasksPlaybook)
+	if err != nil {
+		c.UI.Error("Error getting task count: " + err.Error())
+		return 1
+	}
+
+	xdebugClose := command.WithOptions(command.WithAnsibleOutput(c.UI, taskCount), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := xdebugClose.Run(); err != nil {
 		c.UI.Error(err.Error())

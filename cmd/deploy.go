@@ -109,8 +109,15 @@ func (c *DeployCommand) Run(args []string) int {
 		playbook.AddExtraVars(c.extraVars)
 	}
 
+	listTasksPlaybook := playbook
+	taskCount, err := ansible.GetTaskCount(listTasksPlaybook)
+	if err != nil {
+		c.UI.Error("Error getting task count: " + err.Error())
+		return 1
+	}
+
 	deploy := command.WithOptions(
-		command.WithAnsibleOutput(c.UI),
+		command.WithAnsibleOutput(c.UI, taskCount),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 

@@ -18,6 +18,11 @@ func (p *Playbook) AddArg(name string, value string) *Playbook {
 	return p
 }
 
+func (p *Playbook) AddFlag(name string) *Playbook {
+	p.args = append(p.args, name)
+	return p
+}
+
 func (p *Playbook) AddExtraVar(name string, value string) *Playbook {
 	if p.ExtraVars == nil {
 		p.ExtraVars = make(map[string]string)
