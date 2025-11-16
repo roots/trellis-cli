@@ -89,7 +89,7 @@ func (c *ProvisionCommand) Run(args []string) int {
 	}
 
 	provision := command.WithOptions(
-		command.WithUiOutput(c.UI),
+		command.WithAnsibleOutput(c.UI),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 

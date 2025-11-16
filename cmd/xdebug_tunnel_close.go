@@ -63,7 +63,7 @@ func (c *XdebugTunnelCloseCommand) Run(args []string) int {
 		},
 	}
 
-	xdebugClose := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
+	xdebugClose := command.WithOptions(command.WithAnsibleOutput(c.UI), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := xdebugClose.Run(); err != nil {
 		c.UI.Error(err.Error())

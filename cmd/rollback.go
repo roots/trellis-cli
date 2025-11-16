@@ -82,7 +82,7 @@ func (c *RollbackCommand) Run(args []string) int {
 	}
 
 	rollback := command.WithOptions(
-		command.WithTermOutput(),
+		command.WithAnsibleOutput(c.UI),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 

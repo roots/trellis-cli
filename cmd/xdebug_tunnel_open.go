@@ -64,7 +64,7 @@ func (c *XdebugTunnelOpenCommand) Run(args []string) int {
 		},
 	}
 
-	xdebugOpen := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
+	xdebugOpen := command.WithOptions(command.WithAnsibleOutput(c.UI), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
 
 	if err := xdebugOpen.Run(); err != nil {
 		c.UI.Error(err.Error())

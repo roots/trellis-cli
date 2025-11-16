@@ -110,7 +110,7 @@ func (c *DeployCommand) Run(args []string) int {
 	}
 
 	deploy := command.WithOptions(
-		command.WithUiOutput(c.UI),
+		command.WithAnsibleOutput(c.UI),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 
