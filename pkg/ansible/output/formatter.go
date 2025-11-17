@@ -14,10 +14,13 @@ import (
 )
 
 type Formatter struct {
-	currentTaskName string
-	taskStartTime   time.Time
-	lastRole        string
-	progressbar     *pterm.ProgressbarPrinter
+	currentTaskName        string
+	taskStartTime          time.Time
+	lastRole               string
+	progressbar            *pterm.ProgressbarPrinter
+	currentTaskIndentation string
+	roleTaskSummary        map[string]int // "ok", "changed", "failed", "skipped"
+	roleHeaderLineCount    int
 }
 
 var symbols = map[string]string{
@@ -28,7 +31,8 @@ var symbols = map[string]string{
 }
 
 func (f *Formatter) Process(reader io.Reader, totalTasks int) {
-	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks).WithTitle("Overall Progress").Start()
+	pterm.Println() // Blank line
+	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks).Start()
 
 	for {
 		scanner := bufio.NewScanner(reader)
@@ -71,6 +75,8 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 			break
 		}
 	}
+
+	f.progressbar.Stop()
 }
 
 func (f *Formatter) handlePlayStart(line string) {
@@ -95,21 +101,38 @@ func (f *Formatter) handleTaskStart(line string) {
 
 	r := regexp.MustCompile(`roles/([^/]+)/`)
 	matches := r.FindStringSubmatch(taskStartEvent.Task.Path)
+	role := ""
 	if len(matches) > 1 {
-		role := matches[1]
-		if f.lastRole != role {
-			pterm.DefaultSection.WithLevel(2).Println(role)
-			f.lastRole = role
-		}
+		role = matches[1]
+	}
 
-		// Remove role prefix from task name if present
-		rolePrefix := role + " : "
-		if strings.HasPrefix(f.currentTaskName, rolePrefix) {
-			f.currentTaskName = strings.TrimPrefix(f.currentTaskName, rolePrefix)
+	if role != f.lastRole {
+		if f.lastRole != "" {
+			f.summarizePreviousRole()
+		}
+		f.lastRole = role
+		f.roleHeaderLineCount = 0
+		f.roleTaskSummary = make(map[string]int)
+		if role != "" {
+			pterm.Printf("◉ %s\n", role)
+			f.roleHeaderLineCount++
 		}
 	}
 
-	pterm.Printf("%s %s\n", pterm.Gray("●"), f.currentTaskName)
+	// Remove role prefix from task name if present
+	rolePrefix := role + " : "
+	if strings.HasPrefix(f.currentTaskName, rolePrefix) {
+		f.currentTaskName = strings.TrimPrefix(f.currentTaskName, rolePrefix)
+	}
+
+	if role != "" {
+		f.currentTaskIndentation = "  "
+	} else {
+		f.currentTaskIndentation = ""
+	}
+
+	f.roleHeaderLineCount++
+	pterm.Printf("%s%s %s\n", f.currentTaskIndentation, pterm.Gray("●"), f.currentTaskName)
 }
 
 func (f *Formatter) handleRunnerOk(line string) {
@@ -162,6 +185,7 @@ func (f *Formatter) handleRunnerFailed(line string) {
 
 		f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
 		pterm.Error.Println(fmt.Sprintf("  Error: %s", r.Msg))
+		f.roleTaskSummary["failed"]++
 	}
 }
 
@@ -177,6 +201,7 @@ func (f *Formatter) handleRunnerSkipped(line string) {
 	}
 
 	f.printTaskLine(symbols["skipped"], "SKIPPED", pterm.FgCyan)
+	f.roleTaskSummary["skipped"]++
 }
 
 func (f *Formatter) handleStats(line string) {
@@ -184,6 +209,10 @@ func (f *Formatter) handleStats(line string) {
 	if err := json.Unmarshal([]byte(line), &statsEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling stats event:", err)
 		return
+	}
+
+	if f.lastRole != "" {
+		f.summarizePreviousRole()
 	}
 
 	pterm.DefaultSection.WithLevel(1).Println("PLAY RECAP")
@@ -220,7 +249,7 @@ func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color
 	statusStr := fmt.Sprintf("%s %s", symbol, paddedStatus)
 	coloredStatusStr := statusColor.Sprint(statusStr)
 
-	leftStr := fmt.Sprintf("%s %s", coloredStatusStr, f.currentTaskName)
+	leftStr := fmt.Sprintf("%s%s %s", f.currentTaskIndentation, coloredStatusStr, f.currentTaskName)
 
 	padding := width - runewidth.StringWidth(leftStr) - len(timeStr) - 2
 
@@ -234,6 +263,29 @@ func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color
 }
 
 func Process(reader io.Reader, totalTasks int) {
-	formatter := &Formatter{}
+	formatter := &Formatter{
+		roleTaskSummary: make(map[string]int),
+	}
 	formatter.Process(reader, totalTasks)
+}
+
+func (f *Formatter) summarizePreviousRole() {
+	if f.roleHeaderLineCount == 0 {
+		return
+	}
+
+	// Move cursor up by the number of task lines
+	for i := 0; i < f.roleHeaderLineCount; i++ {
+		pterm.Print("\033[1A")
+		pterm.Print("\033[2K\r")
+	}
+
+	// Print summary
+	summary := []string{}
+	summary = append(summary, pterm.Green(fmt.Sprintf("✓%d", f.roleTaskSummary["ok"])))
+	summary = append(summary, pterm.Yellow(fmt.Sprintf("✚%d", f.roleTaskSummary["changed"])))
+	summary = append(summary, pterm.Red(fmt.Sprintf("✗%d", f.roleTaskSummary["failed"])))
+	summary = append(summary, pterm.Cyan(fmt.Sprintf("↷%d", f.roleTaskSummary["skipped"])))
+
+	pterm.Println(fmt.Sprintf("◉ %s [%s]", f.lastRole, strings.Join(summary, " ")))
 }
