@@ -34,45 +34,38 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 	pterm.Println() // Blank line
 	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks).Start()
 
-	for {
-		scanner := bufio.NewScanner(reader)
-		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			var event Event
-			if err := json.Unmarshal([]byte(line), &event); err != nil {
-				pterm.Error.Println("Error unmarshalling event:", err)
-				continue
-			}
-
-			switch event.Event {
-			case "v2_playbook_on_play_start":
-				f.handlePlayStart(line)
-			case "v2_playbook_on_task_start":
-				f.handleTaskStart(line)
-			case "v2_runner_on_ok":
-				f.handleRunnerOk(line)
-			case "v2_runner_on_failed":
-				f.handleRunnerFailed(line)
-			case "v2_runner_on_skipped":
-				f.handleRunnerSkipped(line)
-			case "v2_playbook_on_stats":
-				f.handleStats(line)
-			default:
-				// Ignore other events for now
-			}
+	for scanner.Scan() {
+		line := scanner.Text()
+		var event Event
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			pterm.Error.Println("Error unmarshalling event:", err)
+			continue
 		}
 
-		if err := scanner.Err(); err != nil {
-			if err == io.EOF {
-				break
-			}
+		switch event.Event {
+		case "v2_playbook_on_play_start":
+			f.handlePlayStart(line)
+		case "v2_playbook_on_task_start":
+			f.handleTaskStart(line)
+		case "v2_runner_on_ok":
+			f.handleRunnerOk(line)
+		case "v2_runner_on_failed":
+			f.handleRunnerFailed(line)
+		case "v2_runner_on_skipped":
+			f.handleRunnerSkipped(line)
+		case "v2_playbook_on_stats":
+			f.handleStats(line)
+		default:
+			// Ignore other events for now
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		if err != io.EOF {
 			pterm.Error.Println("Error reading from scanner:", err)
-		}
-
-		if _, err := reader.Read(make([]byte, 0)); err != nil {
-			break
 		}
 	}
 
@@ -157,8 +150,10 @@ func (f *Formatter) handleRunnerOk(line string) {
 
 		if r.Changed {
 			f.printTaskLine(symbols["changed"], "CHANGED", pterm.FgYellow)
+			f.roleTaskSummary["changed"]++
 		} else {
 			f.printTaskLine(symbols["success"], "OK", pterm.FgGreen)
+			f.roleTaskSummary["ok"]++
 		}
 	}
 }
@@ -215,28 +210,32 @@ func (f *Formatter) handleStats(line string) {
 		f.summarizePreviousRole()
 	}
 
-	pterm.DefaultSection.WithLevel(1).Println("PLAY RECAP")
+	var recapBuilder strings.Builder
 
 	for host, stats := range statsEvent.Stats {
 		summary := []string{}
 		if stats.Ok > 0 {
-			summary = append(summary, pterm.Green(fmt.Sprintf("ok=%d", stats.Ok)))
+			summary = append(summary, pterm.Green(fmt.Sprintf("%s ok=%d", symbols["success"], stats.Ok)))
 		}
 		if stats.Changed > 0 {
-			summary = append(summary, pterm.Yellow(fmt.Sprintf("changed=%d", stats.Changed)))
+			summary = append(summary, pterm.Yellow(fmt.Sprintf("%s changed=%d", symbols["changed"], stats.Changed)))
 		}
 		if stats.Skipped > 0 {
-			summary = append(summary, pterm.Cyan(fmt.Sprintf("skipped=%d", stats.Skipped)))
+			summary = append(summary, pterm.Cyan(fmt.Sprintf("%s skipped=%d", symbols["skipped"], stats.Skipped)))
 		}
 		if stats.Failures > 0 {
-			summary = append(summary, pterm.Red(fmt.Sprintf("failures=%d", stats.Failures)))
+			summary = append(summary, pterm.Red(fmt.Sprintf("%s failed=%d", symbols["failed"], stats.Failures)))
 		}
 		if stats.Unreachable > 0 {
-			summary = append(summary, pterm.Red(fmt.Sprintf("unreachable=%d", stats.Unreachable)))
+			summary = append(summary, pterm.Red(fmt.Sprintf("%s unreachable=%d", symbols["failed"], stats.Unreachable)))
 		}
 
-		pterm.Info.Println(fmt.Sprintf("%s : %s", host, strings.Join(summary, " ")))
+		paddedHost := fmt.Sprintf("%-20s", host)
+		recapBuilder.WriteString(fmt.Sprintf("%s : %s\n", paddedHost, strings.Join(summary, "  ")))
 	}
+
+	pterm.Println()
+	pterm.DefaultBox.WithTitle("Summary").Println(recapBuilder.String())
 }
 
 func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color) {
@@ -287,5 +286,10 @@ func (f *Formatter) summarizePreviousRole() {
 	summary = append(summary, pterm.Red(fmt.Sprintf("✗%d", f.roleTaskSummary["failed"])))
 	summary = append(summary, pterm.Cyan(fmt.Sprintf("↷%d", f.roleTaskSummary["skipped"])))
 
-	pterm.Println(fmt.Sprintf("◉ %s [%s]", f.lastRole, strings.Join(summary, " ")))
+	roleNameLength := runewidth.StringWidth(f.lastRole)
+	padding := 28 - roleNameLength
+	if padding < 1 {
+		padding = 1
+	}
+	pterm.Println(fmt.Sprintf("◉ %s%s[%s]", f.lastRole, strings.Repeat(" ", padding), strings.Join(summary, " ")))
 }
