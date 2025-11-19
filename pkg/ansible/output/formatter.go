@@ -19,8 +19,9 @@ type Formatter struct {
 	lastRole               string
 	progressbar            *pterm.ProgressbarPrinter
 	currentTaskIndentation string
-	roleTaskSummary        map[string]int // "ok", "changed", "failed", "skipped"
+	roleTaskSummary        map[string]int
 	roleHeaderLineCount    int
+	roleStartTime          time.Time
 }
 
 var symbols = map[string]string{
@@ -101,11 +102,13 @@ func (f *Formatter) handleTaskStart(line string) {
 
 	if role != f.lastRole {
 		if f.lastRole != "" {
-			f.summarizePreviousRole()
+			f.summarizeCompletedRole()
 		}
 		f.lastRole = role
-		f.roleHeaderLineCount = 0
 		f.roleTaskSummary = make(map[string]int)
+		f.roleHeaderLineCount = 0
+		f.roleStartTime = time.Now()
+
 		if role != "" {
 			pterm.Printf("◉ %s\n", role)
 			f.roleHeaderLineCount++
@@ -207,7 +210,7 @@ func (f *Formatter) handleStats(line string) {
 	}
 
 	if f.lastRole != "" {
-		f.summarizePreviousRole()
+		f.summarizeCompletedRole()
 	}
 
 	var recapBuilder strings.Builder
@@ -244,13 +247,17 @@ func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color
 	timeStr := fmt.Sprintf("%dms", duration.Milliseconds())
 	timeStr = fmt.Sprintf("%8s", timeStr)
 
-	paddedStatus := fmt.Sprintf("%-8s", status)
-	statusStr := fmt.Sprintf("%s %s", symbol, paddedStatus)
-	coloredStatusStr := statusColor.Sprint(statusStr)
+	coloredSymbol := statusColor.Sprint(symbol)
+	coloredStatusStr := pterm.Gray(fmt.Sprintf("(%s)", status))
 
-	leftStr := fmt.Sprintf("%s%s %s", f.currentTaskIndentation, coloredStatusStr, f.currentTaskName)
+	leftStr := fmt.Sprintf("%s%s %s %s", f.currentTaskIndentation, coloredSymbol, f.currentTaskName, coloredStatusStr)
 
-	padding := width - runewidth.StringWidth(leftStr) - len(timeStr) - 2
+	uncoloredLeftStrWidth := runewidth.StringWidth(f.currentTaskIndentation) +
+		runewidth.StringWidth(symbol) + 1 +
+		runewidth.StringWidth(f.currentTaskName) + 1 +
+		runewidth.StringWidth(fmt.Sprintf("(%s)", status)) // Use uncolored status for width calculation
+
+	padding := width - uncoloredLeftStrWidth - len(timeStr) - 2
 
 	if padding < 0 {
 		padding = 0
@@ -268,28 +275,52 @@ func Process(reader io.Reader, totalTasks int) {
 	formatter.Process(reader, totalTasks)
 }
 
-func (f *Formatter) summarizePreviousRole() {
-	if f.roleHeaderLineCount == 0 {
+func (f *Formatter) summarizeCompletedRole() {
+	if f.lastRole == "" {
 		return
 	}
 
-	// Move cursor up by the number of task lines
+	// 1. Clear previous lines
 	for i := 0; i < f.roleHeaderLineCount; i++ {
-		pterm.Print("\033[1A")
-		pterm.Print("\033[2K\r")
+		pterm.Print("\033[1A")   // Move cursor up
+		pterm.Print("\033[2K\r") // Clear line and move to beginning
 	}
 
-	// Print summary
-	summary := []string{}
-	summary = append(summary, pterm.Green(fmt.Sprintf("✓%d", f.roleTaskSummary["ok"])))
-	summary = append(summary, pterm.Yellow(fmt.Sprintf("✚%d", f.roleTaskSummary["changed"])))
-	summary = append(summary, pterm.Red(fmt.Sprintf("✗%d", f.roleTaskSummary["failed"])))
-	summary = append(summary, pterm.Cyan(fmt.Sprintf("↷%d", f.roleTaskSummary["skipped"])))
-
-	roleNameLength := runewidth.StringWidth(f.lastRole)
-	padding := 28 - roleNameLength
-	if padding < 1 {
-		padding = 1
+	// 2. Calculate summary data
+	totalTasks := 0
+	for _, count := range f.roleTaskSummary {
+		totalTasks += count
 	}
-	pterm.Println(fmt.Sprintf("◉ %s%s[%s]", f.lastRole, strings.Repeat(" ", padding), strings.Join(summary, " ")))
+
+	duration := time.Since(f.roleStartTime)
+
+	statusSymbol := symbols["success"]
+	statusColor := pterm.FgGreen
+	if f.roleTaskSummary["failed"] > 0 {
+		statusSymbol = symbols["failed"]
+		statusColor = pterm.FgRed
+	}
+
+	// 3. Format and print the summary line
+	width := pterm.GetTerminalWidth()
+	timeStr := fmt.Sprintf("%dms", duration.Milliseconds())
+	timeStr = fmt.Sprintf("%8s", timeStr)
+
+	roleName := f.lastRole
+	coloredTaskCountStr := pterm.Gray(fmt.Sprintf("(%d tasks)", totalTasks))
+
+	coloredSymbol := statusColor.Sprint(statusSymbol)
+
+	leftStr := fmt.Sprintf("%s %s %s", coloredSymbol, roleName, coloredTaskCountStr)
+
+	// Correct padding calculation
+	uncoloredLeftStrWidth := runewidth.StringWidth(statusSymbol) + 1 + runewidth.StringWidth(roleName) + 1 + runewidth.StringWidth(fmt.Sprintf("(%d tasks)", totalTasks))
+
+	padding := width - uncoloredLeftStrWidth - len(timeStr) - 2
+	if padding < 0 {
+		padding = 0
+	}
+	dots := strings.Repeat(".", padding)
+
+	pterm.Printf("%s %s %s\n", leftStr, pterm.Gray(dots), pterm.Gray(timeStr))
 }
