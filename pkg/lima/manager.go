@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -338,17 +339,25 @@ func getMacOSVersion() (string, error) {
 }
 
 func ensureRequirements() error {
-	macOSVersion, err := getMacOSVersion()
-	if err != nil {
-		return ErrUnsupportedOS
+	// macOS specific version checking
+	if runtime.GOOS == "darwin" {
+		macOSVersion, err := getMacOSVersion()
+		if err != nil {
+			return ErrUnsupportedOS
+		}
+
+		if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
+			return fmt.Errorf("%w", ErrUnsupportedOS)
+		}
 	}
 
-	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
-		return fmt.Errorf("%w", ErrUnsupportedOS)
-	}
-
-	if err = Installed(); err != nil {
-		return fmt.Errorf("%s\nInstall or upgrade Lima to continue:\n\n  brew install lima\n\nSee https://github.com/lima-vm/lima#getting-started for manual installation options.", err.Error())
+	if err := Installed(); err != nil {
+		installMsg := "Install or upgrade Lima to continue:\n\n"
+		if runtime.GOOS == "darwin" {
+			installMsg += "  brew install lima\n\n"
+		}
+		installMsg += "See https://github.com/lima-vm/lima#getting-started for installation options."
+		return fmt.Errorf("%s\n%s", err.Error(), installMsg)
 	}
 
 	return nil
