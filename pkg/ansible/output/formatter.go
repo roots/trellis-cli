@@ -24,6 +24,8 @@ type Formatter struct {
 	roleStartTime          time.Time
 }
 
+var roleRegex = regexp.MustCompile(`roles/([^/]+)/`)
+
 var symbols = map[string]string{
 	"success": "✓",
 	"failed":  "✗",
@@ -93,8 +95,7 @@ func (f *Formatter) handleTaskStart(line string) {
 	f.currentTaskName = taskStartEvent.Task.Name
 	f.taskStartTime = time.Now()
 
-	r := regexp.MustCompile(`roles/([^/]+)/`)
-	matches := r.FindStringSubmatch(taskStartEvent.Task.Path)
+	matches := roleRegex.FindStringSubmatch(taskStartEvent.Task.Path)
 	role := ""
 	if len(matches) > 1 {
 		role = matches[1]
@@ -142,22 +143,17 @@ func (f *Formatter) handleRunnerOk(line string) {
 		return
 	}
 
+	// This is a temporary solution and will be replaced by the aggregation logic in #1
+	// For now, it will use the first host's result
 	for _, result := range okEvent.Hosts {
-		var r struct {
-			Changed bool `json:"changed"`
-		}
-		if err := json.Unmarshal(result, &r); err != nil {
-			pterm.Error.Println("Error unmarshalling runner ok result:", err)
-			continue
-		}
-
-		if r.Changed {
+		if result.Changed {
 			f.printTaskLine(symbols["changed"], "CHANGED", pterm.FgYellow)
 			f.roleTaskSummary["changed"]++
 		} else {
 			f.printTaskLine(symbols["success"], "OK", pterm.FgGreen)
 			f.roleTaskSummary["ok"]++
 		}
+		break // Only process the first host for now, to be fixed by #1
 	}
 }
 
@@ -172,18 +168,26 @@ func (f *Formatter) handleRunnerFailed(line string) {
 		return
 	}
 
+	// This is a temporary solution and will be replaced by the aggregation logic in #1
+	// For now, it will use the first host's result
 	for _, result := range failedEvent.Hosts {
-		var r struct {
-			Msg string `json:"msg"`
+		f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
+		f.roleTaskSummary["failed"]++
+
+		var errorDetails strings.Builder
+		errorDetails.WriteString(fmt.Sprintf("  Error: %s", result.Msg))
+
+		if result.Stdout != "" {
+			errorDetails.WriteString(fmt.Sprintf("\n  Stdout: %s", result.Stdout))
 		}
-		if err := json.Unmarshal(result, &r); err != nil {
-			pterm.Error.Println("Error unmarshalling runner failed result:", err)
-			continue
+		if result.Stderr != "" {
+			errorDetails.WriteString(fmt.Sprintf("\n  Stderr: %s", result.Stderr))
 		}
 
-		f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
-		pterm.Error.Println(fmt.Sprintf("  Error: %s", r.Msg))
-		f.roleTaskSummary["failed"]++
+		errorMessage := errorDetails.String()
+		pterm.Error.Println(errorMessage)
+		f.roleHeaderLineCount += strings.Count(errorMessage, "\n")
+		break // Only process the first host for now, to be fixed by #1
 	}
 }
 

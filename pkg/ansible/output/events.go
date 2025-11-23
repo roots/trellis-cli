@@ -39,16 +39,24 @@ type PlaybookOnTaskStartEvent struct {
 	Task  Task                   `json:"task"`
 }
 
+type HostResult struct {
+	Changed bool            `json:"changed"`
+	Msg     string          `json:"msg"`
+	Stdout  string          `json:"stdout"`
+	Stderr  string          `json:"stderr"`
+	Results json.RawMessage `json:"results,omitempty"`
+}
+
 type RunnerOnOkEvent struct {
 	Event
-	Hosts map[string]json.RawMessage `json:"hosts"`
-	Task  Task                       `json:"task"`
+	Hosts map[string]HostResult `json:"hosts"`
+	Task  Task                  `json:"task"`
 }
 
 type RunnerOnFailedEvent struct {
 	Event
-	Hosts map[string]json.RawMessage `json:"hosts"`
-	Task  Task                       `json:"task"`
+	Hosts map[string]HostResult `json:"hosts"`
+	Task  Task                  `json:"task"`
 }
 
 type RunnerOnSkippedEvent struct {
