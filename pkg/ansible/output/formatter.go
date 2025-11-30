@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -14,14 +15,19 @@ import (
 )
 
 type Formatter struct {
-	currentTaskName        string
-	taskStartTime          time.Time
-	lastRole               string
-	progressbar            *pterm.ProgressbarPrinter
-	currentTaskIndentation string
-	roleTaskSummary        map[string]int
-	roleHeaderLineCount    int
-	roleStartTime          time.Time
+	currentTaskName            string
+	taskStartTime              time.Time
+	lastRole                   string
+	progressbar                *pterm.ProgressbarPrinter
+	currentTaskIndentation     string
+	roleTaskSummary            map[string]int
+	roleHeaderLineCount        int
+	roleStartTime              time.Time
+	currentTaskHostCount       int
+	hostsInRole                map[string]struct{}
+	disableClearing            bool
+	permanentlyDisableClearing bool
+	tasksStartedCount          int
 }
 
 var roleRegex = regexp.MustCompile(`roles/([^/]+)/`)
@@ -35,7 +41,7 @@ var symbols = map[string]string{
 
 func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 	pterm.Println() // Blank line
-	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks).Start()
+	f.progressbar, _ = pterm.DefaultProgressbar.WithTotal(totalTasks + 1).WithRemoveWhenDone(true).Start()
 
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -44,7 +50,16 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 		line := scanner.Text()
 		var event Event
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			pterm.Error.Println("Error unmarshalling event:", err)
+			pterm.Error.Printf(
+				"Trellis CLI Internal Error: Failed to parse an Ansible event.\n"+
+					"This is a CLI issue, not an error from the Ansible playbook.\n"+
+					"Please report this bug at https://github.com/roots/trellis-cli/issues\n"+
+					"Raw Event Line: %s\n"+
+					"Error: %v\n",
+				line,
+				err,
+			)
+			f.permanentlyDisableClearing = true
 			continue
 		}
 
@@ -94,11 +109,22 @@ func (f *Formatter) handleTaskStart(line string) {
 
 	f.currentTaskName = taskStartEvent.Task.Name
 	f.taskStartTime = time.Now()
+	f.currentTaskHostCount = len(taskStartEvent.Hosts)
 
-	matches := roleRegex.FindStringSubmatch(taskStartEvent.Task.Path)
-	role := ""
-	if len(matches) > 1 {
-		role = matches[1]
+	// Hybrid role detection: First, try to parse the logical role from the task name.
+	// If that fails (eg, for tasks like "Gathering Facts"), fall back to the physical
+	// role based on the task's file path.
+	var role string
+	parts := strings.SplitN(f.currentTaskName, " : ", 2)
+	if len(parts) > 1 {
+		role = parts[0]
+	} else {
+		matches := roleRegex.FindStringSubmatch(taskStartEvent.Task.Path)
+		if len(matches) > 1 {
+			role = matches[1]
+		} else {
+			role = ""
+		}
 	}
 
 	if role != f.lastRole {
@@ -109,6 +135,7 @@ func (f *Formatter) handleTaskStart(line string) {
 		f.roleTaskSummary = make(map[string]int)
 		f.roleHeaderLineCount = 0
 		f.roleStartTime = time.Now()
+		f.hostsInRole = make(map[string]struct{})
 
 		if role != "" {
 			pterm.Printf("◉ %s\n", role)
@@ -116,10 +143,19 @@ func (f *Formatter) handleTaskStart(line string) {
 		}
 	}
 
+	for host := range taskStartEvent.Hosts {
+		f.hostsInRole[host] = struct{}{}
+	}
+
 	// Remove role prefix from task name if present
 	rolePrefix := role + " : "
 	if strings.HasPrefix(f.currentTaskName, rolePrefix) {
 		f.currentTaskName = strings.TrimPrefix(f.currentTaskName, rolePrefix)
+	}
+
+	f.tasksStartedCount++
+	if f.tasksStartedCount >= f.progressbar.Total {
+		f.progressbar.Total = f.tasksStartedCount + 1
 	}
 
 	if role != "" {
@@ -135,7 +171,6 @@ func (f *Formatter) handleTaskStart(line string) {
 func (f *Formatter) handleRunnerOk(line string) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
-	f.progressbar.Increment()
 
 	var okEvent RunnerOnOkEvent
 	if err := json.Unmarshal([]byte(line), &okEvent); err != nil {
@@ -143,24 +178,45 @@ func (f *Formatter) handleRunnerOk(line string) {
 		return
 	}
 
-	// This is a temporary solution and will be replaced by the aggregation logic in #1
-	// For now, it will use the first host's result
-	for _, result := range okEvent.Hosts {
+	isChanged := false
+	individualStatuses := make(map[string]string)
+	for host, result := range okEvent.Hosts {
 		if result.Changed {
-			f.printTaskLine(symbols["changed"], "CHANGED", pterm.FgYellow)
-			f.roleTaskSummary["changed"]++
+			isChanged = true
+			individualStatuses[host] = "changed"
 		} else {
-			f.printTaskLine(symbols["success"], "OK", pterm.FgGreen)
-			f.roleTaskSummary["ok"]++
+			individualStatuses[host] = "ok"
 		}
-		break // Only process the first host for now, to be fixed by #1
 	}
+
+	if isChanged {
+		f.printTaskLine(symbols["changed"], "CHANGED", pterm.FgYellow)
+		f.roleTaskSummary["changed"]++
+	} else {
+		f.printTaskLine(symbols["success"], "OK", pterm.FgGreen)
+		f.roleTaskSummary["ok"]++
+	}
+
+	if f.currentTaskHostCount > 1 {
+		for host, status := range individualStatuses {
+			var statusText string
+			switch status {
+			case "changed":
+				statusText = pterm.FgYellow.Sprint("CHANGED")
+			case "ok":
+				statusText = pterm.FgGreen.Sprint("OK")
+			}
+			pterm.Printf("%s  - %s: %s\n", f.currentTaskIndentation, host, statusText)
+			f.roleHeaderLineCount++
+		}
+	}
+
+	f.progressbar.Increment()
 }
 
 func (f *Formatter) handleRunnerFailed(line string) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
-	f.progressbar.Increment()
 
 	var failedEvent RunnerOnFailedEvent
 	if err := json.Unmarshal([]byte(line), &failedEvent); err != nil {
@@ -168,33 +224,56 @@ func (f *Formatter) handleRunnerFailed(line string) {
 		return
 	}
 
-	// This is a temporary solution and will be replaced by the aggregation logic in #1
-	// For now, it will use the first host's result
-	for _, result := range failedEvent.Hosts {
-		f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
-		f.roleTaskSummary["failed"]++
+	// Aggregated status is always "failed".
+	f.printTaskLine(symbols["failed"], "FAILED", pterm.FgRed)
+	f.roleTaskSummary["failed"]++
 
-		var errorDetails strings.Builder
-		errorDetails.WriteString(fmt.Sprintf("  Error: %s", result.Msg))
+	if f.currentTaskHostCount > 1 {
+		// Multi-host failure
+		for host, result := range failedEvent.Hosts {
+			pterm.Printf("%s  - %s: %s\n", f.currentTaskIndentation, host, pterm.FgRed.Sprint("FAILED"))
+			f.roleHeaderLineCount++
 
-		if result.Stdout != "" {
-			errorDetails.WriteString(fmt.Sprintf("\n  Stdout: %s", result.Stdout))
+			var errorDetails strings.Builder
+			errorDetails.WriteString(fmt.Sprintf("%s    Error: %s", f.currentTaskIndentation, result.Msg))
+
+			if result.Stdout != "" {
+				errorDetails.WriteString(fmt.Sprintf("\n%s    Stdout: %s", f.currentTaskIndentation, result.Stdout))
+			}
+			if result.Stderr != "" {
+				errorDetails.WriteString(fmt.Sprintf("\n%s    Stderr: %s", f.currentTaskIndentation, result.Stderr))
+			}
+
+			errorMessage := errorDetails.String()
+			pterm.Error.Println(errorMessage)
+			f.roleHeaderLineCount += strings.Count(errorMessage, "\n") + 1
 		}
-		if result.Stderr != "" {
-			errorDetails.WriteString(fmt.Sprintf("\n  Stderr: %s", result.Stderr))
-		}
+	} else {
+		// Single-host failure
+		for _, result := range failedEvent.Hosts {
+			var errorDetails strings.Builder
+			errorDetails.WriteString(fmt.Sprintf("  Error: %s", result.Msg))
 
-		errorMessage := errorDetails.String()
-		pterm.Error.Println(errorMessage)
-		f.roleHeaderLineCount += strings.Count(errorMessage, "\n")
-		break // Only process the first host for now, to be fixed by #1
+			if result.Stdout != "" {
+				errorDetails.WriteString(fmt.Sprintf("\n  Stdout: %s", result.Stdout))
+			}
+			if result.Stderr != "" {
+				errorDetails.WriteString(fmt.Sprintf("\n  Stderr: %s", result.Stderr))
+			}
+
+			errorMessage := errorDetails.String()
+			pterm.Error.Println(errorMessage)
+			f.roleHeaderLineCount += strings.Count(errorMessage, "\n") + 1
+			break // Should only be one host
+		}
 	}
+
+	f.progressbar.Increment()
 }
 
 func (f *Formatter) handleRunnerSkipped(line string) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
-	f.progressbar.Increment()
 
 	var skippedEvent RunnerOnSkippedEvent
 	if err := json.Unmarshal([]byte(line), &skippedEvent); err != nil {
@@ -204,6 +283,15 @@ func (f *Formatter) handleRunnerSkipped(line string) {
 
 	f.printTaskLine(symbols["skipped"], "SKIPPED", pterm.FgCyan)
 	f.roleTaskSummary["skipped"]++
+
+	if f.currentTaskHostCount > 1 {
+		for host := range skippedEvent.Hosts {
+			pterm.Printf("%s  - %s: %s\n", f.currentTaskIndentation, host, pterm.FgCyan.Sprint("SKIPPED"))
+			f.roleHeaderLineCount++
+		}
+	}
+
+	f.progressbar.Increment()
 }
 
 func (f *Formatter) handleStats(line string) {
@@ -275,11 +363,16 @@ func (f *Formatter) printTaskLine(symbol, status string, statusColor pterm.Color
 func Process(reader io.Reader, totalTasks int) {
 	formatter := &Formatter{
 		roleTaskSummary: make(map[string]int),
+		disableClearing: os.Getenv("TRELLIS_CLI_VERBOSE_OUTPUT") != "",
 	}
 	formatter.Process(reader, totalTasks)
 }
 
 func (f *Formatter) summarizeCompletedRole() {
+	if f.disableClearing || f.permanentlyDisableClearing {
+		return
+	}
+
 	if f.lastRole == "" {
 		return
 	}
@@ -311,14 +404,14 @@ func (f *Formatter) summarizeCompletedRole() {
 	timeStr = fmt.Sprintf("%8s", timeStr)
 
 	roleName := f.lastRole
-	coloredTaskCountStr := pterm.Gray(fmt.Sprintf("(%d tasks)", totalTasks))
+	coloredTaskCountStr := pterm.Gray(fmt.Sprintf("(%d tasks, %d hosts)", totalTasks, len(f.hostsInRole)))
 
 	coloredSymbol := statusColor.Sprint(statusSymbol)
 
 	leftStr := fmt.Sprintf("%s %s %s", coloredSymbol, roleName, coloredTaskCountStr)
 
 	// Correct padding calculation
-	uncoloredLeftStrWidth := runewidth.StringWidth(statusSymbol) + 1 + runewidth.StringWidth(roleName) + 1 + runewidth.StringWidth(fmt.Sprintf("(%d tasks)", totalTasks))
+	uncoloredLeftStrWidth := runewidth.StringWidth(statusSymbol) + 1 + runewidth.StringWidth(roleName) + 1 + runewidth.StringWidth(fmt.Sprintf("(%d tasks, %d hosts)", totalTasks, len(f.hostsInRole)))
 
 	padding := width - uncoloredLeftStrWidth - len(timeStr) - 2
 	if padding < 0 {

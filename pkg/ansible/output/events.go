@@ -59,6 +59,7 @@ type RunnerOnFailedEvent struct {
 	Task  Task                  `json:"task"`
 }
 
+// RunnerOnSkippedEvent represents a v2_runner_on_skipped event.
 type RunnerOnSkippedEvent struct {
 	Event
 	Hosts map[string]struct {
@@ -70,16 +71,14 @@ type RunnerOnSkippedEvent struct {
 		Skipped        bool   `json:"skipped"`
 		Msg            string `json:"msg"`
 		Results        []struct {
-			AnsibleItemLabel string `json:"_ansible_item_label"`
-			AnsibleNoLog     bool   `json:"_ansible_no_log"`
-			AnsibleLoopVar   string `json:"ansible_loop_var"`
-			Changed          bool   `json:"changed"`
-			FalseCondition   string `json:"false_condition"`
-			Item             struct {
-				Key   string `json:"key"`
-									Value json.RawMessage `json:"value"`			} `json:"item"`
-			SkipReason string `json:"skip_reason"`
-			Skipped    bool   `json:"skipped"`
+			AnsibleItemLabel json.RawMessage `json:"_ansible_item_label"`
+			AnsibleNoLog     bool            `json:"_ansible_no_log"`
+			AnsibleLoopVar   string          `json:"ansible_loop_var"`
+			Changed          bool            `json:"changed"`
+			FalseCondition   string          `json:"false_condition"`
+			Item             json.RawMessage `json:"item"`
+			SkipReason       string          `json:"skip_reason"`
+			Skipped          bool            `json:"skipped"`
 		} `json:"results"`
 	} `json:"hosts"`
 	Task Task `json:"task"`
