@@ -38,6 +38,9 @@ func (c *DropletDnsCommand) init() {
 }
 
 func (c *DropletDnsCommand) Run(args []string) int {
+	c.UI.Warn("DEPRECATED: 'trellis droplet dns' is deprecated. Use 'trellis server dns' instead.")
+	c.UI.Warn("This command will be removed in a future version.\n")
+
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1

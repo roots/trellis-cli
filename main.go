@@ -80,7 +80,7 @@ func main() {
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
-				SynopsisText: "Commands for DigitalOcean Droplets",
+				SynopsisText: "Commands for DigitalOcean Droplets (deprecated: use 'server' instead)",
 			}, nil
 		},
 		"droplet create": func() (cli.Command, error) {
@@ -88,6 +88,18 @@ func main() {
 		},
 		"droplet dns": func() (cli.Command, error) {
 			return cmd.NewDropletDnsCommand(ui, trellis), nil
+		},
+		"server": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis server <subcommand> [<args>]",
+				SynopsisText: "Commands for cloud server management",
+			}, nil
+		},
+		"server create": func() (cli.Command, error) {
+			return cmd.NewServerCreateCommand(ui, trellis), nil
+		},
+		"server dns": func() (cli.Command, error) {
+			return cmd.NewServerDnsCommand(ui, trellis), nil
 		},
 		"exec": func() (cli.Command, error) {
 			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
