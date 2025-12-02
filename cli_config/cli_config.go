@@ -24,6 +24,10 @@ type VmConfig struct {
 	InstanceName  string    `yaml:"instance_name"`
 }
 
+type ServerConfig struct {
+	Provider string `yaml:"provider"`
+}
+
 type Config struct {
 	AllowDevelopmentDeploys bool              `yaml:"allow_development_deploys"`
 	AskVaultPass            bool              `yaml:"ask_vault_pass"`
@@ -33,6 +37,7 @@ type Config struct {
 	Open                    map[string]string `yaml:"open"`
 	VirtualenvIntegration   bool              `yaml:"virtualenv_integration"`
 	Vm                      VmConfig          `yaml:"vm"`
+	Server                  ServerConfig      `yaml:"server"`
 }
 
 var (
@@ -70,6 +75,10 @@ func (c *Config) LoadFile(path string) error {
 
 	if c.DatabaseApp != "" && c.DatabaseApp != "tableplus" && c.DatabaseApp != "sequel-ace" {
 		return fmt.Errorf("%w: unsupported value for `database_app`. Must be one of: tableplus, sequel-ace", InvalidConfigErr)
+	}
+
+	if c.Server.Provider != "" && c.Server.Provider != "digitalocean" && c.Server.Provider != "hetzner" {
+		return fmt.Errorf("%w: unsupported value for `server.provider`. Must be one of: digitalocean, hetzner", InvalidConfigErr)
 	}
 
 	return nil

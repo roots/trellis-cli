@@ -50,6 +50,9 @@ func (c *DropletCreateCommand) init() {
 }
 
 func (c *DropletCreateCommand) Run(args []string) int {
+	c.UI.Warn("DEPRECATED: 'trellis droplet create' is deprecated. Use 'trellis server create' instead.")
+	c.UI.Warn("This command will be removed in a future version.\n")
+
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
 		return 1
