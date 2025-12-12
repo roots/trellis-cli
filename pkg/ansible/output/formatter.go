@@ -48,15 +48,22 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		originalLine := line
+
+		// Pro-actively fix known-bad JSON from ansible-playbook's lineinfile module
+		// by escaping the `\1` back-reference.
+
+		escapedLine := fixInvalidEscapes([]byte(line))
+
 		var event Event
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
+		if err := json.Unmarshal(escapedLine, &event); err != nil {
 			pterm.Error.Printf(
 				"Trellis CLI Internal Error: Failed to parse an Ansible event.\n"+
 					"This is a CLI issue, not an error from the Ansible playbook.\n"+
 					"Please report this bug at https://github.com/roots/trellis-cli/issues\n"+
 					"Raw Event Line: %s\n"+
 					"Error: %v\n",
-				line,
+				originalLine,
 				err,
 			)
 			f.permanentlyDisableClearing = true
@@ -65,17 +72,17 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 
 		switch event.Event {
 		case "v2_playbook_on_play_start":
-			f.handlePlayStart(line)
+			f.handlePlayStart(escapedLine)
 		case "v2_playbook_on_task_start":
-			f.handleTaskStart(line)
+			f.handleTaskStart(escapedLine)
 		case "v2_runner_on_ok":
-			f.handleRunnerOk(line)
+			f.handleRunnerOk(escapedLine)
 		case "v2_runner_on_failed":
-			f.handleRunnerFailed(line)
+			f.handleRunnerFailed(escapedLine)
 		case "v2_runner_on_skipped":
-			f.handleRunnerSkipped(line)
+			f.handleRunnerSkipped(escapedLine)
 		case "v2_playbook_on_stats":
-			f.handleStats(line)
+			f.handleStats(escapedLine)
 		default:
 			// Ignore other events for now
 		}
@@ -90,9 +97,9 @@ func (f *Formatter) Process(reader io.Reader, totalTasks int) {
 	f.progressbar.Stop()
 }
 
-func (f *Formatter) handlePlayStart(line string) {
+func (f *Formatter) handlePlayStart(line []byte) {
 	var playStartEvent PlaybookOnPlayStartEvent
-	if err := json.Unmarshal([]byte(line), &playStartEvent); err != nil {
+	if err := json.Unmarshal(line, &playStartEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling play start event:", err)
 		return
 	}
@@ -100,9 +107,9 @@ func (f *Formatter) handlePlayStart(line string) {
 	pterm.DefaultSection.WithLevel(1).Println(fmt.Sprintf("PLAY [%s]", playStartEvent.Play.Name))
 }
 
-func (f *Formatter) handleTaskStart(line string) {
+func (f *Formatter) handleTaskStart(line []byte) {
 	var taskStartEvent PlaybookOnTaskStartEvent
-	if err := json.Unmarshal([]byte(line), &taskStartEvent); err != nil {
+	if err := json.Unmarshal(line, &taskStartEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling task start event:", err)
 		return
 	}
@@ -168,12 +175,12 @@ func (f *Formatter) handleTaskStart(line string) {
 	pterm.Printf("%s%s %s\n", f.currentTaskIndentation, pterm.Gray("●"), f.currentTaskName)
 }
 
-func (f *Formatter) handleRunnerOk(line string) {
+func (f *Formatter) handleRunnerOk(line []byte) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
 
 	var okEvent RunnerOnOkEvent
-	if err := json.Unmarshal([]byte(line), &okEvent); err != nil {
+	if err := json.Unmarshal(line, &okEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling runner ok event:", err)
 		return
 	}
@@ -214,12 +221,12 @@ func (f *Formatter) handleRunnerOk(line string) {
 	f.progressbar.Increment()
 }
 
-func (f *Formatter) handleRunnerFailed(line string) {
+func (f *Formatter) handleRunnerFailed(line []byte) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
 
 	var failedEvent RunnerOnFailedEvent
-	if err := json.Unmarshal([]byte(line), &failedEvent); err != nil {
+	if err := json.Unmarshal(line, &failedEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling runner failed event:", err)
 		return
 	}
@@ -271,12 +278,12 @@ func (f *Formatter) handleRunnerFailed(line string) {
 	f.progressbar.Increment()
 }
 
-func (f *Formatter) handleRunnerSkipped(line string) {
+func (f *Formatter) handleRunnerSkipped(line []byte) {
 	pterm.Print("\033[1A")
 	pterm.Print("\033[2K\r")
 
 	var skippedEvent RunnerOnSkippedEvent
-	if err := json.Unmarshal([]byte(line), &skippedEvent); err != nil {
+	if err := json.Unmarshal(line, &skippedEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling runner skipped event:", err)
 		return
 	}
@@ -294,9 +301,9 @@ func (f *Formatter) handleRunnerSkipped(line string) {
 	f.progressbar.Increment()
 }
 
-func (f *Formatter) handleStats(line string) {
+func (f *Formatter) handleStats(line []byte) {
 	var statsEvent PlaybookOnStatsEvent
-	if err := json.Unmarshal([]byte(line), &statsEvent); err != nil {
+	if err := json.Unmarshal(line, &statsEvent); err != nil {
 		pterm.Error.Println("Error unmarshalling stats event:", err)
 		return
 	}
@@ -420,4 +427,59 @@ func (f *Formatter) summarizeCompletedRole() {
 	dots := strings.Repeat(".", padding)
 
 	pterm.Printf("%s %s %s\n", leftStr, pterm.Gray(dots), pterm.Gray(timeStr))
+}
+
+func fixInvalidEscapes(b []byte) []byte {
+	out := make([]byte, 0, len(b))
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+
+		if !inString {
+			out = append(out, c)
+			if c == '"' {
+				inString = true
+			}
+			continue
+		}
+
+		// We are inside a string
+		if escaped {
+			// Previous character was a backslash: check validity
+			switch c {
+			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+				// Valid simple escape
+				out = append(out, '\\', c)
+			case 'u':
+				// Unicode escape: copy as-is (we trust the next 4 chars)
+				out = append(out, '\\', 'u')
+			default:
+				// Illegal escape: fix by doubling the backslash
+				out = append(out, '\\', '\\', c)
+			}
+
+			escaped = false
+			continue
+		}
+
+		if c == '\\' {
+			escaped = true
+			continue
+		}
+
+		if c == '"' {
+			inString = false
+		}
+
+		out = append(out, c)
+	}
+
+	// Handle trailing backslash (illegal but we can fix)
+	if escaped {
+		out = append(out, '\\', '\\')
+	}
+
+	return out
 }
