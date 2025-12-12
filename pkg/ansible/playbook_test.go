@@ -1,9 +1,8 @@
 package ansible
 
 import (
+	"slices"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestPlaybook(t *testing.T) {
@@ -21,7 +20,7 @@ func TestPlaybook(t *testing.T) {
 		"-e env=production",
 	}
 
-	if !cmp.Equal(args, expected) {
+	if !slices.Equal(args, expected) {
 		t.Errorf("Playbook.CmdArgs() = %v, want %v", args, expected)
 	}
 }
@@ -46,7 +45,7 @@ func TestPlaybookAll(t *testing.T) {
 		"-e site=example.com",
 	}
 
-	if !cmp.Equal(args, expected) {
+	if !slices.Equal(args, expected) {
 		t.Errorf("Playbook.CmdArgs() = %v, want %v", args, expected)
 	}
 }
@@ -75,7 +74,7 @@ func TestPlaybookAddExtraVars(t *testing.T) {
 		"-e site=example.com",
 	}
 
-	if !cmp.Equal(args, expected) {
+	if !slices.Equal(args, expected) {
 		t.Errorf("Playbook.CmdArgs() = %v, want %v", args, expected)
 	}
 }
