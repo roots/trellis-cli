@@ -57,7 +57,7 @@ func (c *Config) LoadFile(path string) error {
 		return fmt.Errorf("%w: %s", InvalidConfigErr, err)
 	}
 
-	if c.Vm.Manager != "" && c.Vm.Manager != "lima" && c.Vm.Manager != "auto" && c.Vm.Manager != "mock" {
+	if c.Vm.Manager != "" && c.Vm.Manager != "lima" && c.Vm.Manager != "auto" && c.Vm.Manager != "mock" && c.Vm.Manager != "lxd" {
 		return fmt.Errorf("%w: unsupported value for `vm.manager`. Must be one of: auto, lima", InvalidConfigErr)
 	}
 
