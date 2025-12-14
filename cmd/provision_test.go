@@ -99,6 +99,18 @@ func TestProvisionRun(t *testing.T) {
 			0,
 		},
 		{
+			"with_skip_tags",
+			[]string{"-skip-tags", "users", "development"},
+			"ansible-playbook dev.yml --skip-tags=users -e env=development",
+			0,
+		},
+		{
+			"with_tags_and_skip_tags",
+			[]string{"-tags", "deploy", "-skip-tags", "users", "development"},
+			"ansible-playbook dev.yml --tags=deploy --skip-tags=users -e env=development",
+			0,
+		},
+		{
 			"with_extra_vars",
 			[]string{"-extra-vars", "k=v foo=bar", "development"},
 			"ansible-playbook dev.yml -e k=v foo=bar -e env=development",

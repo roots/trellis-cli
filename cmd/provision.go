@@ -23,6 +23,7 @@ type ProvisionCommand struct {
 	flags     *flag.FlagSet
 	extraVars string
 	tags      string
+	skipTags  string
 	Trellis   *trellis.Trellis
 	verbose   bool
 }
@@ -32,6 +33,7 @@ func (c *ProvisionCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.StringVar(&c.extraVars, "extra-vars", "", "Additional variables which are passed through to Ansible as 'extra-vars'")
 	c.flags.StringVar(&c.tags, "tags", "", "only run roles and tasks tagged with these values")
+	c.flags.StringVar(&c.skipTags, "skip-tags", "", "skip roles and tasks tagged with these values")
 	c.flags.BoolVar(&c.verbose, "verbose", false, "Enable Ansible's verbose mode")
 }
 
@@ -80,6 +82,10 @@ func (c *ProvisionCommand) Run(args []string) int {
 
 	if c.tags != "" {
 		playbook.AddArg("--tags", c.tags)
+	}
+
+	if c.skipTags != "" {
+		playbook.AddArg("--skip-tags", c.skipTags)
 	}
 
 	if environment == "development" {
@@ -135,6 +141,7 @@ Arguments:
   
 Options:
       --extra-vars  (multiple) Set additional variables as key=value or YAML/JSON, if filename prepend with @
+      --skip-tags   (multiple) Skip roles and tasks tagged with these values
       --tags        (multiple) Only run roles and tasks tagged with these values
       --verbose     Enable Ansible's verbose mode
   -h, --help        Show this help
@@ -150,6 +157,7 @@ func (c *ProvisionCommand) AutocompleteArgs() complete.Predictor {
 func (c *ProvisionCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"--extra-vars": complete.PredictNothing,
+		"--skip-tags":  complete.PredictNothing,
 		"--tags":       complete.PredictNothing,
 		"--verbose":    complete.PredictNothing,
 	}
