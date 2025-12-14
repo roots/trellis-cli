@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"os/exec"
 )
 
 var (
@@ -15,4 +16,6 @@ type Manager interface {
 	StartInstance(name string) error
 	StopInstance(name string) error
 	OpenShell(name string, dir string, commandArgs []string) error
+	RunCommand(args []string, dir string) error
+	RunCommandPipe(args []string, dir string) (*exec.Cmd, error)
 }

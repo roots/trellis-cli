@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -381,4 +382,33 @@ func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error
 	}
 
 	return nil
+}
+
+func (t *Trellis) VmManagerType() string {
+	switch t.CliConfig.Vm.Manager {
+	case "auto":
+		if runtime.GOOS == "darwin" {
+			return "lima"
+		}
+		return ""
+	case "lima":
+		return "lima"
+	case "mock":
+		return "mock"
+	default:
+		return ""
+	}
+}
+
+func (t *Trellis) VmInventoryPath() string {
+	vmType := t.VmManagerType()
+	if vmType == "" {
+		return ""
+	}
+
+	inventoryPath := filepath.Join(t.ConfigPath(), vmType, "inventory")
+	if _, err := os.Stat(inventoryPath); err != nil {
+		return ""
+	}
+	return inventoryPath
 }

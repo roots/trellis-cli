@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -150,6 +151,57 @@ func (m *Manager) OpenShell(name string, dir string, commandArgs []string) error
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
 	).Cmd("limactl", args).Run()
+}
+
+func (m *Manager) RunCommand(args []string, dir string) error {
+	instanceName, err := m.trellis.GetVmInstanceName()
+	if err != nil {
+		return err
+	}
+
+	instance, ok := m.GetInstance(instanceName)
+	if !ok {
+		return fmt.Errorf("VM does not exist. Run `trellis vm start` to create it.")
+	}
+	if instance.Stopped() {
+		return fmt.Errorf("VM is not running. Run `trellis vm start` to start it.")
+	}
+
+	shellArgs := []string{"shell"}
+	if dir != "" {
+		shellArgs = append(shellArgs, "--workdir", dir)
+	}
+	shellArgs = append(shellArgs, instance.Name)
+	shellArgs = append(shellArgs, args...)
+
+	return command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(m.ui),
+	).Cmd("limactl", shellArgs).Run()
+}
+
+func (m *Manager) RunCommandPipe(args []string, dir string) (*exec.Cmd, error) {
+	instanceName, err := m.trellis.GetVmInstanceName()
+	if err != nil {
+		return nil, err
+	}
+
+	instance, ok := m.GetInstance(instanceName)
+	if !ok {
+		return nil, fmt.Errorf("VM does not exist. Run `trellis vm start` to create it.")
+	}
+	if instance.Stopped() {
+		return nil, fmt.Errorf("VM is not running. Run `trellis vm start` to start it.")
+	}
+
+	shellArgs := []string{"shell"}
+	if dir != "" {
+		shellArgs = append(shellArgs, "--workdir", dir)
+	}
+	shellArgs = append(shellArgs, instance.Name)
+	shellArgs = append(shellArgs, args...)
+
+	return command.Cmd("limactl", shellArgs), nil
 }
 
 func (m *Manager) StartInstance(name string) error {

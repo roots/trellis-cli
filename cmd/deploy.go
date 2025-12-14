@@ -98,7 +98,7 @@ func (c *DeployCommand) Run(args []string) int {
 			return 1
 		}
 
-		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
+		playbook.SetInventory(c.Trellis.VmInventoryPath())
 	}
 
 	if c.branch != "" {

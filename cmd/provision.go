@@ -85,7 +85,7 @@ func (c *ProvisionCommand) Run(args []string) int {
 	if environment == "development" {
 		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		playbook.SetName("dev.yml")
-		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
+		playbook.SetInventory(c.Trellis.VmInventoryPath())
 	}
 
 	provision := command.WithOptions(

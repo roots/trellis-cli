@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"os/exec"
+
 	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -41,4 +43,12 @@ func (m *MockVmManager) StopInstance(name string) error {
 
 func (m *MockVmManager) OpenShell(name string, dir string, commandArgs []string) error {
 	return nil
+}
+
+func (m *MockVmManager) RunCommand(args []string, dir string) error {
+	return nil
+}
+
+func (m *MockVmManager) RunCommandPipe(args []string, dir string) (*exec.Cmd, error) {
+	return nil, nil
 }

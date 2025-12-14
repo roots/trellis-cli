@@ -80,60 +80,75 @@ func (c *LogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	sshHost := c.Trellis.SshHost(environment, siteName, "web")
-
-	_, err := exec.LookPath("goaccess")
-
-	if (c.goaccess || c.goaccessFlags != "") && err == nil {
-		tailCmd := c.tailCmd(siteName, "goaccess")
-		logArgs := []string{sshHost, tailCmd}
-
-		ssh := command.Cmd("ssh", logArgs)
-		goaccessArgs := []string{"--log-format=COMBINED"}
-
-		if c.goaccessFlags != "" {
-			goaccessArgs = append(goaccessArgs, strings.Split(c.goaccessFlags, " ")...)
-		}
-
-		goaccess := command.WithOptions(
-			command.WithTermOutput(),
-		).Cmd("goaccess", goaccessArgs)
-
-		goaccess.Stdin, _ = ssh.StdoutPipe()
-
-		if err := ssh.Start(); err != nil {
-			c.UI.Error(fmt.Sprintf("Error starting SSH command: %s", err))
-			return 1
-		}
-
-		if err := goaccess.Start(); err != nil {
-			c.UI.Error(fmt.Sprintf("Error starting goaccess command: %s", err))
-			return 1
-		}
-
-		if err := goaccess.Wait(); err != nil {
-			c.UI.Error(fmt.Sprintf("Error running goaccess command: %s", err))
-			return 1
-		}
-		if err := ssh.Wait(); err != nil {
-			c.UI.Error(fmt.Sprintf("Error running SSH command: %s", err))
-			return 1
-		}
-	} else {
-		logArgs := []string{sshHost, c.tailCmd(siteName, "tail")}
-
-		ssh := command.WithOptions(
-			command.WithTermOutput(),
-			command.WithLogging(c.UI),
-		).Cmd("ssh", logArgs)
-
-		if err := ssh.Run(); err != nil {
-			c.UI.Error(fmt.Sprintf("Error running ssh: %s", err))
+	if c.useGoaccess() {
+		if _, err := exec.LookPath("goaccess"); err != nil {
+			c.UI.Error("goaccess command not found. Install it to use --goaccess flag: https://goaccess.io/")
 			return 1
 		}
 	}
 
+	if environment == "development" && c.Trellis.VmManagerType() != "" {
+		return c.runWithVm(siteName)
+	}
+
+	sshHost := c.Trellis.SshHost(environment, siteName, "web")
+
+	if c.useGoaccess() {
+		tailCmd := c.tailCmd(siteName, "goaccess")
+		ssh := command.Cmd("ssh", []string{sshHost, tailCmd})
+		return c.runGoaccess(ssh, "SSH")
+	}
+
+	logArgs := []string{sshHost, c.tailCmd(siteName, "tail")}
+
+	ssh := command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(c.UI),
+	).Cmd("ssh", logArgs)
+
+	if err := ssh.Run(); err != nil {
+		c.UI.Error(fmt.Sprintf("Error running ssh: %s", err))
+		return 1
+	}
+
 	return 0
+}
+
+func (c *LogsCommand) runWithVm(siteName string) int {
+	manager, err := newVmManager(c.Trellis, c.UI)
+	if err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	if c.useGoaccess() {
+		return c.runWithVmGoaccess(manager, siteName)
+	}
+
+	tailCmd := c.tailCmd(siteName, "tail")
+	args := []string{"bash", "-c", tailCmd}
+
+	if err := manager.RunCommand(args, ""); err != nil {
+		c.UI.Error(fmt.Sprintf("Error: %s", err))
+		return 1
+	}
+
+	return 0
+}
+
+func (c *LogsCommand) runWithVmGoaccess(manager interface {
+	RunCommandPipe([]string, string) (*exec.Cmd, error)
+}, siteName string) int {
+	tailCmd := c.tailCmd(siteName, "goaccess")
+	args := []string{"bash", "-c", tailCmd}
+
+	vmCmd, err := manager.RunCommandPipe(args, "")
+	if err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	return c.runGoaccess(vmCmd, "VM")
 }
 
 func (c *LogsCommand) Synopsis() string {
@@ -204,6 +219,41 @@ func (c *LogsCommand) AutocompleteFlags() complete.Flags {
 		"--goaccess-flags": complete.PredictNothing,
 		"--number":         complete.PredictNothing,
 	}
+}
+
+func (c *LogsCommand) useGoaccess() bool {
+	return c.goaccess || c.goaccessFlags != ""
+}
+
+func (c *LogsCommand) goaccessArgs() []string {
+	args := []string{"--log-format=COMBINED"}
+	if c.goaccessFlags != "" {
+		args = append(args, strings.Split(c.goaccessFlags, " ")...)
+	}
+	return args
+}
+
+func (c *LogsCommand) runGoaccess(sourceCmd *exec.Cmd, sourceName string) int {
+	goaccess := command.WithOptions(
+		command.WithTermOutput(),
+	).Cmd("goaccess", c.goaccessArgs())
+
+	goaccess.Stdin, _ = sourceCmd.StdoutPipe()
+
+	if err := sourceCmd.Start(); err != nil {
+		c.UI.Error(fmt.Sprintf("Error starting %s command: %s", sourceName, err))
+		return 1
+	}
+
+	if err := goaccess.Start(); err != nil {
+		c.UI.Error(fmt.Sprintf("Error starting goaccess: %s", err))
+		return 1
+	}
+
+	_ = goaccess.Wait()
+	_ = sourceCmd.Wait()
+
+	return 0
 }
 
 func (c *LogsCommand) tailCmd(siteName string, mode string) string {

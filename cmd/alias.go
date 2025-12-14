@@ -110,7 +110,7 @@ func (c *AliasCommand) Run(args []string) int {
 
 	defer c.aliasPlaybook.DumpFiles()()
 
-	devInventory := findDevInventory(c.Trellis, c.UI)
+	devInventory := c.Trellis.VmInventoryPath()
 
 	for _, environment := range envsToAlias {
 		playbook := ansible.Playbook{
