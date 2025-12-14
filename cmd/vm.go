@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 
 	"github.com/hashicorp/cli"
@@ -11,33 +10,17 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-func newVmManager(trellis *trellis.Trellis, ui cli.Ui) (manager vm.Manager, err error) {
-	switch trellis.CliConfig.Vm.Manager {
-	case "auto":
-		switch runtime.GOOS {
-		case "darwin":
-			return lima.NewManager(trellis, ui)
-		default:
-			return nil, fmt.Errorf("No VM managers are supported on %s yet.", runtime.GOOS)
-		}
+func newVmManager(t *trellis.Trellis, ui cli.Ui) (vm.Manager, error) {
+	vmType := t.VmManagerType()
+
+	switch vmType {
 	case "lima":
-		return lima.NewManager(trellis, ui)
+		return lima.NewManager(t, ui)
 	case "mock":
-		return vm.NewMockManager(trellis, ui)
+		return vm.NewMockManager(t, ui)
+	case "":
+		return nil, fmt.Errorf("No VM managers are supported on %s yet.", runtime.GOOS)
 	}
 
 	return nil, fmt.Errorf("VM manager not found")
-}
-
-func findDevInventory(trellis *trellis.Trellis, ui cli.Ui) string {
-	manager, managerErr := newVmManager(trellis, ui)
-
-	if managerErr == nil {
-		_, vmInventoryErr := os.Stat(manager.InventoryPath())
-		if vmInventoryErr == nil {
-			return manager.InventoryPath()
-		}
-	}
-
-	return ""
 }

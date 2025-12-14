@@ -124,7 +124,7 @@ func (c *DBOpenCommand) Run(args []string) int {
 	}
 
 	if environment == "development" {
-		playbook.SetInventory(findDevInventory(c.Trellis, c.UI))
+		playbook.SetInventory(c.Trellis.VmInventoryPath())
 	}
 
 	mockUi := cli.NewMockUi()
