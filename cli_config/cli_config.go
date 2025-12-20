@@ -78,8 +78,8 @@ func (c *Config) LoadFile(path string) error {
 		return fmt.Errorf("%w: unsupported value for `database_app`. Must be one of: tableplus, sequel-ace", InvalidConfigErr)
 	}
 
-	if c.Server.Provider != "" && c.Server.Provider != "digitalocean" {
-		return fmt.Errorf("%w: unsupported value for `server.provider`. Must be one of: digitalocean", InvalidConfigErr)
+	if c.Server.Provider != "" && c.Server.Provider != "digitalocean" && c.Server.Provider != "hetzner" {
+		return fmt.Errorf("%w: unsupported value for `server.provider`. Must be one of: digitalocean, hetzner", InvalidConfigErr)
 	}
 
 	return nil
