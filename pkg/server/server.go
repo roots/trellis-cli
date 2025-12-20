@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/roots/trellis-cli/pkg/server/digitalocean"
+	"github.com/roots/trellis-cli/pkg/server/hetzner"
 	"github.com/roots/trellis-cli/pkg/server/types"
 )
 
@@ -35,6 +36,7 @@ type (
 // Re-export constants
 const (
 	ProviderDigitalOcean = types.ProviderDigitalOcean
+	ProviderHetzner      = types.ProviderHetzner
 	ServerStatusPending  = types.ServerStatusPending
 	ServerStatusStarting = types.ServerStatusStarting
 	ServerStatusRunning  = types.ServerStatusRunning
@@ -52,6 +54,7 @@ var (
 // Token environment variable names for each provider.
 var tokenEnvVars = map[ProviderName]string{
 	ProviderDigitalOcean: "DIGITALOCEAN_ACCESS_TOKEN",
+	ProviderHetzner:      "HCLOUD_TOKEN",
 }
 
 // GetProviderToken retrieves the API token for a provider from environment or prompts the user.
@@ -81,6 +84,8 @@ func NewProvider(name ProviderName, token string) (Provider, error) {
 	switch name {
 	case ProviderDigitalOcean:
 		return digitalocean.New(token), nil
+	case ProviderHetzner:
+		return hetzner.New(token), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", name)
 	}

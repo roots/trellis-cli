@@ -34,7 +34,7 @@ type ServerDnsCommand struct {
 func (c *ServerDnsCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.providerFlag, "provider", "", "Cloud provider (digitalocean)")
+	c.flags.StringVar(&c.providerFlag, "provider", "", "Cloud provider (digitalocean, hetzner)")
 	c.flags.BoolVar(&c.force, "force", false, "Force update of DNS records even if they exist")
 	c.flags.StringVar(&c.ip, "ip", "", "Host IP of DNS records")
 }
@@ -206,6 +206,7 @@ server IP; the host IP can be manually overridden if need be.
 
 Supported providers:
   - digitalocean (default)
+  - hetzner
 
 The provider can be configured via:
   1. --provider flag
@@ -235,7 +236,7 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-      --provider  Cloud provider (digitalocean)
+      --provider  Cloud provider (digitalocean, hetzner)
       --force     Force updating DNS records even if they already exist
       --ip        Host IP of DNS records
   -h, --help      Show this help
@@ -250,7 +251,7 @@ func (c *ServerDnsCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *ServerDnsCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--provider": complete.PredictSet("digitalocean"),
+		"--provider": complete.PredictSet("digitalocean", "hetzner"),
 		"--ip":       complete.PredictNothing,
 		"--force":    complete.PredictNothing,
 	}

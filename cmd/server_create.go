@@ -38,7 +38,7 @@ type ServerCreateCommand struct {
 func (c *ServerCreateCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.providerFlag, "provider", "", "Cloud provider (digitalocean)")
+	c.flags.StringVar(&c.providerFlag, "provider", "", "Cloud provider (digitalocean, hetzner)")
 	c.flags.StringVar(&c.sshKey, "ssh-key", "", "Path to SSH public key to automatically add to new server")
 	c.flags.StringVar(&c.region, "region", "", "Region to create the server in")
 	c.flags.StringVar(&c.image, "image", "", "Server image (default: Ubuntu 24.04)")
@@ -251,6 +251,7 @@ Development should be managed separately through the VM commands.
 
 Supported providers:
   - digitalocean (default)
+  - hetzner
 
 The provider can be configured via:
   1. --provider flag
@@ -273,7 +274,7 @@ Arguments:
   ENVIRONMENT Name of environment (ie: production)
 
 Options:
-      --provider        Cloud provider (digitalocean)
+      --provider        Cloud provider (digitalocean, hetzner)
       --region          Region to create the server in
       --image           Server image (default: Ubuntu 24.04)
       --size            Server size/type
@@ -291,7 +292,7 @@ func (c *ServerCreateCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *ServerCreateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--provider":        complete.PredictSet("digitalocean"),
+		"--provider":        complete.PredictSet("digitalocean", "hetzner"),
 		"--region":          complete.PredictNothing,
 		"--size":            complete.PredictNothing,
 		"--skip--provision": complete.PredictNothing,
@@ -374,7 +375,9 @@ func (c *ServerCreateCommand) createServer(ctx context.Context, provider server.
 		return nil, err
 	}
 
-	c.UI.Info(fmt.Sprintf("\n%s Server created => %s", color.GreenString("[✓]"), srv.DashboardURL))
+	if srv.DashboardURL != "" {
+		c.UI.Info(fmt.Sprintf("\n%s Server created => %s", color.GreenString("[✓]"), srv.DashboardURL))
+	}
 
 	return srv, nil
 }
