@@ -19,6 +19,9 @@ import (
 // To be replaced by goreleaser build flags.
 var version = "canary"
 var updaterRepo = ""
+var deprecatedCommands = []string{
+	"droplet",
+}
 
 func main() {
 	c := cli.NewCLI("trellis", version)
@@ -80,7 +83,7 @@ func main() {
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
-				SynopsisText: "Commands for DigitalOcean Droplets",
+				SynopsisText: "Commands for DigitalOcean Droplets (deprecated: use 'server' instead)",
 			}, nil
 		},
 		"droplet create": func() (cli.Command, error) {
@@ -88,6 +91,18 @@ func main() {
 		},
 		"droplet dns": func() (cli.Command, error) {
 			return cmd.NewDropletDnsCommand(ui, trellis), nil
+		},
+		"server": func() (cli.Command, error) {
+			return &cmd.NamespaceCommand{
+				HelpText:     "Usage: trellis server <subcommand> [<args>]",
+				SynopsisText: "Commands for cloud server management",
+			}, nil
+		},
+		"server create": func() (cli.Command, error) {
+			return cmd.NewServerCreateCommand(ui, trellis), nil
+		},
+		"server dns": func() (cli.Command, error) {
+			return cmd.NewServerDnsCommand(ui, trellis), nil
 		},
 		"exec": func() (cli.Command, error) {
 			return &cmd.ExecCommand{UI: ui, Trellis: trellis}, nil
@@ -203,7 +218,7 @@ func main() {
 	}
 
 	c.HiddenCommands = []string{"venv", "venv hook"}
-	c.HelpFunc = cli.BasicHelpFunc("trellis")
+	c.HelpFunc = deprecatedCommandHelpFunc(deprecatedCommands, cli.BasicHelpFunc("trellis"))
 
 	if trellis.CliConfig.LoadPlugins {
 		pluginPaths := filepath.SplitList(os.Getenv("PATH"))
