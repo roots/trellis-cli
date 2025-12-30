@@ -22,6 +22,15 @@ We're dedicated to pushing modern WordPress development forward through our open
 
 `brew install roots/tap/trellis-cli`
 
+### Upgrading to latest stable install via Homebrew
+
+```bash
+brew uninstall roots/tap/trellis-cli
+brew untap roots/tap
+brew tap roots/tap
+brew install roots/tap/trellis-cli
+```
+
 ## Quick Install (Unstable - macOS and Linux via Homebrew)
 
 ```bash
