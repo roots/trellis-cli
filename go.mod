@@ -18,7 +18,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/posener/complete v1.2.3
 	github.com/theckman/yacspin v0.13.12
-	github.com/weppos/publicsuffix-go v0.50.1
+	github.com/weppos/publicsuffix-go v0.50.2
 	golang.org/x/crypto v0.46.0
 	golang.org/x/oauth2 v0.34.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
