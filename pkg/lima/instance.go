@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"text/template"
 
 	"github.com/roots/trellis-cli/command"
@@ -54,6 +55,8 @@ type Instance struct {
 	SshLocalPort  int    `json:"sshLocalPort,omitempty"`
 	Config        Config `json:"config"`
 	Username      string `json:"username,omitempty"`
+	GOOS          string `json:"goos,omitempty"`
+	VmType        string `json:"vmType,omitempty"`
 }
 
 func (i *Instance) ConfigFile() string {
@@ -62,6 +65,12 @@ func (i *Instance) ConfigFile() string {
 
 func (i *Instance) GenerateConfig() (*bytes.Buffer, error) {
 	var contents bytes.Buffer
+	
+	i.VmType = "vz"
+
+	if runtime.GOOS == "linux" {
+		i.VmType = "qemu"
+	}
 
 	tpl := template.Must(template.New("lima").Parse(ConfigTemplate))
 
@@ -113,13 +122,26 @@ Gets the IP address of the instance using the output of `ip route`:
 	192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
 */
 func (i *Instance) IP() (ip string, err error) {
-	output, err := command.Cmd(
-		"limactl",
-		[]string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"},
-	).CombinedOutput()
+	args := []string{"shell", "--workdir", "/", i.Name, "ip", "route", "show"}
 
+	// Keep existing macOS logic
+	if runtime.GOOS == "darwin" {
+		args = append(args, "dev", "lima0")
+	}
+
+	output, err := command.Cmd("limactl", args).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
+	}
+
+	// Prioritize the custom TAP interface IP (192.168.56.x)
+	if runtime.GOOS == "linux" {
+		reCustom := regexp.MustCompile(`src (192\.168\.56\.[0-9]+)`)
+		matchesCustom := reCustom.FindStringSubmatch(string(output))
+		
+		if len(matchesCustom) >= 2 {
+			return matchesCustom[1], nil
+		}
 	}
 
 	re := regexp.MustCompile(`default via .* src ([0-9\.]+)`)

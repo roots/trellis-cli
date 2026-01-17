@@ -1,6 +1,7 @@
 package lima
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -22,6 +24,7 @@ import (
 const (
 	configDir            = "lima"
 	RequiredMacOSVersion = "13.0.0"
+	RequiredLinuxVersion = "20.04"
 )
 
 var (
@@ -220,6 +223,61 @@ func (m *Manager) StartInstance(name string) error {
 		return err
 	}
 
+	if runtime.GOOS == "linux" {
+		// 1. Ensure tap0 exists (unchanged)
+		if _, err := exec.Command("ip", "link", "show", "tap0").Output(); err != nil {
+			m.ui.Info(color.YellowString("🔧 tap0 missing. Creating it (requires sudo)..."))
+			// Added 'set tap0 up' to ensure the link is active on host
+			cmd := exec.Command("sudo", "sh", "-c", "ip tuntap add dev tap0 mode tap user $(whoami) && ip addr add 192.168.56.1/24 dev tap0 && ip link set tap0 up")
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("Failed to create tap0: %v", err)
+			}
+		}
+
+		m.ui.Info(color.YellowString("🛠️  Configuring QEMU Network Wrapper..."))
+
+		// 2. Create a dedicated directory for the wrapper
+		wrapperDir := filepath.Join(os.TempDir(), "lima-qemu-wrapper")
+		if err := os.MkdirAll(wrapperDir, 0755); err != nil {
+			return fmt.Errorf("failed to create wrapper dir: %v", err)
+		}
+
+		// 3. Name the script exactly 'qemu-system-x86_64' so Lima picks it up
+		wrapperPath := filepath.Join(wrapperDir, "qemu-system-x86_64")
+		
+		wrapperScript := `#!/bin/bash
+# Pass-through for help/version commands to prevent crashing during capability checks
+if [[ "$@" == *"-netdev help"* ]] || \
+[[ "$@" == *"-version"* ]] || \
+[[ "$@" == *"-accel help"* ]] || \
+[[ "$@" == *"-machine help"* ]] || \
+[[ "$@" == *"-cpu help"* ]]; then
+	exec /usr/bin/qemu-system-x86_64 "$@"
+fi
+
+# Inject the TAP interface args BEFORE other args ($@) to ensure precedence
+exec /usr/bin/qemu-system-x86_64 \
+-netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no \
+-device virtio-net-pci,netdev=mynet0,mac=52:54:00:12:34:56 \
+"$@"
+`
+		if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0755); err != nil {
+			m.ui.Warn(fmt.Sprintf("Failed to create QEMU wrapper: %v", err))
+		}
+
+		// 4. CRITICAL: Prepend the wrapper directory to PATH
+		// This forces Lima to find your script before the real QEMU
+		currentPath := os.Getenv("PATH")
+		newPath := wrapperDir + string(os.PathListSeparator) + currentPath
+		os.Setenv("PATH", newPath)
+	}
+
+
+
+
 	err := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
@@ -389,14 +447,59 @@ func getMacOSVersion() (string, error) {
 	return version, nil
 }
 
-func ensureRequirements() error {
-	macOSVersion, err := getMacOSVersion()
-	if err != nil {
-		return ErrUnsupportedOS
-	}
+func getLinuxVersion() (string, error) {
+    // /etc/os-release is the standard on almost all modern Linux distros
+    f, err := os.Open("/etc/os-release")
+    if err != nil {
+        return "", err
+    }
+    defer f.Close()
 
-	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
-		return fmt.Errorf("%w", ErrUnsupportedOS)
+    scanner := bufio.NewScanner(f)
+    for scanner.Scan() {
+        line := scanner.Text()
+        // Look for the line starting with VERSION_ID=
+        if strings.HasPrefix(line, "VERSION_ID=") {
+            // Remove the prefix
+            val := strings.TrimPrefix(line, "VERSION_ID=")
+            // Remove double or single quotes if present (e.g. "22.04" -> 22.04)
+            val = strings.Trim(val, `"'`)
+            
+            // Normalize using your existing version package
+            verNormalized := version.Normalize(val)
+            return verNormalized, nil
+        }
+    }
+
+    if err := scanner.Err(); err != nil {
+        return "", err
+    }
+
+    return "", fmt.Errorf("VERSION_ID not found in /etc/os-release")
+}
+
+func ensureRequirements() error {
+	var currentVersion string
+	var requiredVersion string
+	var err error
+
+	switch runtime.GOOS {
+		case "darwin":
+			currentVersion, err = getMacOSVersion()
+			requiredVersion = RequiredMacOSVersion
+		case "linux":
+			currentVersion, err = getLinuxVersion()
+			requiredVersion = RequiredLinuxVersion
+		default:
+			return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+    if err != nil {
+        return fmt.Errorf("failed to detect OS version: %w", err)
+    }
+
+	// Now compare the current version against the specific requirement for that OS
+	if version.Compare(currentVersion, requiredVersion, "<") {
+		return fmt.Errorf("OS version %s is too old; %s or newer is required", currentVersion, requiredVersion)
 	}
 
 	if err = Installed(); err != nil {
