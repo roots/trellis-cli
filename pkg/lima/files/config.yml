@@ -1,4 +1,4 @@
-vmType: "vz"
+vmType: "{{ .VmType }}"
 rosetta:
   enabled: false
 images:
@@ -17,7 +17,11 @@ ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true
 networks:
+{{- if eq .VmType "qemu" }}
+- lima: user-v2
+{{- else }}   
 - vzNAT: true
+{{- end }}
 {{ if .Config.PortForwards }}
 portForwards:
 {{ range $port := .Config.PortForwards -}}
@@ -32,3 +36,15 @@ provision:
   script: |
     #!/bin/bash
     echo "127.0.0.1 $(hostname)" >> /etc/hosts
+    {{- if eq .VmType "qemu" }}
+    # Additional network setup for QEMU on Linux
+    # 1. Find interface by MAC (matches the one set in your Go wrapper)
+    TAP_IFACE=$(ip -o link show | grep "52:54:00:12:34:56" | awk -F': ' '{print $2}' || echo "")
+
+    # 2. If found, configure it manually
+    if [ -n "$TAP_IFACE" ]; then
+        ip link set "$TAP_IFACE" up
+        # "|| true" prevents errors if the IP is already assigned from a previous run
+        ip addr add 192.168.56.5/24 dev "$TAP_IFACE" || true
+    fi
+    {{- end }}
