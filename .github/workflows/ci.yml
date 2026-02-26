@@ -77,7 +77,7 @@ jobs:
           go-version-file: 'go.mod'
       - uses: anchore/sbom-action/download-syft@v0
       - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           install-only: true
       - name: Check release (dry-run)
