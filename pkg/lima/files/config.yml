@@ -1,6 +1,16 @@
+{{- if eq .VMType "vz" -}}
 vmType: "vz"
 rosetta:
   enabled: false
+mountType: "virtiofs"
+networks:
+- vzNAT: true
+{{- else -}}
+vmType: "qemu"
+mountType: "9p"
+networks:
+- lima: user-v2
+{{- end }}
 images:
 {{ range $image := .Config.Images -}}
 - location: {{ $image.Location }}
@@ -12,12 +22,9 @@ mounts:
   mountPoint: /srv/www/{{ $siteName }}/current
   writable: true
 {{ end }}
-mountType: "virtiofs"
 ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true
-networks:
-- vzNAT: true
 {{ if .Config.PortForwards }}
 portForwards:
 {{ range $port := .Config.PortForwards -}}

@@ -20,11 +20,18 @@ func Installed() error {
 
 	output, err := command.Cmd("limactl", []string{"-v"}).Output()
 	if err != nil {
-		return fmt.Errorf("Could get determine the version of Lima.")
+		return fmt.Errorf("Could not determine the version of Lima.")
 	}
 
-	re := regexp.MustCompile(`.*([0-9]+\.[0-9]+\.[0-9]+(-alpha|beta)?)`)
+	re := regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+(-alpha|-beta)?)`)
 	v := re.FindStringSubmatch(string(output))
+
+	// If no semantic version found (e.g., git hash on Linux distro packages),
+	// assume it's a recent enough version since distro packages are typically up-to-date
+	if len(v) < 2 {
+		return nil
+	}
+
 	constraint := version.NewConstrainGroupFromString(VersionRequired)
 	matched := constraint.Match(v[1])
 

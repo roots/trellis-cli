@@ -54,6 +54,7 @@ type Instance struct {
 	SshLocalPort  int    `json:"sshLocalPort,omitempty"`
 	Config        Config `json:"config"`
 	Username      string `json:"username,omitempty"`
+	VMType        string `json:"vmType,omitempty"` // "vz" for macOS, "qemu" for Linux
 }
 
 func (i *Instance) ConfigFile() string {
@@ -111,15 +112,30 @@ Gets the IP address of the instance using the output of `ip route`:
 	default via 192.168.64.1 proto dhcp src 192.168.64.2 metric 100
 	192.168.64.0/24 proto kernel scope link src 192.168.64.2
 	192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
+
+On Linux with QEMU, the interface name varies (eth0, enp0s1, etc.) so we use
+the default route without specifying a device.
 */
 func (i *Instance) IP() (ip string, err error) {
-	output, err := command.Cmd(
-		"limactl",
-		[]string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"},
-	).CombinedOutput()
+	// Try lima0 first (macOS vz), then fall back to default route (Linux QEMU)
+	args := []string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"}
+	output, err := command.Cmd("limactl", args).CombinedOutput()
 
 	if err != nil {
-		return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
+		// lima0 doesn't exist (likely Linux QEMU), try getting default route
+		args = []string{"shell", "--workdir", "/", i.Name, "ip", "route", "get", "1.1.1.1"}
+		output, err = command.Cmd("limactl", args).CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
+		}
+
+		// Parse output like: "1.1.1.1 via 10.0.2.2 dev eth0 src 10.0.2.15 uid 1000"
+		re := regexp.MustCompile(`src ([0-9\.]+)`)
+		matches := re.FindStringSubmatch(string(output))
+		if len(matches) < 2 {
+			return "", fmt.Errorf("%w: no IP address could be matched in the ip route output\n%s", IpErr, string(output))
+		}
+		return matches[1], nil
 	}
 
 	re := regexp.MustCompile(`default via .* src ([0-9\.]+)`)

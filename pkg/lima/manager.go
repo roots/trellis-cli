@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -26,7 +27,7 @@ const (
 
 var (
 	ErrConfigPath    = errors.New("could not create config directory")
-	ErrUnsupportedOS = errors.New("unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
+	ErrUnsupportedOS = errors.New("unsupported OS version. Lima on macOS requires macOS 13.0 (Ventura) or later.")
 )
 
 type PortFinder interface {
@@ -299,6 +300,14 @@ func (m *Manager) initInstance(instance *Instance) {
 
 func (m *Manager) newInstance(name string) (Instance, error) {
 	instance := Instance{Name: name}
+
+	// Set VMType based on OS: "vz" for macOS (Virtualization.framework), "qemu" for Linux
+	if runtime.GOOS == "darwin" {
+		instance.VMType = "vz"
+	} else {
+		instance.VMType = "qemu"
+	}
+
 	m.initInstance(&instance)
 
 	images := []Image{}
@@ -390,6 +399,16 @@ func getMacOSVersion() (string, error) {
 }
 
 func ensureRequirements() error {
+	if runtime.GOOS == "linux" {
+		// Linux doesn't have macOS version requirements
+		// Just check that Lima is installed
+		if err := Installed(); err != nil {
+			return fmt.Errorf("%s\nInstall or upgrade Lima to continue.\n\nSee https://lima-vm.io/docs/installation/ for installation options.", err.Error())
+		}
+		return nil
+	}
+
+	// macOS requirements
 	macOSVersion, err := getMacOSVersion()
 	if err != nil {
 		return ErrUnsupportedOS

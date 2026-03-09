@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -34,17 +35,28 @@ func TestNewManager(t *testing.T) {
 	path := os.Getenv("PATH")
 	t.Setenv("PATH", fmt.Sprintf("PATH=%s:%s", path, tmp))
 
-	commands := []command.MockCommand{
-		{
-			Command: "sw_vers",
-			Args:    []string{"-productVersion"},
-			Output:  `13.0.1`,
-		},
-		{
-			Command: "limactl",
-			Args:    []string{"-v"},
-			Output:  `limactl version 0.15.0`,
-		},
+	var commands []command.MockCommand
+	if runtime.GOOS == "darwin" {
+		commands = []command.MockCommand{
+			{
+				Command: "sw_vers",
+				Args:    []string{"-productVersion"},
+				Output:  `13.0.1`,
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"-v"},
+				Output:  `limactl version 0.15.0`,
+			},
+		}
+	} else {
+		commands = []command.MockCommand{
+			{
+				Command: "limactl",
+				Args:    []string{"-v"},
+				Output:  `limactl version 0.15.0`,
+			},
+		}
 	}
 	defer command.MockExecCommands(t, commands)()
 
@@ -55,6 +67,11 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestNewManagerUnsupportedOS(t *testing.T) {
+	// This test is macOS-specific (tests for old macOS version rejection)
+	if runtime.GOOS != "darwin" {
+		t.Skip("Skipping macOS-specific test on non-macOS platform")
+	}
+
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
 	if err := trellis.LoadProject(); err != nil {
@@ -81,7 +98,7 @@ func TestNewManagerUnsupportedOS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := "unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later."
+	expected := "unsupported OS version. Lima on macOS requires macOS 13.0 (Ventura) or later."
 
 	if err.Error() != expected {
 		t.Errorf("expected error to be %q, got %q", expected, err.Error())

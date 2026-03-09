@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/roots/trellis-cli/command"
@@ -19,8 +20,15 @@ func TestGenerateConfig(t *testing.T) {
 
 	dir := t.TempDir()
 
+	// Set VMType based on OS, as newInstance() does
+	vmType := "qemu"
+	if runtime.GOOS == "darwin" {
+		vmType = "vz"
+	}
+
 	instance := &Instance{
-		Dir: dir,
+		Dir:    dir,
+		VMType: vmType,
 		Config: Config{
 			Images: []Image{
 				{
@@ -45,9 +53,14 @@ func TestGenerateConfig(t *testing.T) {
 
 	absSitePath := filepath.Join(trellis.Path, "../site")
 
-	expected := fmt.Sprintf(`vmType: "vz"
+	var expected string
+	if runtime.GOOS == "darwin" {
+		expected = fmt.Sprintf(`vmType: "vz"
 rosetta:
   enabled: false
+mountType: "virtiofs"
+networks:
+- vzNAT: true
 images:
 - location: http://ubuntu.com/focal
   arch: aarch64
@@ -57,12 +70,9 @@ mounts:
   mountPoint: /srv/www/example.com/current
   writable: true
 
-mountType: "virtiofs"
 ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true
-networks:
-- vzNAT: true
 
 portForwards:
 - guestPort: 80
@@ -76,6 +86,37 @@ provision:
     #!/bin/bash
     echo "127.0.0.1 $(hostname)" >> /etc/hosts
 `, absSitePath)
+	} else {
+		expected = fmt.Sprintf(`vmType: "qemu"
+mountType: "9p"
+networks:
+- lima: user-v2
+images:
+- location: http://ubuntu.com/focal
+  arch: aarch64
+
+mounts:
+- location: %s
+  mountPoint: /srv/www/example.com/current
+  writable: true
+
+ssh:
+  forwardAgent: true
+  loadDotSSHPubKeys: true
+
+portForwards:
+- guestPort: 80
+  hostPort: 1234
+
+containerd:
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    echo "127.0.0.1 $(hostname)" >> /etc/hosts
+`, absSitePath)
+	}
 
 	if content.String() != expected {
 		t.Errorf("expected %s\ngot %s", expected, content.String())
@@ -91,8 +132,15 @@ func TestUpdateConfig(t *testing.T) {
 
 	dir := t.TempDir()
 
+	// Set VMType based on OS, as newInstance() does
+	vmType := "qemu"
+	if runtime.GOOS == "darwin" {
+		vmType = "vz"
+	}
+
 	instance := &Instance{
-		Dir: dir,
+		Dir:    dir,
+		VMType: vmType,
 		Config: Config{
 			Images: []Image{
 				{
@@ -123,9 +171,14 @@ func TestUpdateConfig(t *testing.T) {
 
 	absSitePath := filepath.Join(trellis.Path, "../site")
 
-	expected := fmt.Sprintf(`vmType: "vz"
+	var expected string
+	if runtime.GOOS == "darwin" {
+		expected = fmt.Sprintf(`vmType: "vz"
 rosetta:
   enabled: false
+mountType: "virtiofs"
+networks:
+- vzNAT: true
 images:
 - location: http://ubuntu.com/focal
   arch: aarch64
@@ -135,12 +188,9 @@ mounts:
   mountPoint: /srv/www/example.com/current
   writable: true
 
-mountType: "virtiofs"
 ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true
-networks:
-- vzNAT: true
 
 portForwards:
 - guestPort: 80
@@ -154,6 +204,37 @@ provision:
     #!/bin/bash
     echo "127.0.0.1 $(hostname)" >> /etc/hosts
 `, absSitePath)
+	} else {
+		expected = fmt.Sprintf(`vmType: "qemu"
+mountType: "9p"
+networks:
+- lima: user-v2
+images:
+- location: http://ubuntu.com/focal
+  arch: aarch64
+
+mounts:
+- location: %s
+  mountPoint: /srv/www/example.com/current
+  writable: true
+
+ssh:
+  forwardAgent: true
+  loadDotSSHPubKeys: true
+
+portForwards:
+- guestPort: 80
+  hostPort: 1234
+
+containerd:
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    echo "127.0.0.1 $(hostname)" >> /etc/hosts
+`, absSitePath)
+	}
 
 	if string(content) != expected {
 		t.Errorf("expected %s\ngot %s", expected, string(content))
