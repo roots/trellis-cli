@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/digitalocean/godo v1.178.0
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/go-version v1.8.0
@@ -52,7 +52,7 @@ require (
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
