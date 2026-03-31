@@ -24,9 +24,11 @@ import (
 const (
 	configDir            = "lima"
 	RequiredMacOSVersion = "13.0.0"
-	linuxTapDevice       = "tap0"
-	linuxTapHostCIDR     = "192.168.56.1/24"
-	linuxTapMACAddress   = "52:54:00:12:34:56"
+	// Linux TAP networking constants. These are hardcoded to a single set of
+	// values, which means only one Lima VM can run at a time on Linux.
+	linuxTapDevice     = "tap0"
+	linuxTapHostCIDR   = "192.168.56.1/24"
+	linuxTapMACAddress = "52:54:00:12:34:56"
 )
 
 var (
@@ -226,15 +228,26 @@ func (m *Manager) StartInstance(name string) error {
 	}
 
 	if runtime.GOOS == "linux" {
-		if err := m.prepareLinuxTapNetworking(); err != nil {
+		if err := m.ensureLinuxTapDevice(); err != nil {
 			return err
 		}
 	}
 
-	err := command.WithOptions(
+	cmd := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
-	).Cmd("limactl", []string{"start", instance.Name}).Run()
+	).Cmd("limactl", []string{"start", instance.Name})
+
+	if runtime.GOOS == "linux" {
+		wrapperDir, err := m.ensureQEMUWrapper()
+		if err != nil {
+			return err
+		}
+
+		cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s%s%s", wrapperDir, string(os.PathListSeparator), os.Getenv("PATH")))
+	}
+
+	err := cmd.Run()
 
 	if err != nil {
 		return err
@@ -359,7 +372,7 @@ func (m *Manager) addHosts(instance Instance) error {
 		return err
 	}
 
-	ip, err := instance.HostAccessIP()
+	ip, err := instance.IP()
 	if err != nil {
 		return err
 	}
@@ -452,18 +465,6 @@ func checkKVM(ui cli.Ui) {
 	_ = f.Close()
 }
 
-func (m *Manager) prepareLinuxTapNetworking() error {
-	if err := m.ensureLinuxTapDevice(); err != nil {
-		return err
-	}
-
-	if err := m.ensureQEMUWrapper(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (m *Manager) ensureLinuxTapDevice() error {
 	currentUser, err := user.Current()
 	if err != nil {
@@ -513,10 +514,10 @@ ip link set %s up`,
 	return nil
 }
 
-func (m *Manager) ensureQEMUWrapper() error {
+func (m *Manager) ensureQEMUWrapper() (string, error) {
 	wrapperDir := filepath.Join(m.ConfigPath, "bin")
 	if err := os.MkdirAll(wrapperDir, 0755); err != nil {
-		return fmt.Errorf("Could not create QEMU wrapper directory: %v", err)
+		return "", fmt.Errorf("Could not create QEMU wrapper directory: %v", err)
 	}
 
 	found := false
@@ -531,25 +532,16 @@ func (m *Manager) ensureQEMUWrapper() error {
 		wrapperScript := fmt.Sprintf(`#!/bin/bash
 set -e
 
-pass_through=false
-prev=""
+# Only inject TAP networking args for real VM launches.
+# Lima probes QEMU with help/version flags that must pass through unchanged.
+has_netdev=false
 for arg in "$@"; do
   case "$arg" in
-    --help|-help|-version)
-      pass_through=true
-      ;;
-    help)
-      case "$prev" in
-        -netdev|-accel|-machine|-cpu)
-          pass_through=true
-          ;;
-      esac
-      ;;
+    -netdev) has_netdev=true; break ;;
   esac
-  prev="$arg"
 done
 
-if [ "$pass_through" = true ]; then
+if [ "$has_netdev" = false ]; then
   exec %q "$@"
 fi
 
@@ -560,26 +552,15 @@ exec %q \
 `, realPath, realPath, linuxTapDevice, linuxTapMACAddress)
 
 		if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0755); err != nil {
-			return fmt.Errorf("Could not write QEMU wrapper %q: %v", wrapperPath, err)
+			return "", fmt.Errorf("Could not write QEMU wrapper %q: %v", wrapperPath, err)
 		}
 	}
 
 	if !found {
-		return fmt.Errorf("Could not find a QEMU system binary in PATH. Install QEMU so Lima can launch Linux VMs.")
+		return "", fmt.Errorf("Could not find a QEMU system binary in PATH. Install QEMU so Lima can launch Linux VMs.")
 	}
 
-	pathEntries := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
-	if len(pathEntries) == 0 || pathEntries[0] != wrapperDir {
-		updatedPath := wrapperDir
-		if currentPath := os.Getenv("PATH"); currentPath != "" {
-			updatedPath += string(os.PathListSeparator) + currentPath
-		}
-		if err := os.Setenv("PATH", updatedPath); err != nil {
-			return fmt.Errorf("Could not update PATH for QEMU wrapper: %v", err)
-		}
-	}
-
-	return nil
+	return wrapperDir, nil
 }
 
 func (p *TCPPortFinder) Resolve() (int, error) {
