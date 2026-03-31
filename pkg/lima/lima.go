@@ -26,8 +26,11 @@ func Installed() error {
 	re := regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+(-alpha|-beta)?)`)
 	v := re.FindStringSubmatch(string(output))
 
+	// Distro-built Lima (e.g., Arch packages) may output a git hash
+	// instead of a semver. Allow these since distro packages are
+	// typically recent enough.
 	if len(v) < 2 {
-		return fmt.Errorf("Could not parse Lima version from output: %s\nEnsure Lima %s is installed.", string(output), VersionRequired)
+		return nil
 	}
 
 	constraint := version.NewConstrainGroupFromString(VersionRequired)
