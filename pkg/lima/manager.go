@@ -8,7 +8,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -22,11 +24,14 @@ import (
 const (
 	configDir            = "lima"
 	RequiredMacOSVersion = "13.0.0"
+	linuxTapDevice       = "tap0"
+	linuxTapHostCIDR     = "192.168.56.1/24"
+	linuxTapMACAddress   = "52:54:00:12:34:56"
 )
 
 var (
 	ErrConfigPath    = errors.New("could not create config directory")
-	ErrUnsupportedOS = errors.New("unsupported OS or macOS version. The macOS Virtualization Framework requires macOS 13.0 (Ventura) or later.")
+	ErrUnsupportedOS = errors.New("unsupported OS. Lima VM requires macOS 13.0+ or Linux.")
 )
 
 type PortFinder interface {
@@ -46,7 +51,7 @@ type Manager struct {
 
 func NewManager(trellis *trellis.Trellis, ui cli.Ui) (manager *Manager, err error) {
 	if os.Getenv("TRELLIS_BYPASS_LIMA_REQUIREMENTS") != "1" {
-		if err := ensureRequirements(); err != nil {
+		if err := ensureRequirements(ui); err != nil {
 			return nil, err
 		}
 	}
@@ -220,6 +225,12 @@ func (m *Manager) StartInstance(name string) error {
 		return err
 	}
 
+	if runtime.GOOS == "linux" {
+		if err := m.prepareLinuxTapNetworking(); err != nil {
+			return err
+		}
+	}
+
 	err := command.WithOptions(
 		command.WithTermOutput(),
 		command.WithLogging(m.ui),
@@ -299,6 +310,11 @@ func (m *Manager) initInstance(instance *Instance) {
 
 func (m *Manager) newInstance(name string) (Instance, error) {
 	instance := Instance{Name: name}
+	if runtime.GOOS == "linux" {
+		instance.VMType = "qemu"
+	} else {
+		instance.VMType = "vz"
+	}
 	m.initInstance(&instance)
 
 	images := []Image{}
@@ -343,7 +359,7 @@ func (m *Manager) addHosts(instance Instance) error {
 		return err
 	}
 
-	ip, err := instance.IP()
+	ip, err := instance.HostAccessIP()
 	if err != nil {
 		return err
 	}
@@ -389,18 +405,30 @@ func getMacOSVersion() (string, error) {
 	return version, nil
 }
 
-func ensureRequirements() error {
-	macOSVersion, err := getMacOSVersion()
-	if err != nil {
+func ensureRequirements(ui cli.Ui) error {
+	switch runtime.GOOS {
+	case "darwin":
+		macOSVersion, err := getMacOSVersion()
+		if err != nil {
+			return ErrUnsupportedOS
+		}
+
+		if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
+			return fmt.Errorf("%w", ErrUnsupportedOS)
+		}
+	case "linux":
+		checkKVM(ui)
+	default:
 		return ErrUnsupportedOS
 	}
 
-	if version.Compare(macOSVersion, RequiredMacOSVersion, "<") {
-		return fmt.Errorf("%w", ErrUnsupportedOS)
-	}
+	if err := Installed(); err != nil {
+		if runtime.GOOS == "linux" && errors.Is(err, ErrUnparseableVersion) && HasHashVersionOutput(err.Error()) {
+			ui.Warn(fmt.Sprintf("Warning: %s\nProceeding because this Linux Lima package reports a git-hash version string.", err.Error()))
+			return nil
+		}
 
-	if err = Installed(); err != nil {
-		return fmt.Errorf("%s\nInstall or upgrade Lima to continue:\n\n  brew install lima\n\nSee https://github.com/lima-vm/lima#getting-started for manual installation options.", err.Error())
+		return fmt.Errorf("%s\nInstall or upgrade Lima to continue.\nSee https://lima-vm.io/docs/installation/", err.Error())
 	}
 
 	return nil
@@ -408,6 +436,150 @@ func ensureRequirements() error {
 
 func imagesFromVersion(version string) []Image {
 	return UbuntuImages[version]
+}
+
+func checkKVM(ui cli.Ui) {
+	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ui.Warn("Warning: KVM is not available (/dev/kvm not found). QEMU will run without hardware acceleration and will be very slow.\nEnsure your CPU supports virtualization and it is enabled in BIOS.")
+		} else {
+			ui.Warn(fmt.Sprintf("Warning: Cannot access /dev/kvm: %v\nQEMU will run without hardware acceleration and will be very slow.\nYou may need to add your user to the 'kvm' group:\n\n  sudo usermod -aG kvm $USER\n\nThen log out and back in.", err))
+		}
+		return
+	}
+
+	_ = f.Close()
+}
+
+func (m *Manager) prepareLinuxTapNetworking() error {
+	if err := m.ensureLinuxTapDevice(); err != nil {
+		return err
+	}
+
+	if err := m.ensureQEMUWrapper(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Manager) ensureLinuxTapDevice() error {
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("Could not determine current user for Linux TAP setup: %v", err)
+	}
+
+	tuntapOutput, _ := command.Cmd("ip", []string{"tuntap", "show"}).CombinedOutput()
+	linkOutput, linkErr := command.Cmd("ip", []string{"-4", "addr", "show", "dev", linuxTapDevice}).CombinedOutput()
+	expectedOwner := fmt.Sprintf("user %s", currentUser.Uid)
+
+	if strings.Contains(string(tuntapOutput), linuxTapDevice+":") &&
+		strings.Contains(string(tuntapOutput), expectedOwner) &&
+		linkErr == nil &&
+		strings.Contains(string(linkOutput), "192.168.56.1/24") {
+		return nil
+	}
+
+	m.ui.Info("Preparing Linux TAP interface for host-reachable VM networking...")
+
+	cmd := command.WithOptions(
+		command.WithTermOutput(),
+		command.WithLogging(m.ui),
+	).Cmd("sudo", []string{
+		"sh",
+		"-c",
+		fmt.Sprintf(
+			`if ip tuntap show | grep -q '^%s:'; then
+  ip tuntap del dev %s mode tap 2>/dev/null || true
+fi
+ip tuntap add dev %s mode tap user %s
+ip addr replace %s dev %s
+ip link set %s up`,
+			linuxTapDevice,
+			linuxTapDevice,
+			linuxTapDevice,
+			currentUser.Uid,
+			linuxTapHostCIDR,
+			linuxTapDevice,
+			linuxTapDevice,
+		),
+	})
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Could not configure Linux TAP interface %q: %v", linuxTapDevice, err)
+	}
+
+	return nil
+}
+
+func (m *Manager) ensureQEMUWrapper() error {
+	wrapperDir := filepath.Join(m.ConfigPath, "bin")
+	if err := os.MkdirAll(wrapperDir, 0755); err != nil {
+		return fmt.Errorf("Could not create QEMU wrapper directory: %v", err)
+	}
+
+	found := false
+	for _, binaryName := range []string{"qemu-system-x86_64", "qemu-system-aarch64"} {
+		realPath, err := exec.LookPath(binaryName)
+		if err != nil {
+			continue
+		}
+
+		found = true
+		wrapperPath := filepath.Join(wrapperDir, binaryName)
+		wrapperScript := fmt.Sprintf(`#!/bin/bash
+set -e
+
+pass_through=false
+prev=""
+for arg in "$@"; do
+  case "$arg" in
+    --help|-help|-version)
+      pass_through=true
+      ;;
+    help)
+      case "$prev" in
+        -netdev|-accel|-machine|-cpu)
+          pass_through=true
+          ;;
+      esac
+      ;;
+  esac
+  prev="$arg"
+done
+
+if [ "$pass_through" = true ]; then
+  exec %q "$@"
+fi
+
+exec %q \
+  -netdev tap,id=trellis-tap0,ifname=%s,script=no,downscript=no \
+  -device virtio-net-pci,netdev=trellis-tap0,mac=%s \
+  "$@"
+`, realPath, realPath, linuxTapDevice, linuxTapMACAddress)
+
+		if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0755); err != nil {
+			return fmt.Errorf("Could not write QEMU wrapper %q: %v", wrapperPath, err)
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("Could not find a QEMU system binary in PATH. Install QEMU so Lima can launch Linux VMs.")
+	}
+
+	pathEntries := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
+	if len(pathEntries) == 0 || pathEntries[0] != wrapperDir {
+		updatedPath := wrapperDir
+		if currentPath := os.Getenv("PATH"); currentPath != "" {
+			updatedPath += string(os.PathListSeparator) + currentPath
+		}
+		if err := os.Setenv("PATH", updatedPath); err != nil {
+			return fmt.Errorf("Could not update PATH for QEMU wrapper: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (p *TCPPortFinder) Resolve() (int, error) {

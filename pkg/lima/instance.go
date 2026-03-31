@@ -52,6 +52,7 @@ type Instance struct {
 	Memory        int    `json:"memory"`
 	Disk          int    `json:"disk"`
 	SshLocalPort  int    `json:"sshLocalPort,omitempty"`
+	VMType        string `json:"vmType,omitempty"`
 	Config        Config `json:"config"`
 	Username      string `json:"username,omitempty"`
 }
@@ -113,13 +114,23 @@ Gets the IP address of the instance using the output of `ip route`:
 	192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
 */
 func (i *Instance) IP() (ip string, err error) {
-	output, err := command.Cmd(
-		"limactl",
-		[]string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"},
-	).CombinedOutput()
+	args := []string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", "lima0"}
+	if i.VMType == "qemu" {
+		args = []string{"shell", "--workdir", "/", i.Name, "ip", "route", "show"}
+	}
+
+	output, err := command.Cmd("limactl", args).CombinedOutput()
 
 	if err != nil {
 		return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
+	}
+
+	if i.VMType == "qemu" {
+		reCustom := regexp.MustCompile(`src (192\.168\.56\.[0-9]+)`)
+		customMatches := reCustom.FindStringSubmatch(string(output))
+		if len(customMatches) >= 2 {
+			return customMatches[1], nil
+		}
 	}
 
 	re := regexp.MustCompile(`default via .* src ([0-9\.]+)`)
@@ -128,9 +139,11 @@ func (i *Instance) IP() (ip string, err error) {
 		return "", fmt.Errorf("%w: no IP address could be matched in the ip route output\n%s", IpErr, string(output))
 	}
 
-	ip = matches[1]
+	return matches[1], nil
+}
 
-	return ip, nil
+func (i *Instance) HostAccessIP() (string, error) {
+	return i.IP()
 }
 
 func (i *Instance) Running() bool {
