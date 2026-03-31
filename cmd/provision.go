@@ -9,6 +9,7 @@ import (
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/pkg/ansible"
+	"github.com/roots/trellis-cli/pkg/ansible/output"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -95,11 +96,10 @@ func (c *ProvisionCommand) Run(args []string) int {
 	}
 
 	provision := command.WithOptions(
-		command.WithUiOutput(c.UI),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
 
-	if err := provision.Run(); err != nil {
+	if err := output.RunWithPrettifier(provision, &playbook, &cli.UiWriter{Ui: c.UI}); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

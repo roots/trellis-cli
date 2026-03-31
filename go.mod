@@ -19,6 +19,7 @@ require (
 	github.com/weppos/publicsuffix-go v0.50.3
 	golang.org/x/crypto v0.49.0
 	golang.org/x/oauth2 v0.36.0
+	golang.org/x/term v0.41.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
 	gopkg.in/ini.v1 v1.67.1
 	gopkg.in/yaml.v2 v2.4.0

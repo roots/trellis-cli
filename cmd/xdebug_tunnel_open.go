@@ -8,6 +8,7 @@ import (
 	"github.com/posener/complete"
 	"github.com/roots/trellis-cli/command"
 	"github.com/roots/trellis-cli/pkg/ansible"
+	"github.com/roots/trellis-cli/pkg/ansible/output"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -64,9 +65,9 @@ func (c *XdebugTunnelOpenCommand) Run(args []string) int {
 		},
 	}
 
-	xdebugOpen := command.WithOptions(command.WithTermOutput(), command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
+	xdebugOpen := command.WithOptions(command.WithLogging(c.UI)).Cmd("ansible-playbook", playbook.CmdArgs())
 
-	if err := xdebugOpen.Run(); err != nil {
+	if err := output.RunWithPrettifier(xdebugOpen, &playbook, &cli.UiWriter{Ui: c.UI}); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
