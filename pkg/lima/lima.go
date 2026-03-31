@@ -26,10 +26,8 @@ func Installed() error {
 	re := regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+(-alpha|-beta)?)`)
 	v := re.FindStringSubmatch(string(output))
 
-	// If no semantic version found (e.g., git hash on Linux distro packages),
-	// assume it's a recent enough version since distro packages are typically up-to-date
 	if len(v) < 2 {
-		return nil
+		return fmt.Errorf("Could not parse Lima version from output: %s\nEnsure Lima %s is installed.", string(output), VersionRequired)
 	}
 
 	constraint := version.NewConstrainGroupFromString(VersionRequired)
