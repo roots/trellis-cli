@@ -352,9 +352,18 @@ func (m *Manager) addHosts(instance Instance) error {
 		return err
 	}
 
-	ip, err := instance.IP()
-	if err != nil {
-		return err
+	var ip string
+	var err error
+
+	if instance.VMType == "qemu" {
+		// QEMU user-v2 networking is NAT'd and not host-reachable.
+		// Use loopback with Lima's port forwarding instead.
+		ip = "127.0.0.1"
+	} else {
+		ip, err = instance.IP()
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := m.HostsResolver.AddHosts(instance.Name, ip); err != nil {
@@ -362,6 +371,21 @@ func (m *Manager) addHosts(instance Instance) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) GetHttpForwardPort(name string) (int, error) {
+	instance, ok := m.GetInstance(name)
+	if !ok {
+		return 0, fmt.Errorf("VM instance %q not found", name)
+	}
+
+	for _, pf := range instance.Config.PortForwards {
+		if pf.GuestPort == 80 {
+			return pf.HostPort, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no HTTP port forward found for VM instance %q", name)
 }
 
 func (m *Manager) instances() (instances map[string]Instance) {

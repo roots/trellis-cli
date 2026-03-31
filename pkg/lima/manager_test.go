@@ -305,35 +305,70 @@ func TestStartInstance(t *testing.T) {
 	username := "user1"
 	ip := "192.168.64.2"
 
-	commands := []command.MockCommand{
-		{
-			Command: "limactl",
-			Args:    []string{"create", "--tty=false", "--name=" + instanceName, "-"},
-			Output:  ``,
-		},
-		{
-			Command: "limactl",
-			Args:    []string{"shell", instanceName, "whoami"},
-			Output:  username,
-		},
-		{
-			Command: "limactl",
-			Args:    []string{"ls", "--format=json"},
-			Output:  fmt.Sprintf(`{"name":"%s","status":"Stopped","dir":"%s","vmType":"vz","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"network":[{"vzNAT":true,"macAddress":"52:55:55:6f:d9:e3","interface":"lima0"}],"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, tmpDir, sshPort),
-		},
-		{
-			Command: "limactl",
-			Args:    []string{"shell", "--workdir", "/", instanceName, "ip", "route", "show", "dev", "lima0"},
-			Output: fmt.Sprintf(`default via 192.168.64.1 proto dhcp src %s metric 100
+	var vmType string
+	var expectedHostsIP string
+	var commands []command.MockCommand
+
+	if runtime.GOOS == "darwin" {
+		vmType = "vz"
+		expectedHostsIP = ip
+
+		commands = []command.MockCommand{
+			{
+				Command: "limactl",
+				Args:    []string{"create", "--tty=false", "--name=" + instanceName, "-"},
+				Output:  ``,
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"shell", instanceName, "whoami"},
+				Output:  username,
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"ls", "--format=json"},
+				Output:  fmt.Sprintf(`{"name":"%s","status":"Stopped","dir":"%s","vmType":"%s","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"network":[{"vzNAT":true,"macAddress":"52:55:55:6f:d9:e3","interface":"lima0"}],"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, tmpDir, vmType, sshPort),
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"shell", "--workdir", "/", instanceName, "ip", "route", "show", "dev", "lima0"},
+				Output: fmt.Sprintf(`default via 192.168.64.1 proto dhcp src %s metric 100
 192.168.64.0/24 proto kernel scope link src 192.168.64.2
 192.168.64.1 proto dhcp scope link src 192.168.64.2 metric 100
 `, ip),
-		},
-		{
-			Command: "limactl",
-			Args:    []string{"start", instanceName},
-			Output:  ``,
-		},
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"start", instanceName},
+				Output:  ``,
+			},
+		}
+	} else {
+		vmType = "qemu"
+		expectedHostsIP = "127.0.0.1"
+
+		commands = []command.MockCommand{
+			{
+				Command: "limactl",
+				Args:    []string{"create", "--tty=false", "--name=" + instanceName, "-"},
+				Output:  ``,
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"shell", instanceName, "whoami"},
+				Output:  username,
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"ls", "--format=json"},
+				Output:  fmt.Sprintf(`{"name":"%s","status":"Stopped","dir":"%s","vmType":"%s","arch":"aarch64","cpuType":"","cpus":4,"memory":4294967296,"disk":107374182400,"sshLocalPort":%d,"hostAgentPID":9390,"driverPID":9390}`, instanceName, tmpDir, vmType, sshPort),
+			},
+			{
+				Command: "limactl",
+				Args:    []string{"start", instanceName},
+				Output:  ``,
+			},
+		}
 	}
 
 	defer command.MockExecCommands(t, commands)()
@@ -364,8 +399,8 @@ default
 		t.Errorf("expected inventory file to be %s, got %s", expectedInventoryContents, string(inventoryContents))
 	}
 
-	if hostsStorage[instanceName] != ip {
-		t.Errorf("expected hosts entry to be %s, got %s", ip, hostsStorage[instanceName])
+	if hostsStorage[instanceName] != expectedHostsIP {
+		t.Errorf("expected hosts entry to be %s, got %s", expectedHostsIP, hostsStorage[instanceName])
 	}
 }
 

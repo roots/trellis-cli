@@ -52,3 +52,7 @@ func (m *MockVmManager) RunCommand(args []string, dir string) error {
 func (m *MockVmManager) RunCommandPipe(args []string, dir string) (*exec.Cmd, error) {
 	return nil, nil
 }
+
+func (m *MockVmManager) GetHttpForwardPort(name string) (int, error) {
+	return 0, nil
+}

@@ -12,6 +12,25 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
+func (c *OpenCommand) httpForwardPort() int {
+	instanceName, err := c.Trellis.GetVmInstanceName()
+	if err != nil {
+		return 0
+	}
+
+	manager, err := newVmManager(c.Trellis, c.UI)
+	if err != nil {
+		return 0
+	}
+
+	port, err := manager.GetHttpForwardPort(instanceName)
+	if err != nil {
+		return 0
+	}
+
+	return port
+}
+
 type OpenCommand struct {
 	UI      cli.Ui
 	Trellis *trellis.Trellis
@@ -40,7 +59,15 @@ func (c *OpenCommand) Run(args []string) int {
 			return 1
 		}
 
-		openArgs = []string{site.MainUrl()}
+		url := site.MainUrl()
+
+		if runtime.GOOS == "linux" {
+			if port := c.httpForwardPort(); port > 0 {
+				url = fmt.Sprintf("%s:%d", url, port)
+			}
+		}
+
+		openArgs = []string{url}
 	} else {
 		value, exists := c.Trellis.CliConfig.Open[args[0]]
 

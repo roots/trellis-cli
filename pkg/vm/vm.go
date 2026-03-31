@@ -12,6 +12,7 @@ var (
 type Manager interface {
 	CreateInstance(name string) error
 	DeleteInstance(name string) error
+	GetHttpForwardPort(name string) (int, error)
 	InventoryPath() string
 	StartInstance(name string) error
 	StopInstance(name string) error
