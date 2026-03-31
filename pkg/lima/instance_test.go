@@ -336,7 +336,7 @@ func TestIP(t *testing.T) {
 	}
 }
 
-func TestHostAccessIPQemu(t *testing.T) {
+func TestIPQemu(t *testing.T) {
 	instance := &Instance{
 		Name:   "test",
 		VMType: "qemu",
@@ -356,7 +356,7 @@ func TestHostAccessIPQemu(t *testing.T) {
 	}
 	defer command.MockExecCommands(t, commands)()
 
-	ip, err := instance.HostAccessIP()
+	ip, err := instance.IP()
 	if err != nil {
 		t.Fatal(err)
 	}

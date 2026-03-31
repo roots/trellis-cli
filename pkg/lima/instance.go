@@ -142,10 +142,6 @@ func (i *Instance) IP() (ip string, err error) {
 	return matches[1], nil
 }
 
-func (i *Instance) HostAccessIP() (string, error) {
-	return i.IP()
-}
-
 func (i *Instance) Running() bool {
 	return i.Status == "Running"
 }
