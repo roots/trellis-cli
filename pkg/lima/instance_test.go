@@ -88,7 +88,7 @@ provision:
 `, absSitePath)
 	} else {
 		expected = fmt.Sprintf(`vmType: "qemu"
-mountType: "9p"
+mountType: "reverse-sshfs"
 networks:
 - lima: user-v2
 images:
@@ -206,7 +206,7 @@ provision:
 `, absSitePath)
 	} else {
 		expected = fmt.Sprintf(`vmType: "qemu"
-mountType: "9p"
+mountType: "reverse-sshfs"
 networks:
 - lima: user-v2
 images:
