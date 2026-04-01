@@ -109,8 +109,8 @@ Usage: trellis vm start [options]
 Starts a development virtual machine.
 If a VM doesn't exist yet, it will be created. If a VM already exists, it will be started.
 
-Note: VM management (under the 'trellis vm' subcommands) is currently only available for macOS Ventura (13.0) and later.
-Lima (https://lima-vm.io/) is the underlying VM manager which requires macOS's new virtualization framework.
+Lima (https://lima-vm.io/) is the underlying VM manager.
+Local VM support requires macOS 13.0+ or Linux with Lima and QEMU/KVM.
 
 Options:
   -h, --help show this help

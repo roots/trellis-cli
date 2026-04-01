@@ -1,6 +1,8 @@
-vmType: "vz"
+vmType: "{{ .VMType }}"
+{{- if eq .VMType "vz" }}
 rosetta:
   enabled: false
+{{- end }}
 images:
 {{ range $image := .Config.Images -}}
 - location: {{ $image.Location }}
@@ -11,13 +13,26 @@ mounts:
 - location: {{ $site.AbsLocalPath }}
   mountPoint: /srv/www/{{ $siteName }}/current
   writable: true
+{{- if eq $.VMType "qemu" }}
+  9p:
+    securityModel: "mapped-xattr"
+{{- end }}
 {{ end }}
+{{- if eq .VMType "vz" }}
 mountType: "virtiofs"
+{{- else }}
+mountType: "9p"
+{{- end }}
 ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true
+{{- if eq .VMType "vz" }}
 networks:
 - vzNAT: true
+{{- else }}
+networks:
+- lima: user-v2
+{{- end }}
 {{ if .Config.PortForwards }}
 portForwards:
 {{ range $port := .Config.PortForwards -}}
@@ -32,3 +47,11 @@ provision:
   script: |
     #!/bin/bash
     echo "127.0.0.1 $(hostname)" >> /etc/hosts
+{{- if eq .VMType "qemu" }}
+
+    TAP_IFACE="$(ip -o link show | awk '/52:54:00:12:34:56/ {print $2}' | tr -d ':' | head -n1)"
+    if [ -n "$TAP_IFACE" ]; then
+      ip link set "$TAP_IFACE" up
+      ip addr add 192.168.56.5/24 dev "$TAP_IFACE" 2>/dev/null || true
+    fi
+{{- end }}

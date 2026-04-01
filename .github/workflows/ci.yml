@@ -112,7 +112,7 @@ jobs:
       - name: Tests
         run: make test RUN=
       - name: Store artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: trellis-cli
           path: /test/trellis-cli

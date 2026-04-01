@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/hashicorp/cli"
 )
 
@@ -14,7 +15,7 @@ func helpFunc(pluginRootCommands []string, f cli.HelpFunc) cli.HelpFunc {
 		}
 
 		for _, p := range pluginRootCommands {
-			buf.WriteString(fmt.Sprintf("    %s\n", p))
+			fmt.Fprintf(&buf, "    %s\n", p)
 		}
 
 		return f(commands) + buf.String()
