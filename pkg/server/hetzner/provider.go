@@ -193,12 +193,21 @@ func (p *Provider) GetSizes(ctx context.Context, region string) ([]types.Size, e
 
 		if region != "" {
 			available = false
-			for _, price := range t.Pricings {
-				if price.Location.Name == region {
+			// Check if server type is available in the selected location
+			for _, loc := range t.Locations {
+				if loc.Location.Name == region {
 					available = true
-					priceMonthly, _ = strconv.ParseFloat(price.Monthly.Gross, 64)
-					priceHourly, _ = strconv.ParseFloat(price.Hourly.Gross, 64)
 					break
+				}
+			}
+			// Get pricing for the selected location
+			if available {
+				for _, price := range t.Pricings {
+					if price.Location.Name == region {
+						priceMonthly, _ = strconv.ParseFloat(price.Monthly.Gross, 64)
+						priceHourly, _ = strconv.ParseFloat(price.Hourly.Gross, 64)
+						break
+					}
 				}
 			}
 		} else if len(t.Pricings) > 0 {

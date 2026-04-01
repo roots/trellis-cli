@@ -42,7 +42,7 @@ func deprecatedCommandHelpFunc(commandNames []string, f cli.HelpFunc) cli.HelpFu
 			commandFunc := commands[key]
 			command, _ := commandFunc()
 			key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", maxKeyLen-len(key)))
-			buf.WriteString(fmt.Sprintf("    %s    %s\n", key, command.Synopsis()))
+			fmt.Fprintf(&buf, "    %s    %s\n", key, command.Synopsis())
 		}
 
 		return f(filteredCommands) + buf.String()
