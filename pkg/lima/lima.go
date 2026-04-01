@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/mcuadros/go-version"
 	"github.com/roots/trellis-cli/command"
@@ -13,6 +14,8 @@ const (
 	VersionRequired = ">= 0.15.0"
 )
 
+var ErrUnparseableVersion = fmt.Errorf("could not determine Lima version")
+
 func Installed() error {
 	if _, err := exec.LookPath("limactl"); err != nil {
 		return fmt.Errorf("Lima is not installed.")
@@ -20,11 +23,18 @@ func Installed() error {
 
 	output, err := command.Cmd("limactl", []string{"-v"}).Output()
 	if err != nil {
-		return fmt.Errorf("Could get determine the version of Lima.")
+		return fmt.Errorf("Could not determine the version of Lima.")
 	}
 
-	re := regexp.MustCompile(`.*([0-9]+\.[0-9]+\.[0-9]+(-alpha|beta)?)`)
+	re := regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+(-alpha|-beta)?)`)
 	v := re.FindStringSubmatch(string(output))
+	if v == nil {
+		return fmt.Errorf(
+			"%w from: %s\nIf Lima is installed via a distro package, set TRELLIS_BYPASS_LIMA_REQUIREMENTS=1 to skip this check.",
+			ErrUnparseableVersion,
+			strings.TrimSpace(string(output)),
+		)
+	}
 	constraint := version.NewConstrainGroupFromString(VersionRequired)
 	matched := constraint.Match(v[1])
 
@@ -33,4 +43,9 @@ func Installed() error {
 	}
 
 	return nil
+}
+
+func HasHashVersionOutput(output string) bool {
+	re := regexp.MustCompile(`(?i)limactl version [0-9a-f]{7,}`)
+	return re.MatchString(strings.TrimSpace(output))
 }
