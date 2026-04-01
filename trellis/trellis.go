@@ -387,7 +387,7 @@ func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error
 func (t *Trellis) VmManagerType() string {
 	switch t.CliConfig.Vm.Manager {
 	case "auto":
-		if runtime.GOOS == "darwin" {
+		if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
 			return "lima"
 		}
 		return ""

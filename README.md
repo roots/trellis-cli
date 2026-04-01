@@ -23,6 +23,13 @@ Roots is an independent open source org, supported only by developers like you. 
 
 `brew install roots/tap/trellis-cli`
 
+### Upgrading to latest stable install via Homebrew
+
+```bash
+brew update
+brew upgrade trellis-cli
+```
+
 ## Quick Install (Unstable - macOS and Linux via Homebrew)
 
 ```bash
