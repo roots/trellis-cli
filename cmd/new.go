@@ -188,6 +188,8 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.generateReadme(filepath.Join(path, "README.md"))
+
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis %s\n", trellisRelease.Version)
 
@@ -316,6 +318,46 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 	}
 
 	return result, nil
+}
+
+func (c *NewCommand) generateReadme(path string) {
+	if _, err := os.Stat(path); err == nil {
+		c.UI.Info("Existing README.md detected, skipping generation.")
+		return
+	}
+
+	devHost, _ := c.trellis.HostsFromDomain(c.host, "development")
+	prodHost, _ := c.trellis.HostsFromDomain(c.host, "production")
+
+	readme := fmt.Sprintf(`# %s
+
+| Environment | URL |
+|-------------|-----|
+| Development | http://%s |
+| Production  | http://%s |
+
+## Requirements
+
+- [trellis-cli](https://github.com/roots/trellis-cli) installed
+
+## Local development setup
+
+1. Clone this repository
+2. Run `+"`trellis init`"+` to set up the virtual environment
+3. Run `+"`trellis vm start`"+` to start the development server
+4. Visit [%s](http://%s)
+
+## Deployment
+
+`+"`"+`$ trellis deploy <environment>`+"`"+`
+
+## Documentation
+
+- [Trellis docs](https://roots.io/trellis/docs/)
+- [Bedrock docs](https://roots.io/bedrock/docs/)
+`, c.name, devHost, prodHost, devHost, devHost)
+
+	_ = os.WriteFile(path, []byte(readme), 0644)
 }
 
 func isDirEmpty(name string) (bool, error) {

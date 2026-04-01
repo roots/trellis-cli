@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -124,5 +126,73 @@ func TestAskDomain(t *testing.T) {
 				t.Errorf("expected error %q to equal %q", err, tc.err)
 			}
 		})
+	}
+}
+
+func TestGenerateReadme(t *testing.T) {
+	dir := t.TempDir()
+	readmePath := filepath.Join(dir, "README.md")
+
+	ui := cli.NewMockUi()
+	tr := trellis.NewMockTrellis(false)
+	c := NewNewCommand(ui, tr, "1.0.0")
+	c.name = "example.com"
+	c.host = "example.com"
+
+	c.generateReadme(readmePath)
+
+	content, err := os.ReadFile(readmePath)
+	if err != nil {
+		t.Fatalf("could not read README.md: %s", err)
+	}
+
+	readme := string(content)
+
+	requiredStrings := []string{
+		"# example.com",
+		"## Requirements",
+		"## Local development setup",
+		"## Documentation",
+		"http://example.test",
+		"http://example.com",
+		"trellis-cli",
+		"trellis init",
+		"trellis vm start",
+	}
+
+	for _, s := range requiredStrings {
+		if !strings.Contains(readme, s) {
+			t.Errorf("expected README to contain %q", s)
+		}
+	}
+
+	if strings.Contains(readme, "Vagrant") || strings.Contains(readme, "VirtualBox") {
+		t.Error("README should not contain Vagrant/VirtualBox references")
+	}
+}
+
+func TestGenerateReadmeSkipsExisting(t *testing.T) {
+	dir := t.TempDir()
+	readmePath := filepath.Join(dir, "README.md")
+
+	existingContent := "# My custom README\n"
+	_ = os.WriteFile(readmePath, []byte(existingContent), 0644)
+
+	ui := cli.NewMockUi()
+	tr := trellis.NewMockTrellis(false)
+	c := NewNewCommand(ui, tr, "1.0.0")
+	c.name = "example.com"
+	c.host = "example.com"
+
+	c.generateReadme(readmePath)
+
+	content, _ := os.ReadFile(readmePath)
+	if string(content) != existingContent {
+		t.Errorf("existing README was overwritten: got %q, want %q", string(content), existingContent)
+	}
+
+	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+	if !strings.Contains(combined, "Existing README.md detected") {
+		t.Error("expected informational message about skipping README generation")
 	}
 }
