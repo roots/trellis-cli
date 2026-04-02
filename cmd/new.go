@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/hashicorp/cli"
@@ -15,6 +18,9 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 )
+
+//go:embed files/readme.md.tmpl
+var readmeTemplate string
 
 type NewCommand struct {
 	UI             cli.Ui
@@ -329,35 +335,27 @@ func (c *NewCommand) generateReadme(path string) {
 	devHost, _ := c.trellis.HostsFromDomain(c.host, "development")
 	prodHost, _ := c.trellis.HostsFromDomain(c.host, "production")
 
-	readme := fmt.Sprintf(`# %s
+	tmpl, err := template.New("readme").Parse(readmeTemplate)
+	if err != nil {
+		return
+	}
 
-| Environment | URL |
-|-------------|-----|
-| Development | http://%s |
-| Production  | http://%s |
+	data := struct {
+		Name     string
+		DevHost  string
+		ProdHost string
+	}{
+		Name:     c.name,
+		DevHost:  devHost.String(),
+		ProdHost: prodHost.String(),
+	}
 
-## Requirements
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return
+	}
 
-- [trellis-cli](https://github.com/roots/trellis-cli) installed
-
-## Local development setup
-
-1. Clone this repository
-2. Run `+"`trellis init`"+` to set up the virtual environment
-3. Run `+"`trellis vm start`"+` to start the development server
-4. Visit [%s](http://%s)
-
-## Deployment
-
-`+"`"+`$ trellis deploy <environment>`+"`"+`
-
-## Documentation
-
-- [Trellis docs](https://roots.io/trellis/docs/)
-- [Bedrock docs](https://roots.io/bedrock/docs/)
-`, c.name, devHost, prodHost, devHost, devHost)
-
-	_ = os.WriteFile(path, []byte(readme), 0644)
+	_ = os.WriteFile(path, buf.Bytes(), 0644)
 }
 
 func isDirEmpty(name string) (bool, error) {
