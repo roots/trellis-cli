@@ -38,6 +38,10 @@ func (c *XdebugTunnelOpenCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
+	if wslTerminalRequired(c.Trellis, c.UI, "xdebug-tunnel open") {
+		return 1
+	}
+
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}

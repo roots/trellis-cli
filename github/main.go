@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -73,6 +74,12 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 		return nil, fmt.Errorf("Error extracting the release archive: %v", err)
 	}
 
+	// On Windows, close the archive handle before renaming. Open file handles
+	// prevent directory renames on Windows (but not on macOS/Linux).
+	if runtime.GOOS == "windows" {
+		archiveFile.Close()
+	}
+
 	org := strings.Split(repo, "/")[0]
 	dirs, _ := filepath.Glob(fmt.Sprintf("%s-*", org))
 
@@ -83,9 +90,23 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	for _, dir := range dirs {
 		err := os.Rename(dir, dest)
 
+		// On Windows, os.Rename can fail with "Access is denied" when
+		// antivirus software (e.g. Windows Defender) is scanning the
+		// freshly extracted files. Retry with backoff to give the scan
+		// time to finish.
+		if err != nil && runtime.GOOS == "windows" {
+			for attempt := range 3 {
+				time.Sleep(time.Duration(attempt+1) * time.Second)
+				err = os.Rename(dir, dest)
+				if err == nil {
+					break
+				}
+			}
+		}
+
 		if err != nil {
 			os.RemoveAll(dir)
-			return nil, fmt.Errorf("Error deleting temporary directories: %v", err)
+			return nil, fmt.Errorf("Error renaming extracted directory: %v", err)
 		}
 	}
 
@@ -170,6 +191,14 @@ func extractToDisk(fi archives.FileInfo, dest string) error {
 	}
 
 	_, err = io.Copy(dst, src)
+
+	// On Windows, close the file immediately to release the handle.
+	// Unclosed handles prevent the parent directory from being renamed.
+	// On macOS/Linux this is unnecessary — rename works regardless.
+	if runtime.GOOS == "windows" {
+		dst.Close()
+	}
+
 	if err != nil {
 		return err
 	}

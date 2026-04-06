@@ -35,6 +35,10 @@ func (c *VmShellCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
+	if windowsHostRequired(c.Trellis, c.UI, "vm shell") {
+		return 1
+	}
+
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}

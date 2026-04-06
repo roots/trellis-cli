@@ -67,6 +67,10 @@ func (c *ProvisionCommand) Run(args []string) int {
 		return 1
 	}
 
+	if wslTerminalRequired(c.Trellis, c.UI, "provision "+environment) {
+		return 1
+	}
+
 	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.Trellis}
 	galaxyInstallCommand.Run([]string{})
 
