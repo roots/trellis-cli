@@ -63,6 +63,10 @@ func (c *DeployCommand) Run(args []string) int {
 		return 1
 	}
 
+	if wslTerminalRequired(c.Trellis, c.UI, "deploy "+environment) {
+		return 1
+	}
+
 	siteNameArg := c.flags.Arg(1)
 	siteName, siteNameErr := c.Trellis.FindSiteNameFromEnvironment(environment, siteNameArg)
 	if siteNameErr != nil {

@@ -115,6 +115,11 @@ func (t *Trellis) CreateConfigDir() error {
 }
 
 func (t *Trellis) CheckVirtualenv(ui cli.Ui) {
+	// On Windows with WSL, Python/Ansible live inside the VM — no host virtualenv needed.
+	if t.VmManagerType() == "wsl" {
+		return
+	}
+
 	if t.CliConfig.VirtualenvIntegration && !t.venvWarned && !t.VenvInitialized {
 		ui.Warn(`
 WARNING: This project has not been initialized with trellis-cli and may not work as expected.
@@ -220,6 +225,19 @@ func (t *Trellis) LoadProject() error {
 	}
 
 	return nil
+}
+
+// ReloadSiteConfigs re-parses all wordpress_sites.yml files from disk.
+// Call this after syncing config from WSL to ensure the in-memory
+// representation matches the updated files on the Windows filesystem.
+func (t *Trellis) ReloadSiteConfigs() {
+	configPaths, _ := filepath.Glob("group_vars/*/wordpress_sites.yml")
+
+	for _, p := range configPaths {
+		parts := strings.Split(p, string(os.PathSeparator))
+		envName := parts[1]
+		t.Environments[envName] = t.ParseConfig(p)
+	}
 }
 
 func (t *Trellis) EnvironmentNames() []string {
@@ -387,12 +405,24 @@ func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error
 func (t *Trellis) VmManagerType() string {
 	switch t.CliConfig.Vm.Manager {
 	case "auto":
-		if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+		if runtime.GOOS == "darwin" {
 			return "lima"
+		}
+		if runtime.GOOS == "linux" {
+			// Inside a WSL distro, WSL_DISTRO_NAME is always set.
+			if os.Getenv("WSL_DISTRO_NAME") != "" {
+				return "wsl"
+			}
+			return "lima"
+		}
+		if runtime.GOOS == "windows" {
+			return "wsl"
 		}
 		return ""
 	case "lima":
 		return "lima"
+	case "wsl":
+		return "wsl"
 	case "mock":
 		return "mock"
 	default:

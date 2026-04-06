@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"flag"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/roots/trellis-cli/pkg/wsl"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -33,6 +35,10 @@ func (c *VmStopCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
+	if windowsHostRequired(c.Trellis, c.UI, "vm stop") {
+		return 1
+	}
+
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}
@@ -57,6 +63,19 @@ func (c *VmStopCommand) Run(args []string) int {
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())
 		return 1
+	}
+
+	c.UI.Info("Stopping VM...")
+
+	// For WSL on Windows, sync project files back to Windows before stopping.
+	// This keeps the Windows-side repo up to date so GitHub Desktop
+	// and other Windows git tools can see the latest changes.
+	if runtime.GOOS == "windows" {
+		if wslManager, ok := manager.(*wsl.Manager); ok {
+			if err := wslManager.SyncBack(instanceName); err != nil {
+				c.UI.Warn("Warning: " + err.Error())
+			}
+		}
 	}
 
 	if err := manager.StopInstance(instanceName); err != nil {

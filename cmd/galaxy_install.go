@@ -28,6 +28,10 @@ func (c *GalaxyInstallCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
+	if wslTerminalRequired(c.Trellis, c.UI, "galaxy install") {
+		return 1
+	}
+
 	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
 	commandArgumentErr := commandArgumentValidator.validate(args)
 	if commandArgumentErr != nil {

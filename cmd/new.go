@@ -141,7 +141,13 @@ func (c *NewCommand) Run(args []string) int {
 		return 1
 	}
 
-	if !c.skipVirtualenv {
+	// On Windows with WSL, Python/Ansible live inside the VM, not on the host.
+	// Skip virtualenv init and suppress the "not initialized" warning.
+	if c.trellis.VmManagerType() == "wsl" {
+		c.trellis.VenvInitialized = true
+	}
+
+	if !c.skipVirtualenv && c.trellis.VmManagerType() != "wsl" {
 		initCommand := NewInitCommand(c.UI, c.trellis)
 		code := initCommand.Run([]string{})
 
@@ -182,10 +188,14 @@ func (c *NewCommand) Run(args []string) int {
 		c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
 	}
 
-	galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.trellis}
-	code := galaxyInstallCommand.Run([]string{})
-	if code != 0 {
-		return 1
+	// On Windows with WSL, Galaxy roles will be installed inside the VM
+	// during `trellis vm start`. Skip the host-side install entirely.
+	if c.trellis.VmManagerType() != "wsl" {
+		galaxyInstallCommand := &GalaxyInstallCommand{c.UI, c.trellis}
+		code := galaxyInstallCommand.Run([]string{})
+		if code != 0 {
+			return 1
+		}
 	}
 
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))

@@ -191,6 +191,9 @@ func main() {
 		"vm delete": func() (cli.Command, error) {
 			return cmd.NewVmDeleteCommand(ui, trellis), nil
 		},
+		"vm open": func() (cli.Command, error) {
+			return cmd.NewVmOpenCommand(ui, trellis), nil
+		},
 		"vm shell": func() (cli.Command, error) {
 			return cmd.NewVmShellCommand(ui, trellis), nil
 		},
@@ -199,6 +202,12 @@ func main() {
 		},
 		"vm stop": func() (cli.Command, error) {
 			return cmd.NewVmStopCommand(ui, trellis), nil
+		},
+		"vm sync": func() (cli.Command, error) {
+			return cmd.NewVmSyncCommand(ui, trellis), nil
+		},
+		"vm trust": func() (cli.Command, error) {
+			return cmd.NewVmTrustCommand(ui, trellis), nil
 		},
 		"vm sudoers": func() (cli.Command, error) {
 			return &cmd.VmSudoersCommand{UI: ui, Trellis: trellis}, nil

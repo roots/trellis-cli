@@ -3,10 +3,14 @@ package cmd
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/pkg/vm"
+	"github.com/roots/trellis-cli/pkg/wsl"
 	"github.com/roots/trellis-cli/trellis"
 )
 
@@ -34,6 +38,10 @@ func (c *VmStartCommand) Run(args []string) int {
 	}
 
 	c.Trellis.CheckVirtualenv(c.UI)
+
+	if windowsHostRequired(c.Trellis, c.UI, "vm start") {
+		return 1
+	}
 
 	if err := c.flags.Parse(args); err != nil {
 		return 1
@@ -63,11 +71,18 @@ func (c *VmStartCommand) Run(args []string) int {
 
 	err = manager.StartInstance(instanceName)
 	if err == nil {
-		c.printInstanceInfo()
-		return 0
+		// If the distro exists but was never fully provisioned (e.g. user
+		// cancelled during bootstrap), clean it up and re-create.
+		if wslManager, ok := manager.(*wsl.Manager); ok && !wslManager.IsProvisioned(instanceName) {
+			c.UI.Warn("Detected unprovisioned WSL distro. Cleaning up and starting fresh...")
+			_ = manager.DeleteInstance(instanceName)
+		} else {
+			c.printInstanceInfo()
+			return 0
+		}
 	}
 
-	if !errors.Is(err, vm.ErrVmNotFound) {
+	if err != nil && !errors.Is(err, vm.ErrVmNotFound) {
 		c.UI.Error("Error starting VM.")
 		c.UI.Error(err.Error())
 		return 1
@@ -86,7 +101,27 @@ func (c *VmStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Info("\nProvisioning VM...")
+	fmt.Print("\r\n")
+	c.UI.Info("Provisioning VM...")
+
+	// For WSL, provisioning runs inside the distro (no host-side Ansible).
+	// We bootstrap Ansible into the distro first, then run the playbook.
+	if wslManager, ok := manager.(*wsl.Manager); ok {
+		if err := wslManager.BootstrapInstance(instanceName); err != nil {
+			c.UI.Error("Error bootstrapping VM.")
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		if err := wslManager.Provision(instanceName); err != nil {
+			c.UI.Error("Error provisioning VM.")
+			c.UI.Error(err.Error())
+			return 1
+		}
+
+		c.printInstanceInfo()
+		return 0
+	}
 
 	provisionCmd := NewProvisionCommand(c.UI, c.Trellis)
 	code := provisionCmd.Run([]string{"development"})
@@ -120,10 +155,12 @@ Options:
 }
 
 func (c *VmStartCommand) printInstanceInfo() {
-	c.UI.Info(`
-Your Trellis VM is ready to use!
+	fmt.Print("\r")
+	c.UI.Info("\r\nYour Trellis VM is ready to use!\r\n\r\n* Composer and WP-CLI commands need to be run on the virtual machine for any post-provision modifications.\r\n* You can SSH into the machine with 'trellis vm shell'\r\n* Then navigate to your WordPress sites at '/srv/www'")
 
-* Composer and WP-CLI commands need to be run on the virtual machine for any post-provision modifications.
-* You can SSH into the machine with 'trellis vm shell'
-* Then navigate to your WordPress sites at '/srv/www'`)
+	if runtime.GOOS == "windows" {
+		projectName := filepath.Base(filepath.Dir(c.Trellis.Path))
+		fmt.Print("\r")
+		c.UI.Info(fmt.Sprintf("\r\nIMPORTANT -- Windows/WSL2 development workflow:\r\n  Your project has been copied to WSL2 at: /home/admin/%s\r\n  This is your working directory for editing files and using git.\r\n  Do NOT edit files on the Windows side -- they are only used during initial setup.\r\n\r\n  To open VS Code in the correct location, run:\r\n    trellis vm open", projectName))
+	}
 }

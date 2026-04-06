@@ -42,6 +42,10 @@ func (c *VaultEncryptCommand) Run(args []string) int {
 
 	c.Trellis.CheckVirtualenv(c.UI)
 
+	if wslTerminalRequired(c.Trellis, c.UI, "vault encrypt") {
+		return 1
+	}
+
 	if err := c.flags.Parse(args); err != nil {
 		return 1
 	}
