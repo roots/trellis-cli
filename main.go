@@ -117,7 +117,7 @@ func main() {
 			return &cmd.GalaxyInstallCommand{UI: ui, Trellis: trellis}, nil
 		},
 		"info": func() (cli.Command, error) {
-			return &cmd.InfoCommand{UI: ui, Trellis: trellis}, nil
+			return cmd.NewInfoCommand(ui, trellis), nil
 		},
 		"init": func() (cli.Command, error) {
 			return cmd.NewInitCommand(ui, trellis), nil

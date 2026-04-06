@@ -127,7 +127,7 @@ func TestNewInstanceUbuntuVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	trellis.CliConfig.Vm.Ubuntu = "20.04"
+	trellis.CliConfig.Vm.Ubuntu = "22.04"
 
 	t.Setenv("TRELLIS_BYPASS_LIMA_REQUIREMENTS", "1")
 
@@ -152,8 +152,8 @@ func TestNewInstanceUbuntuVersion(t *testing.T) {
 		t.Errorf("expected instance config to have 2 images, got %d", len(instance.Config.Images))
 	}
 
-	if instance.Config.Images[0].Alias != "focal" {
-		t.Errorf("expected instance config to have focal image, got %q", instance.Config.Images[0].Alias)
+	if instance.Config.Images[0].Alias != "jammy" {
+		t.Errorf("expected instance config to have jammy image, got %q", instance.Config.Images[0].Alias)
 	}
 
 	if len(instance.Config.PortForwards) != 1 {

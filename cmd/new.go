@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/hashicorp/cli"
@@ -15,6 +18,9 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 )
+
+//go:embed files/readme.md.tmpl
+var readmeTemplate string
 
 type NewCommand struct {
 	UI             cli.Ui
@@ -198,6 +204,8 @@ func (c *NewCommand) Run(args []string) int {
 		}
 	}
 
+	c.generateReadme(filepath.Join(path, "README.md"))
+
 	fmt.Printf("\n%s project created with versions:\n", color.GreenString(c.name))
 	fmt.Printf("  Trellis %s\n", trellisRelease.Version)
 
@@ -326,6 +334,38 @@ func askHost(ui cli.Ui, t *trellis.Trellis, name string) (host string, err error
 	}
 
 	return result, nil
+}
+
+func (c *NewCommand) generateReadme(path string) {
+	if _, err := os.Stat(path); err == nil {
+		c.UI.Info("Existing README.md detected, skipping generation.")
+		return
+	}
+
+	devHost, _ := c.trellis.HostsFromDomain(c.host, "development")
+	prodHost, _ := c.trellis.HostsFromDomain(c.host, "production")
+
+	tmpl, err := template.New("readme").Parse(readmeTemplate)
+	if err != nil {
+		return
+	}
+
+	data := struct {
+		Name     string
+		DevHost  string
+		ProdHost string
+	}{
+		Name:     c.name,
+		DevHost:  devHost.String(),
+		ProdHost: prodHost.String(),
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return
+	}
+
+	_ = os.WriteFile(path, buf.Bytes(), 0644)
 }
 
 func isDirEmpty(name string) (bool, error) {
