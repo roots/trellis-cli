@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/manifoldco/promptui"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/pkg/wsl"
 	"github.com/roots/trellis-cli/trellis"
@@ -72,9 +73,17 @@ func (c *VmStartCommand) Run(args []string) int {
 	err = manager.StartInstance(instanceName)
 	if err == nil {
 		// If the distro exists but was never fully provisioned (e.g. user
-		// cancelled during bootstrap), clean it up and re-create.
+		// cancelled during bootstrap), confirm before deleting.
 		if wslManager, ok := manager.(*wsl.Manager); ok && !wslManager.IsProvisioned(instanceName) {
-			c.UI.Warn("Detected unprovisioned WSL distro. Cleaning up and starting fresh...")
+			c.UI.Warn("This WSL distro exists but does not appear to be fully provisioned.")
+			prompt := promptui.Prompt{
+				Label:     "Delete and recreate it",
+				IsConfirm: true,
+			}
+			if _, err := prompt.Run(); err != nil {
+				c.UI.Info("Aborted. Distro was not deleted.")
+				return 0
+			}
 			_ = manager.DeleteInstance(instanceName)
 		} else {
 			c.printInstanceInfo()
