@@ -491,12 +491,29 @@ func DecodeWslOutput(raw []byte) string {
 	return string(raw[start:])
 }
 
-// isProvisioned checks whether a distro has been fully provisioned by looking
-// for a marker file written at the end of the Provision step.
+// isProvisioned checks whether a distro has been fully provisioned.
+//
+// Primary check: a marker file on the Windows filesystem written at the end
+// of the Provision step. Fallback: the /etc/trellis-project-root breadcrumb
+// inside the distro (written during bootstrap). This handles distros that
+// were provisioned before the marker system existed, or whose marker file
+// was lost. When the fallback succeeds, the marker is self-healed so future
+// checks are fast.
 func (m *Manager) isProvisioned(distro string) bool {
 	markerPath := filepath.Join(m.ConfigPath, distro+".provisioned")
-	_, err := os.Stat(markerPath)
-	return err == nil
+	if _, err := os.Stat(markerPath); err == nil {
+		return true
+	}
+
+	// Fallback: check for the breadcrumb file inside the running distro.
+	out, err := exec.Command("wsl", "-d", distro, "--", "cat", "/etc/trellis-project-root").Output()
+	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+		// Self-heal: write the marker so we don't shell into WSL every time.
+		m.markProvisioned(distro)
+		return true
+	}
+
+	return false
 }
 
 // IsProvisioned checks if the named instance has been fully provisioned.
