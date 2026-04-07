@@ -77,7 +77,7 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 	// On Windows, close the archive handle before renaming. Open file handles
 	// prevent directory renames on Windows (but not on macOS/Linux).
 	if runtime.GOOS == "windows" {
-		archiveFile.Close()
+		_ = archiveFile.Close()
 	}
 
 	org := strings.Split(repo, "/")[0]
@@ -196,7 +196,7 @@ func extractToDisk(fi archives.FileInfo, dest string) error {
 	// Unclosed handles prevent the parent directory from being renamed.
 	// On macOS/Linux this is unnecessary — rename works regardless.
 	if runtime.GOOS == "windows" {
-		dst.Close()
+		_ = dst.Close()
 	}
 
 	if err != nil {

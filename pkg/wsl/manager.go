@@ -204,7 +204,7 @@ func (m *Manager) StartInstance(name string) error {
 		return fmt.Errorf("could not start WSL distro keepalive: %v", err)
 	}
 	// Detach — the process outlives trellis-cli.
-	go cmd.Wait()
+	go func() { _ = cmd.Wait() }()
 
 	if err := m.writeInventory(); err != nil {
 		return err
@@ -553,7 +553,7 @@ func downloadFile(url string, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
@@ -567,7 +567,7 @@ func downloadFile(url string, dest string) error {
 		return err
 	}
 	defer func() {
-		f.Close()
+		_ = f.Close()
 		os.Remove(tmp) // clean up on failure; no-op if already renamed
 	}()
 
@@ -764,9 +764,7 @@ chown admin:admin /home/admin/.ssh
 	// Copy vault password file to a secure location inside the distro.
 	// Even though trellis/.vault_pass is now on ext4, Ansible may complain
 	// about permissions depending on the umask. The dedicated copy is safer.
-	bootstrapScript += fmt.Sprintf(
-		"mkdir -p /home/admin/.trellis\n",
-	)
+	bootstrapScript += "mkdir -p /home/admin/.trellis\n"
 	bootstrapScript += fmt.Sprintf(
 		"cp %s/trellis/.vault_pass /home/admin/.trellis/.vault_pass\n",
 		wslProjectDest,
@@ -837,7 +835,7 @@ chown admin:admin /home/admin/.ssh
 	if err := keepalive.Start(); err != nil {
 		m.ui.Warn(fmt.Sprintf("Warning: could not start keepalive: %v", err))
 	} else {
-		go keepalive.Wait()
+		go func() { _ = keepalive.Wait() }()
 	}
 
 	printStatus(m.ui, fmt.Sprintf("%s Ansible installed", color.GreenString("[ok]")))
