@@ -793,9 +793,13 @@ chown admin:admin /home/admin/.ssh
 	// run `trellis provision development`, `trellis db open`, etc. from
 	// the VS Code WSL terminal.
 	//
-	// For fork/dev builds: look for a cross-compiled `trellis-linux` binary
-	// next to the running executable and copy it in.
-	// For upstream releases: this would use the official install script instead.
+	// Priority 1 — Dev/fork builds: if a cross-compiled `trellis-linux`
+	// binary exists next to the running executable, copy it in. This is
+	// used when testing from source before an upstream release exists.
+	//
+	// Priority 2 — Upstream releases: run the official install script
+	// (scripts/get) inside the distro. This downloads the matching
+	// linux/amd64 binary from the latest GitHub release.
 	exePath, _ := os.Executable()
 	linuxBinary := filepath.Join(filepath.Dir(exePath), "trellis-linux")
 	if _, err := os.Stat(linuxBinary); err == nil {
@@ -804,6 +808,8 @@ chown admin:admin /home/admin/.ssh
 			"cp %s /usr/local/bin/trellis && chmod 755 /usr/local/bin/trellis\n",
 			wslLinuxBinary,
 		)
+	} else {
+		bootstrapScript += "curl -sL https://raw.githubusercontent.com/roots/trellis-cli/master/scripts/get | bash -s\n"
 	}
 
 	// Bind-mount each site's directory from the ext4 project copy to the

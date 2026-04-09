@@ -48,6 +48,12 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	if c.Trellis.VmManagerType() == "wsl" {
+		c.UI.Info("The WSL backend manages dependencies (Python, Ansible, etc.) automatically inside the VM.")
+		c.UI.Info("No host-side initialization is needed. Run 'trellis vm start' to set up your environment.")
+		return 0
+	}
+
 	if err := c.flags.Parse(args); err != nil {
 		c.UI.Error(err.Error())
 		return 1
