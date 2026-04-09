@@ -35,7 +35,7 @@ func windowsHostRequired(t *trellis.Trellis, ui cli.Ui, command string) bool {
 	}
 
 	ui.Warn(color.YellowString(fmt.Sprintf("'trellis %s' manages the WSL distro from the Windows host.", command)))
-	ui.Warn(color.YellowString("Run this command from your Windows PowerShell or Command Prompt, not from inside WSL."))
+	ui.Warn(color.YellowString(fmt.Sprintf("Run 'trellis %s' from Windows PowerShell or Command Prompt, not from inside WSL.", command)))
 	return true
 }
 

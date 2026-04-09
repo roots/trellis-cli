@@ -52,6 +52,10 @@ func (c *VmOpenCommand) Run(args []string) int {
 		return 1
 	}
 
+	if windowsHostRequired(c.Trellis, c.UI, "vm open") {
+		return 1
+	}
+
 	if runtime.GOOS != "windows" {
 		c.UI.Error("'trellis vm open' is only supported on Windows (WSL2).")
 		c.UI.Info("On macOS/Linux, open your site directory directly in your editor.")

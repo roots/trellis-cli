@@ -46,6 +46,10 @@ func (c *VmSyncCommand) Run(args []string) int {
 		return 1
 	}
 
+	if windowsHostRequired(c.Trellis, c.UI, "vm sync") {
+		return 1
+	}
+
 	if runtime.GOOS != "windows" {
 		c.UI.Error("'trellis vm sync' is only supported on Windows (WSL2).")
 		return 1
