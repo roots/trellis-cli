@@ -2,6 +2,7 @@
 
 [![Build status]( https://img.shields.io/github/actions/workflow/status/roots/trellis-cli/ci.yml?branch=master&style=flat-square)](https://github.com/roots/trellis-cli/actions)
 ![GitHub release](https://img.shields.io/github/release/roots/trellis-cli?style=flat-square)
+![GitHub downloads](https://img.shields.io/github/downloads/roots/trellis-cli/total?label=github%20downloads&style=flat-square)
 [![Follow Roots](https://img.shields.io/badge/follow%20@rootswp-1da1f2?logo=twitter&logoColor=ffffff&message=&style=flat-square)](https://twitter.com/rootswp)
 [![Sponsor Roots](https://img.shields.io/badge/sponsor%20roots-525ddc?logo=github&style=flat-square&logoColor=ffffff&message=)](https://github.com/sponsors/roots)
 
