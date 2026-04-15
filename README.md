@@ -85,33 +85,27 @@ setup after downloading the Windows build:
 trellis-cli artifacts can be [cryptographically verified via GitHub CLI](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds#verifying-artifact-attestations-with-the-github-cli).
 
 ```console
-# The archive with both predicates
 $ gh attestation verify --repo roots/trellis-cli /path/to/trellis_Darwin_arm64.tar.gz
-## ...snipped...
+
+Loaded digest sha256:xxxxxxx for file://path/to/trellis_Darwin_arm64.tar.gz
+Loaded 1 attestation from GitHub API
+
+The following policy criteria will be enforced:
+- Predicate type must match:................ https://slsa.dev/provenance/v1
+- Source Repository Owner URI must match:... https://github.com/roots
+- Source Repository URI must match:......... https://github.com/roots/trellis-cli
+- Subject Alternative Name must match regex: (?i)^https://github.com/roots/trellis-cli/
+- OIDC Issuer must match:................... https://token.actions.githubusercontent.com
+
 ✓ Verification succeeded!
 
-sha256:xxx was attested by:
-REPO                   PREDICATE_TYPE                  WORKFLOW
-roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
-roots/trellis-cli  https://spdx.dev/Document/v2.3  .github/workflows/release.yml@refs/tags/v9.8.7
+The following 1 attestation matched the policy criteria
 
-# The binary
-$ gh attestation verify --repo roots/trellis-cli /path/to/trellis
-## ...snipped...
-✓ Verification succeeded!
-
-sha256:xxx was attested by:
-REPO                   PREDICATE_TYPE                  WORKFLOW
-roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
-
-# The SBOM
-$ gh attestation verify --repo roots/trellis-cli /path/to/trellis_Darwin_arm64.tar.gz.sbom.json
-## ...snipped...
-✓ Verification succeeded!
-
-sha256:xxx was attested by:
-REPO                   PREDICATE_TYPE                  WORKFLOW
-roots/trellis-cli  https://slsa.dev/provenance/v1  .github/workflows/release.yml@refs/tags/v9.8.7
+- Attestation #1
+  - Build repo:..... roots/trellis-cli
+  - Build workflow:. .github/workflows/release.yml@refs/tags/v0.0.1
+  - Signer repo:.... roots/trellis-cli
+  - Signer workflow: .github/workflows/release.yml@refs/tags/v0.0.1
 ```
 
 ## Shell Integration
@@ -309,4 +303,3 @@ Keep track of development and community news.
 - Follow [@rootswp on Twitter](https://twitter.com/rootswp)
 - Follow the [Roots Blog](https://roots.io/blog/)
 - Subscribe to the [Roots Newsletter](https://roots.io/subscribe/)
-
