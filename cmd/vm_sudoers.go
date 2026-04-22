@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/mattn/go-isatty"
 	"github.com/roots/trellis-cli/pkg/vm"
 	"github.com/roots/trellis-cli/trellis"
 )
@@ -32,10 +34,27 @@ func (c *VmSudoersCommand) Run(args []string) int {
 
 	hostResolver := vm.NewHostsFileResolver([]string{})
 	cmd := hostResolver.SudoersCommand()
+	line := fmt.Sprintf("%%staff ALL=(root:wheel) NOPASSWD:NOSETENV: %s", strings.Join(cmd, " "))
 
-	c.UI.Info(fmt.Sprintf("%%staff ALL=(root:wheel) NOPASSWD:NOSETENV: %s", strings.Join(cmd, " ")))
+	if stdoutIsTerminal() {
+		c.UI.Warn("The following sudoers rule lets trellis-cli update /etc/hosts without prompting for your password.")
+		c.UI.Warn("")
+		c.UI.Warn("To install it, re-run this command and pipe the output to tee:")
+		c.UI.Warn("")
+		c.UI.Warn("  trellis vm sudoers | sudo tee /etc/sudoers.d/trellis")
+		c.UI.Warn("")
+		c.UI.Warn("Generated rule:")
+		c.UI.Warn("")
+	}
+
+	c.UI.Info(line)
 
 	return 0
+}
+
+func stdoutIsTerminal() bool {
+	fd := os.Stdout.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 func (c *VmSudoersCommand) Synopsis() string {
