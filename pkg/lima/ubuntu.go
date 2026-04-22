@@ -25,4 +25,16 @@ var UbuntuImages = map[string][]Image{
 			Arch:     "aarch64",
 		},
 	},
+	"26.04": {
+		{
+			Alias:    "resolute",
+			Location: "https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img",
+			Arch:     "x86_64",
+		},
+		{
+			Alias:    "resolute",
+			Location: "https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-arm64.img",
+			Arch:     "aarch64",
+		},
+	},
 }
