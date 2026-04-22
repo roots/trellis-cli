@@ -3,7 +3,7 @@ module github.com/roots/trellis-cli
 go 1.25.0
 
 require (
-	github.com/digitalocean/godo v1.186.0
+	github.com/digitalocean/godo v1.187.0
 	github.com/fatih/color v1.19.0
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/cli v1.1.7
