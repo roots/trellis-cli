@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/go-version v1.9.0
-	github.com/hetznercloud/hcloud-go/v2 v2.37.0
+	github.com/hetznercloud/hcloud-go/v2 v2.38.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-isatty v0.0.21
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
@@ -73,7 +73,7 @@ require (
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
