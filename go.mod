@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/go-version v1.9.0
-	github.com/hetznercloud/hcloud-go/v2 v2.38.0
+	github.com/hetznercloud/hcloud-go/v2 v2.39.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-isatty v0.0.22
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
