@@ -52,3 +52,11 @@ func (m *MockVmManager) RunCommand(args []string, dir string) error {
 func (m *MockVmManager) RunCommandPipe(args []string, dir string) (*exec.Cmd, error) {
 	return nil, nil
 }
+
+func (m *MockVmManager) Copy(srcInVm string, dstOnHost string) error {
+	return nil
+}
+
+func (m *MockVmManager) ReadRootFile(remotePath string) ([]byte, error) {
+	return nil, nil
+}

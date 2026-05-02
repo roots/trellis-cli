@@ -1,0 +1,383 @@
+package cmd
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/hashicorp/cli"
+	"github.com/roots/trellis-cli/app_paths"
+	"github.com/roots/trellis-cli/pkg/trust"
+	"github.com/roots/trellis-cli/trellis"
+)
+
+type VmTrustCommand struct {
+	UI          cli.Ui
+	Trellis     *trellis.Trellis
+	flags       *flag.FlagSet
+	noExportKey bool
+	trustSystem bool
+	site        string
+}
+
+func NewVmTrustCommand(ui cli.Ui, trellis *trellis.Trellis) *VmTrustCommand {
+	c := &VmTrustCommand{UI: ui, Trellis: trellis}
+	c.init()
+	return c
+}
+
+func (c *VmTrustCommand) init() {
+	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.Usage = func() { c.UI.Info(c.Help()) }
+	c.flags.BoolVar(&c.noExportKey, "no-export-key", false, "Skip exporting the private key to the host.")
+	c.flags.BoolVar(&c.trustSystem, "trust-system", false, "Linux only: also write to /usr/local/share/ca-certificates and run sudo update-ca-certificates.")
+	c.flags.StringVar(&c.site, "site", "", "Trust only the named site instead of every self-signed site.")
+}
+
+func (c *VmTrustCommand) Run(args []string) int {
+	if err := c.Trellis.LoadProject(); err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+
+	c.Trellis.CheckVirtualenv(c.UI)
+
+	if err := c.flags.Parse(args); err != nil {
+		return 1
+	}
+
+	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
+	if err := commandArgumentValidator.validate(c.flags.Args()); err != nil {
+		c.UI.Error(err.Error())
+		c.UI.Output(c.Help())
+		return 1
+	}
+
+	if c.trustSystem && runtime.GOOS != "linux" {
+		c.UI.Error("Error: --trust-system is only supported on Linux.")
+		return 1
+	}
+
+	releaseLock, err := trust.AcquireLock(&cli.UiWriter{Ui: c.UI})
+	if err != nil {
+		c.UI.Error("Error: " + err.Error())
+		return 1
+	}
+	defer releaseLock()
+
+	manager, err := newVmManager(c.Trellis, c.UI)
+	if err != nil {
+		c.UI.Error("Error: " + err.Error())
+		return 1
+	}
+
+	sites := c.selectSites()
+	if len(sites) == 0 {
+		if c.site != "" {
+			c.UI.Error(fmt.Sprintf("Error: site %q not found, or it is not configured with ssl.enabled and ssl.provider: self-signed.", c.site))
+			return 1
+		}
+		c.UI.Info("No sites in the development environment have ssl.enabled with provider: self-signed. Nothing to trust.")
+		return 0
+	}
+
+	store, err := trust.Default(trust.Options{TrustSystem: c.trustSystem})
+	if err != nil {
+		c.UI.Error("Error: " + err.Error())
+		return 1
+	}
+
+	state, err := trust.Load()
+	if err != nil {
+		c.UI.Error("Error reading trust state: " + err.Error())
+		return 1
+	}
+
+	project := c.Trellis.Path
+	instanceName, err := c.Trellis.GetVmInstanceName()
+	if err != nil {
+		c.UI.Error(err.Error())
+		return 1
+	}
+	exportDir := projectSslDir(project, instanceName)
+	if err := os.MkdirAll(exportDir, 0o755); err != nil {
+		c.UI.Error("Error creating export directory: " + err.Error())
+		return 1
+	}
+
+	exitCode := 0
+	firefoxHintShown := false
+
+	for _, name := range sortedSiteNames(sites) {
+		certPath := filepath.Join(exportDir, name+".cert")
+		keyPath := filepath.Join(exportDir, name+".key")
+
+		certPEM, err := manager.ReadRootFile("/etc/nginx/ssl/" + name + ".cert")
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to read cert from VM: %s", name, err))
+			c.UI.Error(fmt.Sprintf("       (does the cert exist at /etc/nginx/ssl/%s.cert? run `trellis provision development` if SSL was just enabled)", name))
+			exitCode = 1
+			continue
+		}
+		if len(certPEM) == 0 {
+			c.UI.Error(fmt.Sprintf("%s: VM returned an empty cert. Has the site been provisioned with ssl.enabled?", name))
+			exitCode = 1
+			continue
+		}
+		if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to write cert to host: %s", name, err))
+			exitCode = 1
+			continue
+		}
+
+		fingerprint, err := trust.Fingerprint(certPEM)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to fingerprint cert: %s", name, err))
+			exitCode = 1
+			continue
+		}
+		fingerprintSHA1, err := trust.FingerprintSHA1(certPEM)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to fingerprint cert (sha1): %s", name, err))
+			exitCode = 1
+			continue
+		}
+		commonName, _ := trust.CommonName(certPEM)
+		label := trustLabel(project, name)
+
+		input := trust.TrustInput{
+			CertPath:        certPath,
+			CertPEM:         certPEM,
+			Fingerprint:     fingerprint,
+			FingerprintSHA1: fingerprintSHA1,
+			Label:           label,
+		}
+
+		// Key export. Mode 0o600 since this is a private key.
+		exportedKey := false
+		if c.noExportKey {
+			// Clear any previously exported key so --no-export-key
+			// is observably honored even on fingerprint match.
+			_ = os.Remove(keyPath)
+		} else {
+			keyData, keyErr := manager.ReadRootFile("/etc/nginx/ssl/" + name + ".key")
+			if keyErr != nil {
+				c.UI.Warn(fmt.Sprintf("%s: failed to export private key from VM: %s", name, keyErr))
+			} else if len(keyData) == 0 {
+				c.UI.Warn(fmt.Sprintf("%s: VM returned an empty private key; skipping key export.", name))
+			} else if writeErr := os.WriteFile(keyPath, keyData, 0o600); writeErr != nil {
+				c.UI.Warn(fmt.Sprintf("%s: failed to write private key to host: %s", name, writeErr))
+			} else {
+				_ = os.Chmod(keyPath, 0o600)
+				exportedKey = true
+			}
+		}
+
+		existing := state.Find(project, name)
+		retrustReason := ""
+		if existing != nil && existing.Fingerprint == fingerprint {
+			verifyInput := input
+			verifyInput.Label = existing.Label
+			verify, _ := store.Verify(verifyInput, existing.Locations)
+			if verify.AllAccounted(existing.Locations) {
+				c.UI.Info(fmt.Sprintf("%s: already trusted (fingerprint match, skipped)", name))
+				existing.CertPath = certPath
+				existing.KeyPath = keyPathOrEmpty(keyPath, exportedKey)
+				state.Upsert(*existing)
+				continue
+			}
+			retrustReason = "drift"
+			c.UI.Info(fmt.Sprintf("%s: state drift detected (%d location(s) missing); re-trusting", name, len(verify.Missing)))
+		} else if existing != nil {
+			retrustReason = "fingerprint changed"
+		}
+
+		if existing != nil {
+			oldInput := trust.TrustInput{
+				CertPath:        existing.CertPath,
+				Fingerprint:     existing.Fingerprint,
+				FingerprintSHA1: existing.FingerprintSHA1,
+				Label:           existing.Label,
+			}
+			if _, err := store.Untrust(oldInput, existing.Locations); err != nil {
+				c.UI.Error(fmt.Sprintf("%s: failed to remove previous trust entry: %s", name, err))
+				c.UI.Error(fmt.Sprintf("       (state preserved; resolve the underlying issue and re-run `trellis vm trust --site %s`)", name))
+				exitCode = 1
+				continue
+			}
+			state.Remove(project, name)
+		}
+
+		result, err := store.Trust(input)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to trust cert: %s", name, err))
+			if len(result.Locations) > 0 {
+				state.Upsert(trust.Entry{
+					Project:         project,
+					Site:            name,
+					Fingerprint:     fingerprint,
+					FingerprintSHA1: fingerprintSHA1,
+					CommonName:      commonName,
+					CertPath:        certPath,
+					KeyPath:         keyPathOrEmpty(keyPath, exportedKey),
+					Label:           label,
+					Locations:       result.Locations,
+					AddedAt:         time.Now().UTC(),
+				})
+			}
+			exitCode = 1
+			continue
+		}
+
+		state.Upsert(trust.Entry{
+			Project:         project,
+			Site:            name,
+			Fingerprint:     fingerprint,
+			FingerprintSHA1: fingerprintSHA1,
+			CommonName:      commonName,
+			CertPath:        certPath,
+			KeyPath:         keyPathOrEmpty(keyPath, exportedKey),
+			Label:           label,
+			Locations:       result.Locations,
+			AddedAt:         time.Now().UTC(),
+		})
+
+		verb := "trusted"
+		if retrustReason != "" {
+			verb = fmt.Sprintf("re-trusted (%s)", retrustReason)
+		}
+		c.UI.Info(fmt.Sprintf("%s: %s", name, verb))
+		for _, loc := range result.Locations {
+			c.UI.Info("  - " + trust.FormatLocation(loc))
+		}
+
+		if result.NSS.FirefoxFound && result.NSS.CertutilMissing {
+			firefoxHintShown = true
+		}
+	}
+
+	if err := state.Save(); err != nil {
+		c.UI.Error("Error saving trust state: " + err.Error())
+		exitCode = 1
+	}
+
+	c.printSummary(exportDir, firefoxHintShown)
+
+	return exitCode
+}
+
+func (c *VmTrustCommand) selectSites() map[string]*trellis.Site {
+	out := map[string]*trellis.Site{}
+	env := c.Trellis.Environments["development"]
+	if env == nil {
+		return out
+	}
+	for name, site := range env.WordPressSites {
+		if c.site != "" && name != c.site {
+			continue
+		}
+		if !site.SslEnabled() || site.SslProvider() != "self-signed" {
+			continue
+		}
+		out[name] = site
+	}
+	return out
+}
+
+func (c *VmTrustCommand) printSummary(exportDir string, firefoxHint bool) {
+	c.UI.Info("")
+	c.UI.Info(fmt.Sprintf("Exported certs and keys live under %s", exportDir))
+	if runtime.GOOS == "linux" {
+		c.UI.Info(fmt.Sprintf("Set NODE_EXTRA_CA_CERTS, SSL_CERT_FILE, REQUESTS_CA_BUNDLE to %s for tools that read a single bundle.", filepath.Join(app_paths.DataDir(), "ca-bundle.pem")))
+		c.UI.Info("Tools with statically-linked roots (some Go binaries, Java) ignore env-var trust roots; use --trust-system if you need system-wide trust.")
+	}
+	if firefoxHint {
+		c.UI.Warn("")
+		c.UI.Warn("Firefox is installed but `certutil` is not on PATH, so Firefox was not auto-trusted.")
+		switch runtime.GOOS {
+		case "darwin":
+			c.UI.Warn("  Install with: brew install nss")
+		case "linux":
+			c.UI.Warn("  Install with: sudo apt install libnss3-tools  (or your distro's equivalent)")
+		}
+		c.UI.Warn("Then re-run `trellis vm trust`.")
+		c.UI.Warn("Alternative: in Firefox set `security.enterprise_roots.enabled = true` in about:config to use the system trust store.")
+	}
+}
+
+// projectSslDir returns the per-project export directory. The directory
+// name is derived from the VM instance name (which defaults to the main
+// site key, e.g. "example.com") plus a short hash of the absolute project
+// path so two forks of the same project don't collide.
+func projectSslDir(projectPath, instanceName string) string {
+	return filepath.Join(app_paths.DataDir(), "ssl", instanceName+"-"+projectID(projectPath))
+}
+
+// projectID is a short stable identifier derived from the absolute project
+// path. It scopes trust labels and filenames so two projects with the same
+// site name don't collide in the user's keychain or NSS DBs.
+func projectID(projectPath string) string {
+	hash := sha256.Sum256([]byte(projectPath))
+	return hex.EncodeToString(hash[:4])
+}
+
+// trustLabel returns the label used to identify a site's cert in trust stores
+// (macOS keychain via cert subject, NSS nicknames, Linux user CA filenames).
+// Format: trellis-<projectID>-<site>.
+func trustLabel(projectPath, siteName string) string {
+	return fmt.Sprintf("trellis-%s-%s", projectID(projectPath), siteName)
+}
+
+func keyPathOrEmpty(path string, exported bool) string {
+	if !exported {
+		return ""
+	}
+	return path
+}
+
+func sortedSiteNames(sites map[string]*trellis.Site) []string {
+	names := make([]string, 0, len(sites))
+	for name := range sites {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (c *VmTrustCommand) Synopsis() string {
+	return "Trusts the VM's self-signed SSL certificates on the host."
+}
+
+func (c *VmTrustCommand) Help() string {
+	helpText := `
+Usage: trellis vm trust [options]
+
+Extracts each self-signed SSL cert generated by Trellis for the development
+environment, exports the cert and key to ~/.local/share/trellis/ssl/<project>/,
+and trusts the cert in the host's platform trust stores.
+
+On macOS the cert is added to the user's login keychain. On Linux the cert is
+written to a per-user CA dir and a combined bundle.
+
+When the certutil binary is available (from nss / libnss3-tools), the cert is
+also added to every Firefox profile's NSS database.
+
+This command requires the VM to be running.
+
+Options:
+      --site         Trust only this site instead of every self-signed site.
+      --no-export-key  Skip writing the private key to the host.
+      --trust-system Linux only: also install the cert system-wide
+                     (writes to /usr/local/share/ca-certificates and runs
+                     sudo update-ca-certificates).
+  -h, --help         Show this help.
+`
+	return strings.TrimSpace(helpText)
+}

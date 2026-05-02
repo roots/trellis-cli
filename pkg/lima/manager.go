@@ -211,6 +211,39 @@ func (m *Manager) RunCommandPipe(args []string, dir string) (*exec.Cmd, error) {
 	return command.Cmd("limactl", shellArgs), nil
 }
 
+func (m *Manager) Copy(srcInVm string, dstOnHost string) error {
+	instanceName, err := m.trellis.GetVmInstanceName()
+	if err != nil {
+		return err
+	}
+
+	instance, ok := m.GetInstance(instanceName)
+	if !ok {
+		return fmt.Errorf("VM does not exist. Run `trellis vm start` to create it.")
+	}
+	if instance.Stopped() {
+		return fmt.Errorf("VM is not running. Run `trellis vm start` to start it.")
+	}
+
+	src := fmt.Sprintf("%s:%s", instance.Name, srcInVm)
+	cmd := command.WithOptions(
+		command.WithLogging(m.ui),
+	).Cmd("limactl", []string{"copy", src, dstOnHost})
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func (m *Manager) ReadRootFile(remotePath string) ([]byte, error) {
+	cmd, err := m.RunCommandPipe([]string{"sudo", "cat", remotePath}, "")
+	if err != nil {
+		return nil, err
+	}
+	return cmd.Output()
+}
+
 func (m *Manager) StartInstance(name string) error {
 	instance, ok := m.GetInstance(name)
 
