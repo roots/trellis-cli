@@ -17,16 +17,15 @@ import (
 // `vm untrust` can reverse exactly the same set, even when the cert on disk
 // has since changed.
 type Entry struct {
-	Project         string    `json:"project"`
-	Site            string    `json:"site"`
-	Fingerprint     string    `json:"fingerprint"`
-	FingerprintSHA1 string    `json:"fingerprint_sha1"`
-	CommonName      string    `json:"common_name,omitempty"`
-	CertPath        string    `json:"cert_path"`
-	KeyPath         string    `json:"key_path,omitempty"`
-	Label           string    `json:"label"`
-	Locations       []string  `json:"locations"`
-	AddedAt         time.Time `json:"added_at"`
+	Project     string    `json:"project"`
+	Site        string    `json:"site"`
+	Fingerprint string    `json:"fingerprint"`
+	CommonName  string    `json:"common_name,omitempty"`
+	CertPath    string    `json:"cert_path"`
+	KeyPath     string    `json:"key_path,omitempty"`
+	Label       string    `json:"label"`
+	Locations   []string  `json:"locations"`
+	AddedAt     time.Time `json:"added_at"`
 }
 
 type State struct {

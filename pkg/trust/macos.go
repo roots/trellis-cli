@@ -1,6 +1,8 @@
 package trust
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -59,15 +61,17 @@ func (s *macOSStore) Untrust(input TrustInput, locations []string) ([]string, er
 		// Drop the trust setting first; ignore if not present.
 		_ = exec.Command("security", "remove-trusted-cert", input.CertPath).Run()
 
+		sha1Hex := sha1HexFromCertFile(input.CertPath)
+
 		// Skip the delete entirely when the cert isn't in the keychain.
 		// The Store contract says missing entries are not errors.
-		if keychainHasFingerprint(input.FingerprintSHA1) == keychainMissing {
+		if keychainHasFingerprint(sha1Hex) == keychainMissing {
 			cleaned = append(cleaned, loc)
 			continue
 		}
 
-		if input.FingerprintSHA1 != "" {
-			cmd := exec.Command("security", "delete-certificate", "-Z", input.FingerprintSHA1)
+		if sha1Hex != "" {
+			cmd := exec.Command("security", "delete-certificate", "-Z", sha1Hex)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				if isKeychainNotFound(string(out)) {
 					cleaned = append(cleaned, loc)
@@ -193,6 +197,25 @@ func keychainHasFingerprint(sha1Hex string) keychainState {
 		return keychainPresent
 	}
 	return keychainMissing
+}
+
+// sha1HexFromCertFile reads a PEM cert from disk and returns the uppercase
+// SHA-1 hex of its DER bytes — the form `security delete-certificate -Z`
+// expects. Returns "" on any error so callers can fall back to a no-op.
+func sha1HexFromCertFile(path string) string {
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	der, err := derFromPEM(data)
+	if err != nil {
+		return ""
+	}
+	sum := sha1.Sum(der)
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
 }
 
 func loginKeychainPath() (string, error) {

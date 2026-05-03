@@ -4,14 +4,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
-	"strings"
 	"testing"
 	"time"
 )
@@ -56,25 +54,6 @@ func TestFingerprintMatchesSHA256OfDER(t *testing.T) {
 
 	if got != want {
 		t.Errorf("Fingerprint = %q, want %q", got, want)
-	}
-}
-
-func TestFingerprintSHA1IsUppercaseHex(t *testing.T) {
-	pemBytes, der := generateTestCertPEM(t, "example.test")
-
-	got, err := FingerprintSHA1(pemBytes)
-	if err != nil {
-		t.Fatalf("FingerprintSHA1: %v", err)
-	}
-
-	expected := sha1.Sum(der)
-	want := strings.ToUpper(hex.EncodeToString(expected[:]))
-
-	if got != want {
-		t.Errorf("FingerprintSHA1 = %q, want %q", got, want)
-	}
-	if got != strings.ToUpper(got) {
-		t.Errorf("expected uppercase hex, got %q", got)
 	}
 }
 

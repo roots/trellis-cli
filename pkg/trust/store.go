@@ -17,9 +17,6 @@ type TrustInput struct {
 	// Fingerprint is the hex-encoded SHA-256 of the DER bytes; used as a
 	// stable identifier for state tracking and verification.
 	Fingerprint string
-	// FingerprintSHA1 is the hex-encoded SHA-1 (uppercase). macOS
-	// `security delete-certificate -Z` keys on this form.
-	FingerprintSHA1 string
 	// Label is a human-readable name used for keychain entries and NSS
 	// nicknames, e.g. "trellis: example.com".
 	Label string

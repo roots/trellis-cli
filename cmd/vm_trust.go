@@ -143,21 +143,14 @@ func (c *VmTrustCommand) Run(args []string) int {
 			exitCode = 1
 			continue
 		}
-		fingerprintSHA1, err := trust.FingerprintSHA1(certPEM)
-		if err != nil {
-			c.UI.Error(fmt.Sprintf("%s: failed to fingerprint cert (sha1): %s", name, err))
-			exitCode = 1
-			continue
-		}
 		commonName, _ := trust.CommonName(certPEM)
 		label := trustLabel(project, name)
 
 		input := trust.TrustInput{
-			CertPath:        certPath,
-			CertPEM:         certPEM,
-			Fingerprint:     fingerprint,
-			FingerprintSHA1: fingerprintSHA1,
-			Label:           label,
+			CertPath:    certPath,
+			CertPEM:     certPEM,
+			Fingerprint: fingerprint,
+			Label:       label,
 		}
 
 		// Key export. Mode 0o600 since this is a private key.
@@ -201,10 +194,9 @@ func (c *VmTrustCommand) Run(args []string) int {
 
 		if existing != nil {
 			oldInput := trust.TrustInput{
-				CertPath:        existing.CertPath,
-				Fingerprint:     existing.Fingerprint,
-				FingerprintSHA1: existing.FingerprintSHA1,
-				Label:           existing.Label,
+				CertPath:    existing.CertPath,
+				Fingerprint: existing.Fingerprint,
+				Label:       existing.Label,
 			}
 			if _, err := store.Untrust(oldInput, existing.Locations); err != nil {
 				c.UI.Error(fmt.Sprintf("%s: failed to remove previous trust entry: %s", name, err))
@@ -220,16 +212,15 @@ func (c *VmTrustCommand) Run(args []string) int {
 			c.UI.Error(fmt.Sprintf("%s: failed to trust cert: %s", name, err))
 			if len(result.Locations) > 0 {
 				state.Upsert(trust.Entry{
-					Project:         project,
-					Site:            name,
-					Fingerprint:     fingerprint,
-					FingerprintSHA1: fingerprintSHA1,
-					CommonName:      commonName,
-					CertPath:        certPath,
-					KeyPath:         keyPathOrEmpty(keyPath, exportedKey),
-					Label:           label,
-					Locations:       result.Locations,
-					AddedAt:         time.Now().UTC(),
+					Project:     project,
+					Site:        name,
+					Fingerprint: fingerprint,
+					CommonName:  commonName,
+					CertPath:    certPath,
+					KeyPath:     keyPathOrEmpty(keyPath, exportedKey),
+					Label:       label,
+					Locations:   result.Locations,
+					AddedAt:     time.Now().UTC(),
 				})
 			}
 			exitCode = 1
@@ -237,16 +228,15 @@ func (c *VmTrustCommand) Run(args []string) int {
 		}
 
 		state.Upsert(trust.Entry{
-			Project:         project,
-			Site:            name,
-			Fingerprint:     fingerprint,
-			FingerprintSHA1: fingerprintSHA1,
-			CommonName:      commonName,
-			CertPath:        certPath,
-			KeyPath:         keyPathOrEmpty(keyPath, exportedKey),
-			Label:           label,
-			Locations:       result.Locations,
-			AddedAt:         time.Now().UTC(),
+			Project:     project,
+			Site:        name,
+			Fingerprint: fingerprint,
+			CommonName:  commonName,
+			CertPath:    certPath,
+			KeyPath:     keyPathOrEmpty(keyPath, exportedKey),
+			Label:       label,
+			Locations:   result.Locations,
+			AddedAt:     time.Now().UTC(),
 		})
 
 		verb := "trusted"

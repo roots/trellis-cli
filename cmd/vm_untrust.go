@@ -91,10 +91,9 @@ func (c *VmUntrustCommand) Run(args []string) int {
 	exitCode := 0
 	for _, entry := range entries {
 		input := trust.TrustInput{
-			CertPath:        entry.CertPath,
-			Fingerprint:     entry.Fingerprint,
-			FingerprintSHA1: entry.FingerprintSHA1,
-			Label:           entry.Label,
+			CertPath:    entry.CertPath,
+			Fingerprint: entry.Fingerprint,
+			Label:       entry.Label,
 		}
 
 		cleaned, err := store.Untrust(input, entry.Locations)
