@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -42,8 +41,7 @@ func (c *VmUntrustCommand) Run(args []string) int {
 		return 1
 	}
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
-	if err := commandArgumentValidator.validate(c.flags.Args()); err != nil {
+	if err := (&CommandArgumentValidator{required: 0, optional: 0}).validate(c.flags.Args()); err != nil {
 		c.UI.Error(err.Error())
 		c.UI.Output(c.Help())
 		return 1
@@ -90,37 +88,23 @@ func (c *VmUntrustCommand) Run(args []string) int {
 
 	exitCode := 0
 	for _, entry := range entries {
-		input := trust.TrustInput{
-			CertPath:    entry.CertPath,
-			Fingerprint: entry.Fingerprint,
-			Label:       entry.Label,
-		}
-
-		cleaned, err := store.Untrust(input, entry.Locations)
-		if err != nil {
-			c.UI.Error(fmt.Sprintf("%s: failed to untrust: %s", entry.Site, err))
-			c.UI.Error(fmt.Sprintf("       (state preserved so you can re-run `trellis vm untrust --site %s`)", entry.Site))
+		out := trust.RevokeSite(store, state, project, entry)
+		if out.Err != nil {
+			c.UI.Error(fmt.Sprintf("%s: failed to untrust: %s", out.Site, out.Err))
+			if out.ErrHint != "" {
+				c.UI.Error("       (" + out.ErrHint + ")")
+			}
 			exitCode = 1
 			continue
 		}
 
-		// Drop exported cert+key files only after store cleanup succeeded.
-		if entry.CertPath != "" {
-			_ = os.Remove(entry.CertPath)
+		if len(out.Cleaned) == 0 {
+			c.UI.Info(fmt.Sprintf("%s: removed (no host changes needed)", out.Site))
+			continue
 		}
-		if entry.KeyPath != "" {
-			_ = os.Remove(entry.KeyPath)
-		}
-
-		state.Remove(project, entry.Site)
-
-		if len(cleaned) == 0 {
-			c.UI.Info(fmt.Sprintf("%s: removed (no host changes needed)", entry.Site))
-		} else {
-			c.UI.Info(fmt.Sprintf("%s: untrusted", entry.Site))
-			for _, loc := range cleaned {
-				c.UI.Info("  - " + trust.FormatLocation(loc))
-			}
+		c.UI.Info(fmt.Sprintf("%s: untrusted", out.Site))
+		for _, loc := range out.Cleaned {
+			c.UI.Info("  - " + trust.FormatLocation(loc))
 		}
 	}
 

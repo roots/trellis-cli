@@ -1,16 +1,12 @@
 package cmd
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/roots/trellis-cli/app_paths"
@@ -53,8 +49,7 @@ func (c *VmTrustCommand) Run(args []string) int {
 		return 1
 	}
 
-	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
-	if err := commandArgumentValidator.validate(c.flags.Args()); err != nil {
+	if err := (&CommandArgumentValidator{required: 0, optional: 0}).validate(c.flags.Args()); err != nil {
 		c.UI.Error(err.Error())
 		c.UI.Output(c.Help())
 		return 1
@@ -100,15 +95,9 @@ func (c *VmTrustCommand) Run(args []string) int {
 		return 1
 	}
 
-	project := c.Trellis.Path
 	instanceName, err := c.Trellis.GetVmInstanceName()
 	if err != nil {
 		c.UI.Error(err.Error())
-		return 1
-	}
-	exportDir := projectSslDir(project, instanceName)
-	if err := os.MkdirAll(exportDir, 0o755); err != nil {
-		c.UI.Error("Error creating export directory: " + err.Error())
 		return 1
 	}
 
@@ -116,9 +105,6 @@ func (c *VmTrustCommand) Run(args []string) int {
 	firefoxHintShown := false
 
 	for _, name := range sortedSiteNames(sites) {
-		certPath := filepath.Join(exportDir, name+".cert")
-		keyPath := filepath.Join(exportDir, name+".key")
-
 		certPEM, err := manager.ReadRootFile("/etc/nginx/ssl/" + name + ".cert")
 		if err != nil {
 			c.UI.Error(fmt.Sprintf("%s: failed to read cert from VM: %s", name, err))
@@ -126,129 +112,42 @@ func (c *VmTrustCommand) Run(args []string) int {
 			exitCode = 1
 			continue
 		}
-		if len(certPEM) == 0 {
-			c.UI.Error(fmt.Sprintf("%s: VM returned an empty cert. Has the site been provisioned with ssl.enabled?", name))
-			exitCode = 1
-			continue
-		}
-		if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
-			c.UI.Error(fmt.Sprintf("%s: failed to write cert to host: %s", name, err))
-			exitCode = 1
-			continue
-		}
 
-		fingerprint, err := trust.Fingerprint(certPEM)
-		if err != nil {
-			c.UI.Error(fmt.Sprintf("%s: failed to fingerprint cert: %s", name, err))
-			exitCode = 1
-			continue
-		}
-		commonName, _ := trust.CommonName(certPEM)
-		label := trustLabel(project, name)
-
-		input := trust.TrustInput{
-			CertPath:    certPath,
-			CertPEM:     certPEM,
-			Fingerprint: fingerprint,
-			Label:       label,
-		}
-
-		// Key export. Mode 0o600 since this is a private key.
-		exportedKey := false
-		if c.noExportKey {
-			// Clear any previously exported key so --no-export-key
-			// is observably honored even on fingerprint match.
-			_ = os.Remove(keyPath)
-		} else {
+		var keyPEM []byte
+		if !c.noExportKey {
 			keyData, keyErr := manager.ReadRootFile("/etc/nginx/ssl/" + name + ".key")
 			if keyErr != nil {
 				c.UI.Warn(fmt.Sprintf("%s: failed to export private key from VM: %s", name, keyErr))
 			} else if len(keyData) == 0 {
 				c.UI.Warn(fmt.Sprintf("%s: VM returned an empty private key; skipping key export.", name))
-			} else if writeErr := os.WriteFile(keyPath, keyData, 0o600); writeErr != nil {
-				c.UI.Warn(fmt.Sprintf("%s: failed to write private key to host: %s", name, writeErr))
 			} else {
-				_ = os.Chmod(keyPath, 0o600)
-				exportedKey = true
+				keyPEM = keyData
 			}
 		}
 
-		existing := state.Find(project, name)
-		retrustReason := ""
-		if existing != nil && existing.Fingerprint == fingerprint {
-			verifyInput := input
-			verifyInput.Label = existing.Label
-			verify, _ := store.Verify(verifyInput, existing.Locations)
-			if verify.AllAccounted(existing.Locations) {
-				c.UI.Info(fmt.Sprintf("%s: already trusted (fingerprint match, skipped)", name))
-				existing.CertPath = certPath
-				existing.KeyPath = keyPathOrEmpty(keyPath, exportedKey)
-				state.Upsert(*existing)
-				continue
-			}
-			retrustReason = "drift"
-			c.UI.Info(fmt.Sprintf("%s: state drift detected (%d location(s) missing); re-trusting", name, len(verify.Missing)))
-		} else if existing != nil {
-			retrustReason = "fingerprint changed"
-		}
+		out := trust.ApplySite(store, state, trust.SiteInput{
+			Project:      c.Trellis.Path,
+			Site:         name,
+			InstanceName: instanceName,
+			BaseDir:      app_paths.DataDir(),
+			CertPEM:      certPEM,
+			KeyPEM:       keyPEM,
+		})
 
-		if existing != nil {
-			oldInput := trust.TrustInput{
-				CertPath:    existing.CertPath,
-				Fingerprint: existing.Fingerprint,
-				Label:       existing.Label,
-			}
-			if _, err := store.Untrust(oldInput, existing.Locations); err != nil {
-				c.UI.Error(fmt.Sprintf("%s: failed to remove previous trust entry: %s", name, err))
-				c.UI.Error(fmt.Sprintf("       (state preserved; resolve the underlying issue and re-run `trellis vm trust --site %s`)", name))
-				exitCode = 1
-				continue
-			}
-			state.Remove(project, name)
-		}
-
-		result, err := store.Trust(input)
-		if err != nil {
-			c.UI.Error(fmt.Sprintf("%s: failed to trust cert: %s", name, err))
-			if len(result.Locations) > 0 {
-				state.Upsert(trust.Entry{
-					Project:     project,
-					Site:        name,
-					Fingerprint: fingerprint,
-					CommonName:  commonName,
-					CertPath:    certPath,
-					KeyPath:     keyPathOrEmpty(keyPath, exportedKey),
-					Label:       label,
-					Locations:   result.Locations,
-					AddedAt:     time.Now().UTC(),
-				})
+		if out.Err != nil {
+			c.UI.Error(fmt.Sprintf("%s: %s", name, out.Err))
+			if out.ErrHint != "" {
+				c.UI.Error("       (" + out.ErrHint + ")")
 			}
 			exitCode = 1
 			continue
 		}
 
-		state.Upsert(trust.Entry{
-			Project:     project,
-			Site:        name,
-			Fingerprint: fingerprint,
-			CommonName:  commonName,
-			CertPath:    certPath,
-			KeyPath:     keyPathOrEmpty(keyPath, exportedKey),
-			Label:       label,
-			Locations:   result.Locations,
-			AddedAt:     time.Now().UTC(),
-		})
-
-		verb := "trusted"
-		if retrustReason != "" {
-			verb = fmt.Sprintf("re-trusted (%s)", retrustReason)
-		}
-		c.UI.Info(fmt.Sprintf("%s: %s", name, verb))
-		for _, loc := range result.Locations {
+		c.UI.Info(fmt.Sprintf("%s: %s", name, out.Verb))
+		for _, loc := range out.Locations {
 			c.UI.Info("  - " + trust.FormatLocation(loc))
 		}
-
-		if result.NSS.FirefoxFound && result.NSS.CertutilMissing {
+		if out.NSS.FirefoxFound && out.NSS.CertutilMissing {
 			firefoxHintShown = true
 		}
 	}
@@ -258,7 +157,7 @@ func (c *VmTrustCommand) Run(args []string) int {
 		exitCode = 1
 	}
 
-	c.printSummary(exportDir, firefoxHintShown)
+	c.printSummary(trust.ExportDir(app_paths.DataDir(), instanceName, c.Trellis.Path), firefoxHintShown)
 
 	return exitCode
 }
@@ -300,36 +199,6 @@ func (c *VmTrustCommand) printSummary(exportDir string, firefoxHint bool) {
 		c.UI.Warn("Then re-run `trellis vm trust`.")
 		c.UI.Warn("Alternative: in Firefox set `security.enterprise_roots.enabled = true` in about:config to use the system trust store.")
 	}
-}
-
-// projectSslDir returns the per-project export directory. The directory
-// name is derived from the VM instance name (which defaults to the main
-// site key, e.g. "example.com") plus a short hash of the absolute project
-// path so two forks of the same project don't collide.
-func projectSslDir(projectPath, instanceName string) string {
-	return filepath.Join(app_paths.DataDir(), "ssl", instanceName+"-"+projectID(projectPath))
-}
-
-// projectID is a short stable identifier derived from the absolute project
-// path. It scopes trust labels and filenames so two projects with the same
-// site name don't collide in the user's keychain or NSS DBs.
-func projectID(projectPath string) string {
-	hash := sha256.Sum256([]byte(projectPath))
-	return hex.EncodeToString(hash[:4])
-}
-
-// trustLabel returns the label used to identify a site's cert in trust stores
-// (macOS keychain via cert subject, NSS nicknames, Linux user CA filenames).
-// Format: trellis-<projectID>-<site>.
-func trustLabel(projectPath, siteName string) string {
-	return fmt.Sprintf("trellis-%s-%s", projectID(projectPath), siteName)
-}
-
-func keyPathOrEmpty(path string, exported bool) string {
-	if !exported {
-		return ""
-	}
-	return path
 }
 
 func sortedSiteNames(sites map[string]*trellis.Site) []string {
