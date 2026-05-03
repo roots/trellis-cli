@@ -16,7 +16,6 @@ package plugin
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -75,16 +74,6 @@ func (o *finder) find() map[string]string {
 func isExecutable(fullPath string) bool {
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		return false
-	}
-
-	if runtime.GOOS == "windows" {
-		fileExt := strings.ToLower(filepath.Ext(fullPath))
-
-		switch fileExt {
-		case ".bat", ".cmd", ".com", ".exe", ".ps1":
-			return true
-		}
 		return false
 	}
 
