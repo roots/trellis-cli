@@ -121,6 +121,11 @@ func (s *Site) SslEnabled() bool {
 	return s.Ssl["enabled"] == true
 }
 
+func (s *Site) SslProvider() string {
+	provider, _ := s.Ssl["provider"].(string)
+	return provider
+}
+
 func (s *Site) MainHost() string {
 	return s.SiteHosts[0].Canonical
 }

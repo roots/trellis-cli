@@ -18,4 +18,6 @@ type Manager interface {
 	OpenShell(name string, dir string, commandArgs []string) error
 	RunCommand(args []string, dir string) error
 	RunCommandPipe(args []string, dir string) (*exec.Cmd, error)
+	Copy(srcInVm string, dstOnHost string) error
+	ReadRootFile(remotePath string) ([]byte, error)
 }

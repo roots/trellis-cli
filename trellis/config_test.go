@@ -229,6 +229,29 @@ wordpress_sites:
 	}
 }
 
+func TestSslProvider(t *testing.T) {
+	cases := []struct {
+		name string
+		ssl  map[string]interface{}
+		want string
+	}{
+		{"self_signed", map[string]interface{}{"enabled": true, "provider": "self-signed"}, "self-signed"},
+		{"letsencrypt", map[string]interface{}{"enabled": true, "provider": "letsencrypt"}, "letsencrypt"},
+		{"missing_provider", map[string]interface{}{"enabled": true}, ""},
+		{"non_string_provider", map[string]interface{}{"enabled": true, "provider": 42}, ""},
+		{"nil_ssl", nil, ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			site := &Site{Ssl: tc.ssl}
+			if got := site.SslProvider(); got != tc.want {
+				t.Errorf("SslProvider() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestAllhosts(t *testing.T) {
 	configYaml := `
 wordpress_sites:
