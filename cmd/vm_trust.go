@@ -60,13 +60,6 @@ func (c *VmTrustCommand) Run(args []string) int {
 		return 1
 	}
 
-	releaseLock, err := trust.AcquireLock(&cli.UiWriter{Ui: c.UI})
-	if err != nil {
-		c.UI.Error("Error: " + err.Error())
-		return 1
-	}
-	defer releaseLock()
-
 	manager, err := newVmManager(c.Trellis, c.UI)
 	if err != nil {
 		c.UI.Error("Error: " + err.Error())

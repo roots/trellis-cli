@@ -47,13 +47,6 @@ func (c *VmUntrustCommand) Run(args []string) int {
 		return 1
 	}
 
-	releaseLock, err := trust.AcquireLock(&cli.UiWriter{Ui: c.UI})
-	if err != nil {
-		c.UI.Error("Error: " + err.Error())
-		return 1
-	}
-	defer releaseLock()
-
 	state, err := trust.Load()
 	if err != nil {
 		c.UI.Error("Error reading trust state: " + err.Error())
