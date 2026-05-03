@@ -1,13 +1,11 @@
 package trust
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/roots/trellis-cli/app_paths"
@@ -19,11 +17,14 @@ const (
 )
 
 type linuxStore struct {
-	opts Options
+	opts   Options
+	runner runner
+	nss    nssHelper
 }
 
 func newLinuxStore(opts Options) *linuxStore {
-	return &linuxStore{opts: opts}
+	r := runner(execRunner{})
+	return &linuxStore{opts: opts, runner: r, nss: nssHelper{runner: r}}
 }
 
 // userCADir is the per-user trust dir we manage. The tools that pick up
@@ -57,22 +58,19 @@ func (s *linuxStore) Trust(input TrustInput) (TrustResult, error) {
 
 	if s.opts.TrustSystem {
 		systemDst := systemCAPath(input)
-		writeCmd := exec.Command("sudo", "tee", systemDst)
-		writeCmd.Stdin = bytes.NewReader(input.CertPEM)
-		writeCmd.Stdout = nil
-		if err := writeCmd.Run(); err != nil {
+		if _, _, err := s.runner.RunStdin(input.CertPEM, "sudo", "tee", systemDst); err != nil {
 			return result, fmt.Errorf("sudo tee %s: %w", systemDst, err)
 		}
 		// Record the location as soon as the file is on disk, so if
 		// update-ca-certificates fails the caller can still track this
 		// file for later cleanup via vm untrust.
 		result.Locations = append(result.Locations, linuxSystemCALocation)
-		if out, err := exec.Command("sudo", "update-ca-certificates").CombinedOutput(); err != nil {
-			return result, fmt.Errorf("update-ca-certificates: %w: %s", err, string(out))
+		if _, combined, err := s.runner.Run("sudo", "update-ca-certificates"); err != nil {
+			return result, fmt.Errorf("update-ca-certificates: %w: %s", err, string(combined))
 		}
 	}
 
-	nssLocations, nssStatus, nssErr := nssTrust(input, s.opts.DisableNSS)
+	nssLocations, nssStatus, nssErr := s.nss.trust(input, s.opts.DisableNSS)
 	result.Locations = append(result.Locations, nssLocations...)
 	result.NSS = nssStatus
 
@@ -96,15 +94,15 @@ func (s *linuxStore) Untrust(input TrustInput, locations []string) ([]string, er
 			cleaned = append(cleaned, loc)
 		case linuxSystemCALocation:
 			systemDst := systemCAPath(input)
-			if err := exec.Command("sudo", "rm", "-f", systemDst).Run(); err != nil {
+			if _, _, err := s.runner.Run("sudo", "rm", "-f", systemDst); err != nil {
 				if firstErr == nil {
 					firstErr = err
 				}
 				continue
 			}
-			if out, err := exec.Command("sudo", "update-ca-certificates", "--fresh").CombinedOutput(); err != nil {
+			if _, combined, err := s.runner.Run("sudo", "update-ca-certificates", "--fresh"); err != nil {
 				if firstErr == nil {
-					firstErr = fmt.Errorf("update-ca-certificates: %w: %s", err, string(out))
+					firstErr = fmt.Errorf("update-ca-certificates: %w: %s", err, string(combined))
 				}
 				continue
 			}
@@ -116,7 +114,7 @@ func (s *linuxStore) Untrust(input TrustInput, locations []string) ([]string, er
 		firstErr = err
 	}
 
-	nssCleaned, err := nssUntrust(input, locations)
+	nssCleaned, err := s.nss.untrust(input, locations)
 	if err != nil && firstErr == nil {
 		firstErr = err
 	}
@@ -170,7 +168,7 @@ func (s *linuxStore) Verify(input TrustInput, locations []string) (VerifyResult,
 		}
 	}
 
-	nssPresent, nssMissing, nssUnknown := nssVerify(input, locations)
+	nssPresent, nssMissing, nssUnknown := s.nss.verify(input, locations)
 	result.Present = append(result.Present, nssPresent...)
 	result.Missing = append(result.Missing, nssMissing...)
 	result.Unknown = append(result.Unknown, nssUnknown...)
@@ -230,7 +228,10 @@ func rebuildBundle() error {
 	entries, err := os.ReadDir(userCADir())
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.Remove(userCABundle())
+			if rmErr := os.Remove(userCABundle()); rmErr != nil && !os.IsNotExist(rmErr) {
+				return rmErr
+			}
+			return nil
 		}
 		return err
 	}

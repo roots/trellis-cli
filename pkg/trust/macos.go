@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -13,11 +12,14 @@ import (
 const macOSLoginKeychainLocation = "macos-login-keychain"
 
 type macOSStore struct {
-	opts Options
+	opts   Options
+	runner runner
+	nss    nssHelper
 }
 
 func newMacOSStore(opts Options) *macOSStore {
-	return &macOSStore{opts: opts}
+	r := runner(execRunner{})
+	return &macOSStore{opts: opts, runner: r, nss: nssHelper{runner: r}}
 }
 
 func (s *macOSStore) Trust(input TrustInput) (TrustResult, error) {
@@ -31,18 +33,17 @@ func (s *macOSStore) Trust(input TrustInput) (TrustResult, error) {
 	// `-p ssl` constrains the trust to TLS server validation rather than
 	// every X.509 use case (S/MIME, code signing, etc.). `-r trustRoot`
 	// makes the self-signed leaf its own trust anchor.
-	cmd := exec.Command("security", "add-trusted-cert",
+	if _, combined, err := s.runner.Run("security", "add-trusted-cert",
 		"-r", "trustRoot",
 		"-p", "ssl",
 		"-k", keychain,
 		input.CertPath,
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return result, fmt.Errorf("security add-trusted-cert: %w: %s", err, string(out))
+	); err != nil {
+		return result, fmt.Errorf("security add-trusted-cert: %w: %s", err, string(combined))
 	}
 	result.Locations = []string{macOSLoginKeychainLocation}
 
-	nssLocations, nssStatus, nssErr := nssTrust(input, s.opts.DisableNSS)
+	nssLocations, nssStatus, nssErr := s.nss.trust(input, s.opts.DisableNSS)
 	result.Locations = append(result.Locations, nssLocations...)
 	result.NSS = nssStatus
 
@@ -59,26 +60,25 @@ func (s *macOSStore) Untrust(input TrustInput, locations []string) ([]string, er
 		}
 
 		// Drop the trust setting first; ignore if not present.
-		_ = exec.Command("security", "remove-trusted-cert", input.CertPath).Run()
+		_, _, _ = s.runner.Run("security", "remove-trusted-cert", input.CertPath)
 
 		sha1Hex := sha1HexFromCertFile(input.CertPath)
 
 		// Skip the delete entirely when the cert isn't in the keychain.
 		// The Store contract says missing entries are not errors.
-		if keychainHasFingerprint(sha1Hex) == keychainMissing {
+		if s.keychainHasFingerprint(sha1Hex) == keychainMissing {
 			cleaned = append(cleaned, loc)
 			continue
 		}
 
 		if sha1Hex != "" {
-			cmd := exec.Command("security", "delete-certificate", "-Z", sha1Hex)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				if isKeychainNotFound(string(out)) {
+			if _, combined, err := s.runner.Run("security", "delete-certificate", "-Z", sha1Hex); err != nil {
+				if isKeychainNotFound(string(combined)) {
 					cleaned = append(cleaned, loc)
 					continue
 				}
 				if firstErr == nil {
-					firstErr = fmt.Errorf("security delete-certificate: %w: %s", err, string(out))
+					firstErr = fmt.Errorf("security delete-certificate: %w: %s", err, string(combined))
 				}
 				continue
 			}
@@ -86,7 +86,7 @@ func (s *macOSStore) Untrust(input TrustInput, locations []string) ([]string, er
 		cleaned = append(cleaned, loc)
 	}
 
-	nssCleaned, err := nssUntrust(input, locations)
+	nssCleaned, err := s.nss.untrust(input, locations)
 	if err != nil && firstErr == nil {
 		firstErr = err
 	}
@@ -109,7 +109,7 @@ func (s *macOSStore) Verify(input TrustInput, locations []string) (VerifyResult,
 		if loc != macOSLoginKeychainLocation {
 			continue
 		}
-		state := keychainTrustsCertForSSL(input.CertPath)
+		state := s.keychainTrustsCertForSSL(input.CertPath)
 		switch state {
 		case keychainPresent:
 			result.Present = append(result.Present, loc)
@@ -120,7 +120,7 @@ func (s *macOSStore) Verify(input TrustInput, locations []string) (VerifyResult,
 		}
 	}
 
-	nssPresent, nssMissing, nssUnknown := nssVerify(input, locations)
+	nssPresent, nssMissing, nssUnknown := s.nss.verify(input, locations)
 	result.Present = append(result.Present, nssPresent...)
 	result.Missing = append(result.Missing, nssMissing...)
 	result.Unknown = append(result.Unknown, nssUnknown...)
@@ -142,7 +142,7 @@ const (
 // trust override is still in place. A user manually removing the trust
 // override (but leaving the cert in the keychain) returns Missing here so
 // re-trust will reapply the override.
-func keychainTrustsCertForSSL(certPath string) keychainState {
+func (s *macOSStore) keychainTrustsCertForSSL(certPath string) keychainState {
 	if certPath == "" {
 		return keychainUnknown
 	}
@@ -156,18 +156,18 @@ func keychainTrustsCertForSSL(certPath string) keychainState {
 	// `-k` pins verification to the same keychain Trust writes into,
 	// matching the rest of the file rather than relying on the user's
 	// search list.
-	out, err := exec.Command("security", "verify-cert",
+	_, combined, err := s.runner.Run("security", "verify-cert",
 		"-c", certPath,
 		"-p", "ssl",
 		"-k", keychain,
-	).CombinedOutput()
+	)
 	if err == nil {
 		return keychainPresent
 	}
 	// Distinguish "trust missing" from genuine exec errors. verify-cert
 	// emits a clear message ("CSSMERR_TP_NOT_TRUSTED" / "not trusted")
 	// for the trust-failure path; treat anything else as Unknown.
-	msg := strings.ToLower(string(out))
+	msg := strings.ToLower(string(combined))
 	if strings.Contains(msg, "not trusted") ||
 		strings.Contains(msg, "tp_not_trusted") ||
 		strings.Contains(msg, "tp_invalid_anchor_cert") ||
@@ -180,7 +180,7 @@ func keychainTrustsCertForSSL(certPath string) keychainState {
 // keychainHasFingerprint scans the user's login keychain for any cert whose
 // SHA-1 matches. Used by Untrust to skip delete-certificate when the cert
 // is already gone.
-func keychainHasFingerprint(sha1Hex string) keychainState {
+func (s *macOSStore) keychainHasFingerprint(sha1Hex string) keychainState {
 	if sha1Hex == "" {
 		return keychainUnknown
 	}
@@ -188,12 +188,12 @@ func keychainHasFingerprint(sha1Hex string) keychainState {
 	if err != nil {
 		return keychainUnknown
 	}
-	out, err := exec.Command("security", "find-certificate", "-a", "-Z", keychain).Output()
+	stdout, _, err := s.runner.Run("security", "find-certificate", "-a", "-Z", keychain)
 	if err != nil {
 		return keychainUnknown
 	}
 	needle := "SHA-1 hash: " + strings.ToUpper(sha1Hex)
-	if strings.Contains(string(out), needle) {
+	if strings.Contains(string(stdout), needle) {
 		return keychainPresent
 	}
 	return keychainMissing
