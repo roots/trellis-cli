@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -112,9 +111,6 @@ func TestApplySiteFreshTrust(t *testing.T) {
 }
 
 func TestApplySiteKeyMode0600(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("file modes are POSIX-specific")
-	}
 	in, _, keyPath := applyEnv(t, "/p1", "example.test", true)
 
 	store := &fakeStore{trustResult: TrustResult{Locations: []string{macOSLoginKeychainLocation}}}
@@ -481,9 +477,6 @@ func TestRevokeSiteUntrustErrorPreservesState(t *testing.T) {
 }
 
 func TestWriteFileAtomicSetsMode(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("file modes are POSIX-specific")
-	}
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "secret")
 	if err := writeFileAtomic(path, []byte("hunter2"), 0o600); err != nil {
@@ -508,9 +501,6 @@ func TestWriteFileAtomicSetsMode(t *testing.T) {
 }
 
 func TestWriteFileAtomicReplacesExistingPermissivelyModedFile(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("file modes are POSIX-specific")
-	}
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "secret")
 

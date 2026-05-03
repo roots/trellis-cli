@@ -16,9 +16,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 )
@@ -31,20 +29,6 @@ type PassthroughCommand struct {
 
 // Taken from https://github.com/kubernetes/kubectl/blob/b155278f1f4a21a0be2d4f6f0037258dee4d1a22/pkg/cmd/cmd.go#L371
 func (c *PassthroughCommand) Run(args []string) int {
-	// Windows does not support exec syscall.
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command(c.Bin, args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Env = os.Environ()
-		err := cmd.Run()
-		if err == nil {
-			return 0
-		}
-		return 1
-	}
-
 	// invoke cmd binary relaying the environment and args given
 	// append executablePath to cmdArgs, as execve will make first argument the "binary name".
 	if err := syscall.Exec(c.Bin, append([]string{c.Bin}, args...), os.Environ()); err != nil {

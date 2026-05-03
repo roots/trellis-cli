@@ -68,18 +68,14 @@ trellis-cli provides binary releases for a variety of OSes. These binary version
 3. Find the `trellis` binary in the unpacked directory, and move it to its desired destination (`mv trellis_1.0.0_Darwin_x86_64/trellis /usr/local/bin/trellis`)
 4. Make sure the above path is in your `$PATH`
 
-## Windows Install
-trellis-cli does offer a native Windows exe but we [recommend you use
-WSL](https://roots.io/trellis/docs/installation/#local-development-requirements) for Trellis. The above install methods will work for WSL as well.
+<details>
+<summary>Windows / WSL Install</summary>
 
-If you do want to use the native Windows exe, you'll need to do the following
-setup after downloading the Windows build:
+> **Warning**: trellis-cli does not currently support Windows or WSL.
 
-1. Open system properties
-2. Open environment variables
-3. Under system variables add new variable, `TRELLIS`, pointing to the location of the `trellis.exe` file, like `C:\trellis_1.0.0`
-4. Edit path from system variables and add new named `%TRELLIS%`
-5. Save the changes
+For Windows and WSL support, see the community-maintained fork at [qwatts-dev/trellis-cli](https://github.com/qwatts-dev/trellis-cli).
+
+</details>
 
 ## Verify Attestation
 trellis-cli artifacts can be [cryptographically verified via GitHub CLI](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds#verifying-artifact-attestations-with-the-github-cli).

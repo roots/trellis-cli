@@ -156,7 +156,7 @@ func virtualenvError(ui cli.Ui) {
 	ui.Error("")
 	ui.Error("There are two options:")
 	ui.Error("  1. Ensure Python 3 is installed and the `python3` command works. trellis-cli will use python3's built-in venv feature.")
-	ui.Error("     Ubuntu/Debian users (including Windows WSL): venv is not built-in, to install it run `sudo apt-get install python3-pip python3-venv`")
+	ui.Error("     Ubuntu/Debian users: venv is not built-in, to install it run `sudo apt-get install python3-pip python3-venv`")
 	ui.Error("")
 	ui.Error("  2. Disable trellis-cli's virtualenv feature, and manage dependencies manually, by changing the 'virtualenv_integration' configuration setting to 'false'.")
 }

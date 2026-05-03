@@ -52,9 +52,6 @@ execute() {
   (cd "${tmpdir}" && untar "${TARBALL}")
   install -d "${BINDIR}"
   for binexe in "trellis" ; do
-    if [ "$OS" = "windows" ]; then
-      binexe="${binexe}.exe"
-    fi
     install "${srcdir}/${binexe}" "${BINDIR}/"
     log_info "installed ${BINDIR}/${binexe}"
   done
@@ -69,8 +66,6 @@ is_supported_platform() {
     darwin/386) found=0 ;;
     darwin/amd64) found=0 ;;
     darwin/arm64) found=0 ;;
-    windows/386) found=0 ;;
-    windows/amd64) found=0 ;;
   esac
   return $found
 }
@@ -99,10 +94,6 @@ tag_to_version() {
   VERSION=${TAG#v}
 }
 adjust_format() {
-  # change format (tar.gz or zip) based on ARCH
-  case ${ARCH} in
-    windows) FORMAT=zip ;;
-  esac
   true
 }
 adjust_os() {
@@ -112,7 +103,6 @@ adjust_os() {
     amd64) OS=x86_64 ;;
     darwin) OS=Darwin ;;
     linux) OS=Linux ;;
-    windows) OS=Windows ;;
   esac
   true
 }
@@ -123,7 +113,6 @@ adjust_arch() {
     amd64) ARCH=x86_64 ;;
     darwin) ARCH=Darwin ;;
     linux) ARCH=Linux ;;
-    windows) ARCH=Windows ;;
   esac
   true
 }
@@ -187,9 +176,6 @@ log_crit() {
 }
 uname_os() {
   os=$(uname -s | tr '[:upper:]' '[:lower:]')
-  case "$os" in
-    msys_nt) os="windows" ;;
-  esac
   echo "$os"
 }
 uname_arch() {
@@ -219,7 +205,6 @@ uname_os_check() {
     openbsd) return 0 ;;
     plan9) return 0 ;;
     solaris) return 0 ;;
-    windows) return 0 ;;
   esac
   log_crit "uname_os_check '$(uname -s)' got converted to '$os' which is not a GOOS value. Please file bug at https://github.com/client9/shlib"
   return 1
