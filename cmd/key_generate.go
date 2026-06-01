@@ -36,8 +36,8 @@ type KeyGenerateCommand struct {
 	UI           cli.Ui
 	Trellis      *trellis.Trellis
 	flags        *flag.FlagSet
-	keyName      string
 	knownHosts   string
+	name         string
 	noGithub     bool
 	noProvision  bool
 	path         string
@@ -50,7 +50,7 @@ func (c *KeyGenerateCommand) init() {
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.BoolVar(&c.noGithub, "no-github", false, "Skips creating a GitHub secret and deploy key")
 	c.flags.BoolVar(&c.noProvision, "no-provision", false, "Skips provisioning the environment after key is generated")
-	c.flags.StringVar(&c.keyName, "key-name", "", "Name of SSH key (Default: trellis_<site_name>_ed25519).")
+	c.flags.StringVar(&c.name, "name", "", "Name of SSH key (Default: trellis_<site_name>_ed25519).")
 	c.flags.StringVar(&c.knownHosts, "known-hosts", "", "Comma-separated list of SSH known hosts (optional)")
 	c.flags.StringVar(&c.path, "path", "", "Path of private key (Default: $HOME/.ssh)")
 	c.flags.StringVar(&c.provisionEnv, "provision", "", "Environment to provision after key is generated")
@@ -98,18 +98,18 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		}
 	}
 
-	if c.keyName == "" {
+	if c.name == "" {
 		siteName, _, siteErr := c.Trellis.MainSiteFromEnvironment("development")
 		if siteErr != nil {
 			c.UI.Error(siteErr.Error())
 			return 1
 		}
 
-		c.keyName = fmt.Sprintf("trellis_%s", strings.ReplaceAll(siteName, ".", "_"))
+		c.name = fmt.Sprintf("trellis_%s", strings.ReplaceAll(siteName, ".", "_"))
 	}
 
-	c.keyName = fmt.Sprintf("%s_ed25519", c.keyName)
-	publicKeyName := fmt.Sprintf("%s.pub", c.keyName)
+	c.name = fmt.Sprintf("%s_ed25519", c.name)
+	publicKeyName := fmt.Sprintf("%s.pub", c.name)
 
 	if c.path == "" {
 		homePath, _ := homedir.Dir()
@@ -117,7 +117,7 @@ func (c *KeyGenerateCommand) Run(args []string) int {
 		c.path = path
 	}
 
-	keyPath := filepath.Join(c.path, c.keyName)
+	keyPath := filepath.Join(c.path, c.name)
 	publicKeyPath := filepath.Join(c.path, publicKeyName)
 	trellisPublicKeysPath := filepath.Join(c.Trellis.Path, "public_keys")
 	trellisPublicKeyPath := filepath.Join(trellisPublicKeysPath, publicKeyName)
