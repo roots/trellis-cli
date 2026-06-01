@@ -264,7 +264,7 @@ To skip the GitHub specific parts, use the --no-github option:
 
 Specify a custom key name:
 
-  $ trellis key generate --name "my_key"
+  $ trellis key generate --key-name "my_key"
 
 Generate private key in a specific path:
 
@@ -275,12 +275,12 @@ Specify a repository to add the GitHub secret and deploy key to:
   $ trellis key generate --repo MyOrg/MyBedrockRepo
 
 To skip provisioning, use the --no-provision option:
-  
+
   $ trellis key generate --no-provision
 
 Options:
+      --key-name       Name of SSH key (Default: trellis_<site_name>_ed25519)
       --known-hosts    Comma-separated list of SSH known hosts (optional)
-      --name           Name of SSH key (Default: trellis_<site_name>_ed25519)
       --no-github      Skips creating a GitHub secret and deploy key
       --path           Path for private key (Default: $HOME/.ssh)
       --[no-]provision Name of environment to provision after key is generated
@@ -303,8 +303,8 @@ func (c *KeyGenerateCommand) AutocompleteFlags() complete.Flags {
 	}
 
 	return complete.Flags{
+		"--key-name":    complete.PredictNothing,
 		"--known-hosts": complete.PredictNothing,
-		"--name":        complete.PredictNothing,
 		"--no-github":   complete.PredictNothing,
 		"--path":        complete.PredictDirs(""),
 		"--provision":   complete.PredictSet(environmentNames...),
