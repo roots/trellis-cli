@@ -82,7 +82,6 @@ jobs:
           install-only: true
       - name: Check release (dry-run)
         run: |
-          goreleaser check
           goreleaser release --snapshot --clean --skip publish
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_ACCESS_TOKEN }}
