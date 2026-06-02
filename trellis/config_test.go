@@ -232,13 +232,13 @@ wordpress_sites:
 func TestSslProvider(t *testing.T) {
 	cases := []struct {
 		name string
-		ssl  map[string]interface{}
+		ssl  map[string]any
 		want string
 	}{
-		{"self_signed", map[string]interface{}{"enabled": true, "provider": "self-signed"}, "self-signed"},
-		{"letsencrypt", map[string]interface{}{"enabled": true, "provider": "letsencrypt"}, "letsencrypt"},
-		{"missing_provider", map[string]interface{}{"enabled": true}, ""},
-		{"non_string_provider", map[string]interface{}{"enabled": true, "provider": 42}, ""},
+		{"self_signed", map[string]any{"enabled": true, "provider": "self-signed"}, "self-signed"},
+		{"letsencrypt", map[string]any{"enabled": true, "provider": "letsencrypt"}, "letsencrypt"},
+		{"missing_provider", map[string]any{"enabled": true}, ""},
+		{"non_string_provider", map[string]any{"enabled": true, "provider": 42}, ""},
 		{"nil_ssl", nil, ""},
 	}
 

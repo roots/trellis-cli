@@ -363,9 +363,9 @@ Example input:
 */
 
 func parseAnsibleHosts(output string) (hosts []string) {
-	lines := strings.Split(string(output), "\n")
+	lines := strings.SplitSeq(string(output), "\n")
 
-	for _, host := range lines {
+	for host := range lines {
 		host = strings.TrimSpace(host)
 
 		if strings.HasPrefix(host, "hosts (") || host == "" {

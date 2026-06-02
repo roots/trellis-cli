@@ -368,7 +368,7 @@ func (t *Trellis) UpdateAnsibleConfig(section string, key string, value string) 
 	return nil
 }
 
-func (t *Trellis) WriteYamlFile(s interface{}, path string, header string) error {
+func (t *Trellis) WriteYamlFile(s any, path string, header string) error {
 	data, err := yaml.Marshal(s)
 	if err != nil {
 		log.Fatal(err)

@@ -16,6 +16,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -98,10 +99,5 @@ func isUnderCoreRootCommands(filepath string, coreRootCommands []string) bool {
 	// the first argument is always one of `validPrefixes` (i.e: "trellis") for a plugin binary
 	rootCommand := strings.Split(filepath, "-")[1]
 
-	for _, v := range coreRootCommands {
-		if v == rootCommand {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(coreRootCommands, rootCommand)
 }

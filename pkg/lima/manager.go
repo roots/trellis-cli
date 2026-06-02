@@ -423,7 +423,7 @@ func (m *Manager) instances() (instances map[string]Instance) {
 	// Returns line delimited JSON
 	output, _ := command.Cmd("limactl", []string{"ls", "--format=json"}).Output()
 
-	for _, line := range bytes.Split(output, []byte("\n")) {
+	for line := range bytes.SplitSeq(output, []byte("\n")) {
 		instance := &Instance{}
 		if err := json.Unmarshal([]byte(line), instance); err != nil {
 			continue
