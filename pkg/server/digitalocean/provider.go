@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -185,12 +186,7 @@ func (p *Provider) GetSizes(ctx context.Context, region string) ([]types.Size, e
 }
 
 func sizeInRegion(regions []string, region string) bool {
-	for _, r := range regions {
-		if r == region {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(regions, region)
 }
 
 func (p *Provider) GetSSHKey(ctx context.Context, fingerprint string) (*types.SSHKey, error) {

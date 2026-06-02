@@ -15,16 +15,16 @@ import (
 const DefaultSiteName = "example.com"
 
 type Site struct {
-	SiteHosts       []SiteHost             `yaml:"site_hosts"`
-	AbsLocalPath    string                 `yaml:"-"`
-	LocalPath       string                 `yaml:"local_path"`
-	AdminEmail      string                 `yaml:"admin_email,omitempty"`
-	Branch          string                 `yaml:"branch,omitempty"`
-	Repo            string                 `yaml:"repo,omitempty"`
-	RepoSubtreePath string                 `yaml:"repo_subtree_path,omitempty"`
-	Multisite       map[string]interface{} `yaml:"multisite"`
-	Ssl             map[string]interface{} `yaml:"ssl"`
-	Cache           map[string]interface{} `yaml:"cache"`
+	SiteHosts       []SiteHost     `yaml:"site_hosts"`
+	AbsLocalPath    string         `yaml:"-"`
+	LocalPath       string         `yaml:"local_path"`
+	AdminEmail      string         `yaml:"admin_email,omitempty"`
+	Branch          string         `yaml:"branch,omitempty"`
+	Repo            string         `yaml:"repo,omitempty"`
+	RepoSubtreePath string         `yaml:"repo_subtree_path,omitempty"`
+	Multisite       map[string]any `yaml:"multisite"`
+	Ssl             map[string]any `yaml:"ssl"`
+	Cache           map[string]any `yaml:"cache"`
 }
 
 type SiteHost struct {

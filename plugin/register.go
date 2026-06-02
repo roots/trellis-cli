@@ -40,7 +40,7 @@ func rootCommandsFor(v reflect.Value) (rootCommands []string) {
 	m := v.MapKeys()
 
 	for _, v := range m {
-		rootCommand := strings.Split(v.String(), " ")[0]
+		rootCommand, _, _ := strings.Cut(v.String(), " ")
 		rootCommands = append(rootCommands, rootCommand)
 	}
 

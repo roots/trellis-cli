@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/user"
+	"slices"
 	"sort"
 	"strings"
 
@@ -169,13 +170,7 @@ func (do *Client) GetSizesByRegion(region *godo.Region) ([]godo.Size, error) {
 }
 
 func sizeInRegion(region *godo.Region, sizeSlug string) bool {
-	for _, size := range region.Sizes {
-		if size == sizeSlug {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(region.Sizes, sizeSlug)
 }
 
 func (do *Client) GetSSHKey(publicKey ssh.PublicKey) (*godo.Response, error) {

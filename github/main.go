@@ -73,7 +73,7 @@ func DownloadRelease(repo string, version string, path string, dest string) (rel
 		return nil, fmt.Errorf("Error extracting the release archive: %v", err)
 	}
 
-	org := strings.Split(repo, "/")[0]
+	org, _, _ := strings.Cut(repo, "/")
 	dirs, _ := filepath.Glob(fmt.Sprintf("%s-*", org))
 
 	if len(dirs) == 0 {
