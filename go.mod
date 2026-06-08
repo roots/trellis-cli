@@ -20,7 +20,7 @@ require (
 	golang.org/x/crypto v0.52.0
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/alessio/shellescape.v1 v1.0.0-20170105083845-52074bc9df61
-	gopkg.in/ini.v1 v1.67.2
+	gopkg.in/ini.v1 v1.67.3
 	gopkg.in/yaml.v2 v2.4.0
 )
 
