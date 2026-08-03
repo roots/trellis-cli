@@ -30,6 +30,6 @@ jobs:
           args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_ACCESS_TOKEN }}
-      - uses: actions/attest@v4.2.0
+      - uses: actions/attest@v4.2.1
         with:
           subject-checksums: ./dist/trellis_checksums.txt
