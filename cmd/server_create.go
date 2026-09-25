@@ -41,7 +41,7 @@ func (c *ServerCreateCommand) init() {
 	c.flags.StringVar(&c.providerFlag, "provider", "", "Cloud provider (digitalocean, hetzner)")
 	c.flags.StringVar(&c.sshKey, "ssh-key", "", "Path to SSH public key to automatically add to new server")
 	c.flags.StringVar(&c.region, "region", "", "Region to create the server in")
-	c.flags.StringVar(&c.image, "image", "", "Server image (default: Ubuntu 24.04)")
+	c.flags.StringVar(&c.image, "image", "", "Server image (default: Ubuntu 26.04)")
 	c.flags.StringVar(&c.size, "size", "", "Server size/type to create")
 	c.flags.BoolVar(&c.skipProvision, "skip-provision", false, "Create the server but skip provisioning")
 }
@@ -276,7 +276,7 @@ Arguments:
 Options:
       --provider        Cloud provider (digitalocean, hetzner)
       --region          Region to create the server in
-      --image           Server image (default: Ubuntu 24.04)
+      --image           Server image (default: Ubuntu 26.04)
       --size            Server size/type
       --skip-provision  Skip provision after server is created
       --ssh-key         Path to SSH public key to be added on the server
