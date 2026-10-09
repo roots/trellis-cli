@@ -17,13 +17,13 @@ func SupportedProviders() []ProviderName {
 	return []ProviderName{ProviderDigitalOcean, ProviderHetzner}
 }
 
-// DefaultImage returns the default Ubuntu 24.04 image slug for each provider.
+// DefaultImage returns the default Ubuntu 26.04 image slug for each provider.
 func DefaultImage(provider ProviderName) string {
 	switch provider {
 	case ProviderDigitalOcean:
-		return "ubuntu-24-04-x64"
+		return "ubuntu-26-04-x64"
 	case ProviderHetzner:
-		return "ubuntu-24.04"
+		return "ubuntu-26.04"
 	default:
 		return ""
 	}
