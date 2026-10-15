@@ -39,7 +39,7 @@ var DefaultCliConfig = cli_config.Config{
 	Vm: cli_config.VmConfig{
 		Manager:         "auto",
 		HostsResolver:   "hosts_file",
-		Ubuntu:          "24.04",
+		Ubuntu:          "26.04",
 		InstanceName:    "",
 		ForwardHttpPort: true,
 	},
