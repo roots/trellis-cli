@@ -223,6 +223,7 @@ Current supported settings:
 | `hosts_resolver` | VM hosts resolver (Options: `hosts_file`)| string |
 | `instance_name` | Custom name for the VM instance | string | First site name alphabetically |
 | `images` | Custom OS image | object | Set based on `ubuntu` version |
+| `mount_type` | Lima mount type for site directories (Options: `9p`, `virtiofs`, `reverse-sshfs`) | string | `virtiofs` on macOS, `9p` on Linux |
 
 #### `images`
 | Setting | Description | Type | Default |

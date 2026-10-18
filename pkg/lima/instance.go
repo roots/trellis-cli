@@ -53,12 +53,27 @@ type Instance struct {
 	Disk          int    `json:"disk"`
 	SshLocalPort  int    `json:"sshLocalPort,omitempty"`
 	VMType        string `json:"vmType,omitempty"`
+	MountType     string `json:"-"`
 	Config        Config `json:"config"`
 	Username      string `json:"username,omitempty"`
 }
 
 func (i *Instance) ConfigFile() string {
 	return filepath.Join(i.Dir, "lima.yaml")
+}
+
+// ResolvedMountType returns the configured mount type, falling back to the
+// default for the VM type (virtiofs for vz, 9p for qemu).
+func (i *Instance) ResolvedMountType() string {
+	if i.MountType != "" {
+		return i.MountType
+	}
+
+	if i.VMType == "vz" {
+		return "virtiofs"
+	}
+
+	return "9p"
 }
 
 func (i *Instance) GenerateConfig() (*bytes.Buffer, error) {

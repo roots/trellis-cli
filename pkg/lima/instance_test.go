@@ -21,9 +21,10 @@ func TestGenerateConfig(t *testing.T) {
 
 	absSitePath := filepath.Join(trellis.Path, "../site")
 	testCases := []struct {
-		name     string
-		vmType   string
-		expected string
+		name      string
+		vmType    string
+		mountType string
+		expected  string
 	}{
 		{
 			name:   "vz",
@@ -101,13 +102,54 @@ provision:
     fi
 `, absSitePath),
 		},
+		{
+			name:      "qemu with virtiofs",
+			vmType:    "qemu",
+			mountType: "virtiofs",
+			expected: fmt.Sprintf(`vmType: "qemu"
+images:
+- location: http://ubuntu.com/focal
+  arch: aarch64
+
+mounts:
+- location: %s
+  mountPoint: /srv/www/example.com/current
+  writable: true
+
+mountType: "virtiofs"
+ssh:
+  forwardAgent: true
+  loadDotSSHPubKeys: true
+networks:
+- lima: user-v2
+
+portForwards:
+- guestPort: 80
+  hostPort: 1234
+
+containerd:
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    echo "127.0.0.1 $(hostname)" >> /etc/hosts
+
+    TAP_IFACE="$(ip -o link show | awk '/52:54:00:12:34:56/ {print $2}' | tr -d ':' | head -n1)"
+    if [ -n "$TAP_IFACE" ]; then
+      ip link set "$TAP_IFACE" up
+      ip addr add 192.168.56.5/24 dev "$TAP_IFACE" 2>/dev/null || true
+    fi
+`, absSitePath),
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			instance := &Instance{
-				Dir:    dir,
-				VMType: tc.vmType,
+				Dir:       dir,
+				VMType:    tc.vmType,
+				MountType: tc.mountType,
 				Config: Config{
 					Images: []Image{
 						{

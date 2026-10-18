@@ -13,16 +13,12 @@ mounts:
 - location: {{ $site.AbsLocalPath }}
   mountPoint: /srv/www/{{ $siteName }}/current
   writable: true
-{{- if eq $.VMType "qemu" }}
+{{- if eq $.ResolvedMountType "9p" }}
   9p:
     securityModel: "mapped-xattr"
 {{- end }}
 {{ end }}
-{{- if eq .VMType "vz" }}
-mountType: "virtiofs"
-{{- else }}
-mountType: "9p"
-{{- end }}
+mountType: "{{ .ResolvedMountType }}"
 ssh:
   forwardAgent: true
   loadDotSSHPubKeys: true

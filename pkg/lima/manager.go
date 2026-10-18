@@ -352,6 +352,7 @@ func (m *Manager) hydrateInstance(instance *Instance) error {
 func (m *Manager) initInstance(instance *Instance) {
 	instance.InventoryFile = m.InventoryPath()
 	instance.Sites = m.Sites
+	instance.MountType = m.trellis.CliConfig.Vm.MountType
 }
 
 func (m *Manager) newInstance(name string) (Instance, error) {
