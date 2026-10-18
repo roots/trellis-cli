@@ -39,24 +39,16 @@ jobs:
           version: latest
           args: --timeout=5m
 
-  go-modernize:
-    name: Modernize
+  go-fix:
+    name: Go Fix
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-          cache: true
-      - name: Check modernized code
-        run: |
-          go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
-          if ! git diff --exit-code; then
-            echo "Code is not modernized. Run the following locally and commit the changes:"
-            echo "  go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./..."
-            exit 1
-          fi
+      - name: Check for suspicious constructs or opportunities for improvement
+        run: go fix -diff ./...
 
   go-mod-tidy:
     name: Go Modules Tidy
@@ -66,14 +58,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - name: Check if go.mod is tidy
-        run: |
-          go mod tidy
-          if [ -n "$(git diff --name-only)" ]; then
-            echo "go.mod is not tidy. Please run 'go mod tidy'"
-            git diff
-            exit 1
-          fi
+      - name: Check if go.mod/go.sum are tidy
+        run: go mod tidy -diff
 
   test:
     runs-on: ubuntu-latest
