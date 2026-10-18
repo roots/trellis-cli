@@ -167,13 +167,12 @@ func (c *NewCommand) Run(args []string) int {
 			c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
 		}
 
-		stringGenerator := trellis.RandomStringGenerator{Length: 64}
-		vault := c.trellis.GenerateVaultConfig(c.name, env, &stringGenerator)
-		_ = c.trellis.WriteYamlFile(
-			vault,
-			filepath.Join("group_vars", env, "vault.yml"),
-			c.YamlHeader("https://roots.io/trellis/docs/vault/"),
-		)
+		vaultPath := filepath.Join("group_vars", env, "vault.yml")
+		if err := c.trellis.UpdateDefaultVaultFile(vaultPath, c.name, env, c.createdByComment()); err != nil {
+			c.UI.Error(fmt.Sprintf("Error updating %s: %s", vaultPath, err))
+			c.UI.Error("Your project may not work correctly.")
+			c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
+		}
 	}
 
 	if err := c.trellis.GenerateVaultPassFile(c.vaultPass); err != nil {
@@ -258,10 +257,6 @@ Options:
 `
 
 	return strings.TrimSpace(helpText)
-}
-
-func (c *NewCommand) YamlHeader(doc string) string {
-	return fmt.Sprintf("%s\n# Documentation: %s\n\n", c.createdByComment(), doc)
 }
 
 func (c *NewCommand) createdByComment() string {

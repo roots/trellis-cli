@@ -28,3 +28,7 @@ func TestHelperProcess(t *testing.T) {
 	fmt.Fprint(os.Stdout, strings.Join(os.Args[3:], " "))
 	os.Exit(0)
 }
+
+func TestCommandHelperProcess(t *testing.T) {
+	command.CommandHelperProcess(t)
+}

@@ -14,7 +14,6 @@ import (
 	"github.com/roots/trellis-cli/app_paths"
 	"github.com/roots/trellis-cli/cli_config"
 	"gopkg.in/ini.v1"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -363,22 +362,6 @@ func (t *Trellis) UpdateAnsibleConfig(section string, key string, value string) 
 	cfg.Section(section).Key(key).SetValue(value)
 	if err := cfg.SaveTo(ansibleCfg); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (t *Trellis) WriteYamlFile(s any, path string, header string) error {
-	data, err := yaml.Marshal(s)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	path = filepath.Join(t.Path, path)
-	data = append([]byte(header), data...)
-
-	if err := os.WriteFile(path, data, 0666); err != nil {
-		log.Fatal(err)
 	}
 
 	return nil
