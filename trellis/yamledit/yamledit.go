@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -110,7 +111,7 @@ func (d *Document) Decode(v any, path ...string) error {
 }
 
 // Set encodes value and stores it at the given key path, creating any missing
-// mappings along the way. Comments on an existing value are kept, as is the
+// mappings along the way (sequence items must already exist). Comments on an existing value are kept, as is the
 // quoting style when replacing a quoted scalar with another scalar.
 func (d *Document) Set(value any, path ...string) error {
 	if len(path) == 0 {
@@ -122,27 +123,33 @@ func (d *Document) Set(value any, path ...string) error {
 		return err
 	}
 
-	mapping := d.body()
-	for i, key := range path[:len(path)-1] {
-		_, next := findKey(mapping, key)
-
-		if next == nil {
-			next = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-			appendKey(mapping, key, next)
-		} else if next.Kind != yaml.MappingNode {
-			return fmt.Errorf("%s is not a mapping", formatPath(path[:i+1]))
+	parent := d.body()
+	for i, key := range path {
+		if parent.Kind != yaml.MappingNode && parent.Kind != yaml.SequenceNode {
+			return fmt.Errorf("%s is not a mapping or sequence", formatPath(path[:i]))
 		}
 
-		mapping = next
+		_, next := child(parent, key)
+		if next != nil {
+			parent = next
+			continue
+		}
+
+		if parent.Kind == yaml.SequenceNode {
+			return fmt.Errorf("index out of range: %s", formatPath(path[:i+1]))
+		}
+
+		if i == len(path)-1 {
+			appendKey(parent, key, &newNode)
+			return nil
+		}
+
+		next = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		appendKey(parent, key, next)
+		parent = next
 	}
 
-	key := path[len(path)-1]
-	_, existing := findKey(mapping, key)
-
-	if existing == nil {
-		appendKey(mapping, key, &newNode)
-		return nil
-	}
+	existing := parent
 
 	if existing.Kind == yaml.ScalarNode && newNode.Kind == yaml.ScalarNode && isQuoted(existing.Style) {
 		newNode.Style = existing.Style
@@ -188,6 +195,10 @@ func (d *Document) RenameKey(newKey string, path ...string) error {
 		return err
 	}
 
+	if key == nil {
+		return fmt.Errorf("%s is a sequence item, not a key", formatPath(path))
+	}
+
 	if key.Value == newKey {
 		return nil
 	}
@@ -214,17 +225,31 @@ func (d *Document) find(path []string) (key *yaml.Node, value *yaml.Node, err er
 	value = d.body()
 
 	for i, k := range path {
-		if value.Kind != yaml.MappingNode {
-			return nil, nil, fmt.Errorf("%s is not a mapping", formatPath(path[:i]))
-		}
-
-		key, value = findKey(value, k)
-		if key == nil {
+		key, value = child(value, k)
+		if value == nil {
 			return nil, nil, fmt.Errorf("key not found: %s", formatPath(path[:i+1]))
 		}
 	}
 
 	return key, value, nil
+}
+
+// child returns the key and value nodes for a path segment. Sequence items are
+// addressed by index and have no key node.
+func child(node *yaml.Node, segment string) (key *yaml.Node, value *yaml.Node) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		return findKey(node, segment)
+	case yaml.SequenceNode:
+		index, err := strconv.Atoi(segment)
+		if err != nil || index < 0 || index >= len(node.Content) {
+			return nil, nil
+		}
+
+		return nil, node.Content[index]
+	default:
+		return nil, nil
+	}
 }
 
 func findKey(mapping *yaml.Node, key string) (*yaml.Node, *yaml.Node) {

@@ -162,7 +162,7 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetErrors(t *testing.T) {
-	doc := mustParse(t, "a: 1\n")
+	doc := mustParse(t, "a: 1\nlist:\n  - x\n")
 
 	if err := doc.Set("x"); err == nil {
 		t.Error("expected error for empty path")
@@ -171,6 +171,40 @@ func TestSetErrors(t *testing.T) {
 	if err := doc.Set("x", "a", "b"); err == nil {
 		t.Error("expected error when traversing a scalar")
 	}
+
+	if err := doc.Set("x", "list", "1"); err == nil {
+		t.Error("expected error for out of range sequence index")
+	}
+
+	if err := doc.Set("x", "list", "name"); err == nil {
+		t.Error("expected error for non-numeric sequence index")
+	}
+}
+
+func TestSequenceItems(t *testing.T) {
+	doc := mustParse(t, "users:\n  - name: a\n    salt: \"generateme\"\n  - name: b\n")
+
+	if node := doc.Lookup("users", "1", "name"); node == nil || node.Value != "b" {
+		t.Errorf("Lookup by index returned %v", node)
+	}
+
+	if node := doc.Lookup("users", "2"); node != nil {
+		t.Errorf("expected nil for out of range index, got %v", node)
+	}
+
+	if err := doc.Set("secret", "users", "0", "salt"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := doc.Set("pw", "users", "1", "password"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := doc.RenameKey("x", "users", "0"); err == nil {
+		t.Error("expected error renaming a sequence item")
+	}
+
+	assertOutput(t, doc, "users:\n  - name: a\n    salt: \"secret\"\n  - name: b\n    password: pw\n")
 }
 
 func TestDelete(t *testing.T) {
