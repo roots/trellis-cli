@@ -46,6 +46,49 @@ open:
 	}
 }
 
+func TestLoadFileMountType(t *testing.T) {
+	conf := Config{}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cli.yml")
+	content := `
+vm:
+  mount_type: virtiofs
+`
+
+	if err := os.WriteFile(path, []byte(content), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := conf.LoadFile(path); err != nil {
+		t.Fatal(err)
+	}
+
+	if conf.Vm.MountType != "virtiofs" {
+		t.Errorf("expected Vm.MountType to be %q, got %q", "virtiofs", conf.Vm.MountType)
+	}
+}
+
+func TestLoadFileInvalidMountType(t *testing.T) {
+	conf := Config{}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cli.yml")
+	content := `
+vm:
+  mount_type: nfs
+`
+
+	if err := os.WriteFile(path, []byte(content), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	err := conf.LoadFile(path)
+	if err == nil || !strings.Contains(err.Error(), "vm.mount_type") {
+		t.Errorf("expected invalid vm.mount_type error, got %v", err)
+	}
+}
+
 func TestLoadEnv(t *testing.T) {
 	t.Setenv("TRELLIS_ASK_VAULT_PASS", "true")
 	t.Setenv("TRELLIS_NOPE", "foo")

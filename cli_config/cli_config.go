@@ -23,6 +23,7 @@ type VmConfig struct {
 	Ubuntu          string    `yaml:"ubuntu"`
 	InstanceName    string    `yaml:"instance_name"`
 	ForwardHttpPort bool      `yaml:"forward_http_port"`
+	MountType       string    `yaml:"mount_type"`
 }
 
 type ServerConfig struct {
@@ -72,6 +73,10 @@ func (c *Config) LoadFile(path string) error {
 
 	if c.Vm.HostsResolver != "" && c.Vm.HostsResolver != "hosts_file" {
 		return fmt.Errorf("%w: unsupported value for `vm.hosts_resolver`. Must be one of: hosts_file", InvalidConfigErr)
+	}
+
+	if c.Vm.MountType != "" && c.Vm.MountType != "9p" && c.Vm.MountType != "virtiofs" && c.Vm.MountType != "reverse-sshfs" {
+		return fmt.Errorf("%w: unsupported value for `vm.mount_type`. Must be one of: 9p, virtiofs, reverse-sshfs", InvalidConfigErr)
 	}
 
 	if c.DatabaseApp != "" && c.DatabaseApp != "tableplus" && c.DatabaseApp != "sequel-ace" {

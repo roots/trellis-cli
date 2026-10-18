@@ -120,6 +120,30 @@ func TestInitInstance(t *testing.T) {
 	}
 }
 
+func TestInitInstanceMountType(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+	if err := trellis.LoadProject(); err != nil {
+		t.Fatal(err)
+	}
+
+	trellis.CliConfig.Vm.MountType = "virtiofs"
+
+	t.Setenv("TRELLIS_BYPASS_LIMA_REQUIREMENTS", "1")
+
+	manager, err := NewManager(trellis, cli.NewMockUi())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance := Instance{Name: "test", VMType: "qemu"}
+	manager.initInstance(&instance)
+
+	if instance.ResolvedMountType() != "virtiofs" {
+		t.Errorf("expected mount type to be %q, got %q", "virtiofs", instance.ResolvedMountType())
+	}
+}
+
 func TestNewInstanceUbuntuVersion(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
