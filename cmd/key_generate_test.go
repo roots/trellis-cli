@@ -90,6 +90,35 @@ func TestKeyGenerateNewKey(t *testing.T) {
 	}
 }
 
+func TestKeyGenerateNewKeyWithName(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+
+	tmpDir := t.TempDir()
+
+	ui := cli.NewMockUi()
+	keyGenerateCommand := NewKeyGenerateCommand(ui, trellis)
+
+	code := keyGenerateCommand.Run([]string{"--name", "my_key", "--path", tmpDir, "--no-github"})
+
+	if code != 0 {
+		t.Errorf("expected code %d to be %d", code, 0)
+	}
+
+	combined := ui.OutputWriter.String() + ui.ErrorWriter.String()
+	expected := fmt.Sprintf("Generated SSH key [%s]", filepath.Join(tmpDir, "my_key_ed25519"))
+
+	if !strings.Contains(combined, expected) {
+		t.Errorf("expected output %q to contain %q", combined, expected)
+	}
+
+	expected = fmt.Sprintf("Moved public key [%s]", filepath.Join(trellis.Path, "public_keys", "my_key_ed25519.pub"))
+
+	if !strings.Contains(combined, expected) {
+		t.Errorf("expected output %q to contain %q", combined, expected)
+	}
+}
+
 func TestKeyGenerateExistingPrivateKey(t *testing.T) {
 	defer trellis.LoadFixtureProject(t)()
 	trellis := trellis.NewTrellis()
