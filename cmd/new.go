@@ -159,13 +159,13 @@ func (c *NewCommand) Run(args []string) int {
 	}
 
 	// Update default configs
-	for env, config := range c.trellis.Environments {
-		c.trellis.UpdateDefaultConfig(config, c.name, c.host, env)
-		_ = c.trellis.WriteYamlFile(
-			config,
-			filepath.Join("group_vars", env, "wordpress_sites.yml"),
-			c.YamlHeader("https://roots.io/trellis/docs/wordpress-sites/"),
-		)
+	for env := range c.trellis.Environments {
+		sitesPath := filepath.Join("group_vars", env, "wordpress_sites.yml")
+		if err := c.trellis.UpdateDefaultSiteFile(sitesPath, c.name, c.host, env, c.createdByComment()); err != nil {
+			c.UI.Error(fmt.Sprintf("Error updating %s: %s", sitesPath, err))
+			c.UI.Error("Your project may not work correctly.")
+			c.UI.Error("This is probably a trellis-cli bug. Please open an issue at: https://github.com/roots/trellis-cli")
+		}
 
 		stringGenerator := trellis.RandomStringGenerator{Length: 64}
 		vault := c.trellis.GenerateVaultConfig(c.name, env, &stringGenerator)
@@ -261,9 +261,11 @@ Options:
 }
 
 func (c *NewCommand) YamlHeader(doc string) string {
-	const header = "# Created by trellis-cli v%s\n# Documentation: %s\n\n"
+	return fmt.Sprintf("%s\n# Documentation: %s\n\n", c.createdByComment(), doc)
+}
 
-	return fmt.Sprintf(header, c.CliVersion, doc)
+func (c *NewCommand) createdByComment() string {
+	return fmt.Sprintf("# Created by trellis-cli v%s", c.CliVersion)
 }
 
 func askDomain(ui cli.Ui, path string) (host string, err error) {

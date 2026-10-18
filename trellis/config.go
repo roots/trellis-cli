@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/roots/trellis-cli/dns"
+	"github.com/roots/trellis-cli/trellis/yamledit"
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"gopkg.in/yaml.v2"
 )
@@ -107,14 +109,52 @@ func (t *Trellis) HostsFromDomain(domain string, env string) (canonical *publics
 	}
 }
 
-func (t *Trellis) UpdateDefaultConfig(config *Config, name string, host string, env string) {
-	config.WordPressSites[name] = config.WordPressSites[DefaultSiteName]
+// UpdateDefaultSiteFile renames the default site in a wordpress_sites.yml file
+// (relative to the project) and applies the generated hosts and environment
+// defaults. Comments and site options not modeled by Site are preserved.
+func (t *Trellis) UpdateDefaultSiteFile(path string, name string, host string, env string, header string) error {
+	path = filepath.Join(t.Path, path)
 
-	if name != DefaultSiteName {
-		delete(config.WordPressSites, DefaultSiteName)
+	doc, err := yamledit.Load(path)
+	if err != nil {
+		return err
 	}
 
-	t.GenerateSite(config.WordPressSites[name], host, env)
+	if err := doc.RenameKey(name, "wordpress_sites", DefaultSiteName); err != nil {
+		return err
+	}
+
+	site := &Site{}
+	if err := doc.Decode(site, "wordpress_sites", name); err != nil {
+		return err
+	}
+
+	t.GenerateSite(site, host, env)
+
+	if err := doc.Set(site.SiteHosts, "wordpress_sites", name, "site_hosts"); err != nil {
+		return err
+	}
+
+	optional := []struct{ key, value string }{
+		{"admin_email", site.AdminEmail},
+		{"branch", site.Branch},
+		{"repo", site.Repo},
+		{"repo_subtree_path", site.RepoSubtreePath},
+	}
+
+	for _, option := range optional {
+		if option.value == "" {
+			doc.Delete("wordpress_sites", name, option.key)
+		} else if err := doc.Set(option.value, "wordpress_sites", name, option.key); err != nil {
+			return err
+		}
+	}
+
+	if header != "" {
+		doc.SetHeadComment(strings.TrimRight(header+"\n"+doc.HeadComment(), "\n"))
+	}
+
+	return doc.Save(path)
 }
 
 func (s *Site) SslEnabled() bool {
