@@ -150,11 +150,15 @@ func (t *Trellis) UpdateDefaultSiteFile(path string, name string, host string, e
 		}
 	}
 
+	prependHeadComment(doc, header)
+
+	return doc.Save(path)
+}
+
+func prependHeadComment(doc *yamledit.Document, header string) {
 	if header != "" {
 		doc.SetHeadComment(strings.TrimRight(header+"\n"+doc.HeadComment(), "\n"))
 	}
-
-	return doc.Save(path)
 }
 
 func (s *Site) SslEnabled() bool {

@@ -164,6 +164,9 @@ func main() {
 		"vault encrypt": func() (cli.Command, error) {
 			return cmd.NewVaultEncryptCommand(ui, trellis), nil
 		},
+		"vault generate": func() (cli.Command, error) {
+			return cmd.NewVaultGenerateCommand(ui, trellis), nil
+		},
 		"vault decrypt": func() (cli.Command, error) {
 			return cmd.NewVaultDecryptCommand(ui, trellis), nil
 		},
