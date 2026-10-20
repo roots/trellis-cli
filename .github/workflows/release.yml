@@ -8,21 +8,40 @@ on:
 
 permissions: {}
 
+cache-mode: none
+
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       id-token: write
       attestations: write
+    cache-mode: none
     steps:
-      - uses: actions/checkout@v7
+      - id: checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
+        background: true
+
+      # For goreleaser-action to verify the integrity of its downloaded GoReleaser archive
+      - uses: sigstore/cosign-installer@v4
+        background: true
+
+      - uses: anchore/sbom-action/download-syft@v0
+        background: true
+
+      - wait: checkout
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
-      - uses: anchore/sbom-action/download-syft@v0
+          cache: false
+
+      - wait-all:
+
       - name: GoReleaser release
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -30,6 +49,7 @@ jobs:
           args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_ACCESS_TOKEN }}
-      - uses: actions/attest@v4.2.2
+
+      - uses: actions/attest@v4
         with:
           subject-checksums: ./dist/trellis_checksums.txt
