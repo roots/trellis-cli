@@ -2,6 +2,8 @@ package trellis
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestUpdateDefaultConfig(t *testing.T) {
+func TestUpdateDefaultSiteFile(t *testing.T) {
 	trellis := &Trellis{}
 
 	cases := []struct {
@@ -216,9 +218,14 @@ wordpress_sites:
 	}
 
 	for _, tc := range cases {
-		config := trellis.ParseConfig(fmt.Sprintf("testdata/trellis/group_vars/%s/wordpress_sites.yml", tc.env))
-		trellis.UpdateDefaultConfig(config, tc.siteName, tc.host, tc.env)
+		trellis.Path = t.TempDir()
+		copySitesFixture(t, trellis.Path, tc.env)
 
+		if err := trellis.UpdateDefaultSiteFile("wordpress_sites.yml", tc.siteName, tc.host, tc.env, ""); err != nil {
+			t.Fatalf("%s => unexpected error: %v", tc.name, err)
+		}
+
+		config := trellis.ParseConfig(filepath.Join(trellis.Path, "wordpress_sites.yml"))
 		configYaml, _ := yaml.Marshal(config)
 		expected := strings.TrimSpace(tc.expectedYaml)
 		output := strings.TrimSpace(string(configYaml))
@@ -226,6 +233,70 @@ wordpress_sites:
 		if output != expected {
 			t.Errorf("%s => expected yaml output \n%s\n but got \n%s", tc.name, expected, output)
 		}
+	}
+}
+
+func TestUpdateDefaultSiteFilePreservesFormatting(t *testing.T) {
+	trellis := &Trellis{Path: t.TempDir()}
+	copySitesFixture(t, trellis.Path, "production")
+
+	if err := trellis.UpdateDefaultSiteFile("wordpress_sites.yml", "mysite.com", "mysite.com", "production", "# Created by trellis-cli v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	output, _ := os.ReadFile(filepath.Join(trellis.Path, "wordpress_sites.yml"))
+
+	expected := `# Created by trellis-cli v1.0.0
+# Documentation: https://roots.io/trellis/docs/remote-server-setup/
+# ` + "`wordpress_sites`" + ` options: https://roots.io/trellis/docs/wordpress-sites
+# Define accompanying passwords/secrets in group_vars/production/vault.yml
+
+wordpress_sites:
+  mysite.com:
+    site_hosts:
+      - canonical: mysite.com
+        redirects:
+          - www.mysite.com
+    local_path: ../site # path targeting local Bedrock site directory (relative to Ansible root)
+    repo: git@github.com:example/example.com.git # replace with your Git repo URL
+    repo_subtree_path: site # relative path to your Bedrock/WP directory in your repo
+    branch: master
+    multisite:
+      enabled: false
+    ssl:
+      enabled: false
+      provider: letsencrypt
+    cache:
+      enabled: false
+`
+
+	if string(output) != expected {
+		t.Errorf("expected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestUpdateDefaultSiteFileMissingDefaultSite(t *testing.T) {
+	trellis := &Trellis{Path: t.TempDir()}
+
+	if err := os.WriteFile(filepath.Join(trellis.Path, "wordpress_sites.yml"), []byte("wordpress_sites:\n  other.com: {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := trellis.UpdateDefaultSiteFile("wordpress_sites.yml", "mysite.com", "mysite.com", "production", ""); err == nil {
+		t.Error("expected error when default site is missing")
+	}
+}
+
+func copySitesFixture(t *testing.T, dir string, env string) {
+	t.Helper()
+
+	data, err := os.ReadFile(fmt.Sprintf("testdata/trellis/group_vars/%s/wordpress_sites.yml", env))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "wordpress_sites.yml"), data, 0644); err != nil {
+		t.Fatal(err)
 	}
 }
 
