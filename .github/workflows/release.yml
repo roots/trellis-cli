@@ -27,7 +27,7 @@ jobs:
         background: true
 
       # For goreleaser-action to verify the integrity of its downloaded GoReleaser archive
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
         background: true
 
       - uses: anchore/sbom-action/download-syft@v0
