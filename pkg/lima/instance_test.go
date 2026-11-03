@@ -378,6 +378,51 @@ func TestIP(t *testing.T) {
 	}
 }
 
+func TestIPWithoutLima0Interface(t *testing.T) {
+	instance := &Instance{
+		Name: "test",
+		Network: []Network{
+			{VZNAT: true, MACAddress: "52:55:55:2f:cb:a6", Interface: "lima0"},
+		},
+	}
+
+	linkOutput := `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: enp0s1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000\    link/ether 52:55:55:29:df:82 brd ff:ff:ff:ff:ff:ff
+3: enp0s2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000\    link/ether 52:55:55:2f:cb:a6 brd ff:ff:ff:ff:ff:ff
+`
+	routeOutput := `default via 192.168.65.1 proto dhcp src 192.168.65.28 metric 1024
+192.168.65.0/24 proto kernel scope link src 192.168.65.28 metric 1024
+`
+	commands := []command.MockCommand{
+		{
+			Command:  "limactl",
+			Args:     []string{"shell", "--workdir", "/", instance.Name, "ip", "route", "show", "dev", "lima0"},
+			Output:   `Cannot find device "lima0"`,
+			ExitCode: 1,
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"shell", "--workdir", "/", instance.Name, "ip", "-o", "link", "show"},
+			Output:  linkOutput,
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"shell", "--workdir", "/", instance.Name, "ip", "route", "show", "dev", "enp0s2"},
+			Output:  routeOutput,
+		},
+	}
+	defer command.MockExecCommands(t, commands)()
+
+	ip, err := instance.IP()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ip != "192.168.65.28" {
+		t.Errorf("expected 192.168.65.28\ngot %s", ip)
+	}
+}
+
 func TestIPQemu(t *testing.T) {
 	instance := &Instance{
 		Name:   "test",

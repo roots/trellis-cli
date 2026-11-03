@@ -219,7 +219,7 @@ Current supported settings:
 | Setting | Description | Type | Default |
 | --- | --- | -- | -- |
 | `manager` | VM manager (Options: `auto` (depends on OS), `lima`)| string | "auto" |
-| `ubuntu` | Ubuntu OS version (Options: `22.04`, `24.04`)| string |
+| `ubuntu` | Ubuntu OS version (Options: `22.04`, `24.04`, `26.04`)| string |
 | `hosts_resolver` | VM hosts resolver (Options: `hosts_file`)| string |
 | `instance_name` | Custom name for the VM instance | string | First site name alphabetically |
 | `images` | Custom OS image | object | Set based on `ubuntu` version |
