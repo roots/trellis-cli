@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/roots/trellis-cli/command"
@@ -41,21 +42,28 @@ type Config struct {
 	PortForwards []PortForward `yaml:"portForwards"`
 }
 
+type Network struct {
+	VZNAT      bool   `json:"vzNAT,omitempty"`
+	MACAddress string `json:"macAddress,omitempty"`
+	Interface  string `json:"interface,omitempty"`
+}
+
 type Instance struct {
 	InventoryFile string
 	Sites         map[string]*trellis.Site
-	Name          string `json:"name"`
-	Status        string `json:"status"`
-	Dir           string `json:"dir"`
-	Arch          string `json:"arch"`
-	Cpus          int    `json:"cpus"`
-	Memory        int    `json:"memory"`
-	Disk          int    `json:"disk"`
-	SshLocalPort  int    `json:"sshLocalPort,omitempty"`
-	VMType        string `json:"vmType,omitempty"`
-	MountType     string `json:"-"`
-	Config        Config `json:"config"`
-	Username      string `json:"username,omitempty"`
+	Name          string    `json:"name"`
+	Status        string    `json:"status"`
+	Dir           string    `json:"dir"`
+	Arch          string    `json:"arch"`
+	Cpus          int       `json:"cpus"`
+	Memory        int       `json:"memory"`
+	Disk          int       `json:"disk"`
+	SshLocalPort  int       `json:"sshLocalPort,omitempty"`
+	VMType        string    `json:"vmType,omitempty"`
+	MountType     string    `json:"-"`
+	Config        Config    `json:"config"`
+	Network       []Network `json:"network,omitempty"`
+	Username      string    `json:"username,omitempty"`
 }
 
 func (i *Instance) ConfigFile() string {
@@ -136,6 +144,16 @@ func (i *Instance) IP() (ip string, err error) {
 
 	output, err := command.Cmd("limactl", args).CombinedOutput()
 
+	// Lima's cloud-init config renames the vzNAT interface to lima0, but on some
+	// images (e.g. Ubuntu 26.04) the rename fails on first boot and the
+	// interface keeps its predictable name (enp0s2). Find it by MAC instead.
+	if err != nil && i.VMType != "qemu" && strings.Contains(string(output), `Cannot find device "lima0"`) {
+		if name := i.interfaceByMAC(); name != "" {
+			args = []string{"shell", "--workdir", "/", i.Name, "ip", "route", "show", "dev", name}
+			output, err = command.Cmd("limactl", args).CombinedOutput()
+		}
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("%w: %v\n%s", IpErr, err, string(output))
 	}
@@ -155,6 +173,39 @@ func (i *Instance) IP() (ip string, err error) {
 	}
 
 	return matches[1], nil
+}
+
+/*
+Gets the guest interface name for the lima0 network by its MAC address using
+the output of `ip -o link show`:
+
+	3: enp0s2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 ... link/ether 52:55:55:2f:cb:a6 brd ff:ff:ff:ff:ff:ff
+*/
+func (i *Instance) interfaceByMAC() string {
+	mac := ""
+	for _, n := range i.Network {
+		if n.Interface == "lima0" && n.MACAddress != "" {
+			mac = n.MACAddress
+			break
+		}
+	}
+
+	if mac == "" {
+		return ""
+	}
+
+	output, err := command.Cmd("limactl", []string{"shell", "--workdir", "/", i.Name, "ip", "-o", "link", "show"}).Output()
+	if err != nil {
+		return ""
+	}
+
+	re := regexp.MustCompile(`(?mi)^\d+:\s+([^:@\s]+)[:@].*link/ether\s+` + regexp.QuoteMeta(mac) + `\b`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) < 2 {
+		return ""
+	}
+
+	return matches[1]
 }
 
 func (i *Instance) Running() bool {
