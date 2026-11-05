@@ -275,6 +275,45 @@ make docker-no-cache
 make test
 ```
 
+## Releasing
+
+*This section only intended for the maintainers*
+
+Publish a GitHub release with a new `vX.Y.Z` tag. The tag push runs the [`goreleaser` workflow](.github/workflows/release.yml), which builds the binaries, uploads them to the release, and updates the Homebrew formula in [roots/homebrew-tap](https://github.com/roots/homebrew-tap).
+
+After it finishes, check that the release has binaries (e.g. `trellis_Linux_x86_64.tar.gz`). [setup-trellis-cli](https://github.com/roots/setup-trellis-cli) installs the latest release, so a release without binaries breaks CI deploys for every project using it with `No trellis-cli binary found for platform linux or arch x86_64`.
+
+### Release token
+
+The workflow publishes with the `GORELEASER_GITHUB_ACCESS_TOKEN` secret, not the default `GITHUB_TOKEN`, because it also pushes to `roots/homebrew-tap`. It's a fine-grained personal access token:
+
+- **Name:** `trellis-cli GoReleaser`
+- **Resource owner:** `roots`
+- **Repository access:** `trellis-cli` and `homebrew-tap`
+- **Permissions:** Contents: read and write
+
+The token expires. When it does, the `GoReleaser release` step fails with `401 Bad credentials` and the release is left without binaries. Set a reminder to rotate it before its expiration date (shown in the owner's [token settings](https://github.com/settings/personal-access-tokens)).
+
+To rotate it, any `roots` org owner can regenerate the token, or create a new one with the settings above, then save it to the secret:
+
+```bash
+gh secret set GORELEASER_GITHUB_ACCESS_TOKEN -R roots/trellis-cli
+```
+
+### Fixing a failed release
+
+- If the workflow itself is fine (e.g. an expired token), fix the cause and re-run the failed `goreleaser` run. GoReleaser uploads to the existing release and keeps its notes.
+- If the fix is a change to `.github/workflows/release.yml`, re-running uses the broken workflow from the tagged commit. Merge the fix, then move the tag to it. Only do this while the release has no binaries:
+
+  ```bash
+  git tag -f vX.Y.Z origin/master
+  ```
+
+  ```bash
+  git push -f origin vX.Y.Z
+  ```
+- Action versions in the workflow must be tags that exist. For example, `sigstore/cosign-installer` only publishes full versions (`@v4.1.2`), not a major tag like `@v4`.
+
 ## Releasing Docker Images
 
 *This section only intended for the maintainers*
