@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -343,7 +344,7 @@ func TestStartInstance(t *testing.T) {
 		{
 			Command: "limactl",
 			Args:    []string{"shell", instanceName, "whoami"},
-			Output:  username,
+			Output:  username + "\n",
 		},
 		{
 			Command: "limactl",
@@ -433,6 +434,77 @@ default
 
 	if hostsStorage[instanceName] != expectedHostIP {
 		t.Errorf("expected hosts entry to be %s, got %s", expectedHostIP, hostsStorage[instanceName])
+	}
+}
+
+func TestStartInstanceAlreadyRunning(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+	if err := trellis.LoadProject(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("TRELLIS_BYPASS_LIMA_REQUIREMENTS", "1")
+
+	ui := cli.NewMockUi()
+	manager, err := NewManager(trellis, ui)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hostsStorage := make(map[string]string)
+	manager.HostsResolver = &MockHostsResolver{Hosts: hostsStorage}
+
+	instanceName := "test"
+	sshPort := 61234
+
+	// An inventory from an earlier boot, with Lima's old SSH port.
+	if err := os.MkdirAll(filepath.Dir(manager.InventoryPath()), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manager.InventoryPath(), []byte("default ansible_host=127.0.0.1 ansible_port=50000 ansible_user=user1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No `limactl start`: the VM was started outside trellis-cli.
+	commands := []command.MockCommand{
+		{
+			Command: "limactl",
+			Args:    []string{"ls", "--format=json"},
+			Output:  fmt.Sprintf(`{"name":"%s","status":"Running","dir":"%s","vmType":"vz","arch":"aarch64","sshLocalPort":%d}`, instanceName, t.TempDir(), sshPort),
+		},
+		{
+			Command: "limactl",
+			Args:    []string{"shell", instanceName, "whoami"},
+			Output:  "user1\n",
+		},
+	}
+
+	defer command.MockExecCommands(t, commands)()
+
+	if err = manager.StartInstance(instanceName); err != nil {
+		t.Fatal(err)
+	}
+
+	inventoryContents, err := os.ReadFile(manager.InventoryPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The first line has the current port and the username, without a
+	// newline splitting off the ssh args that follow.
+	firstLine, _, _ := strings.Cut(string(inventoryContents), "\n")
+	expected := fmt.Sprintf("default ansible_host=127.0.0.1 ansible_port=%d ansible_user=user1 ansible_ssh_common_args=", sshPort)
+	if !strings.HasPrefix(firstLine, expected) {
+		t.Errorf("expected inventory to start with %q, got %q", expected, string(inventoryContents))
+	}
+
+	if !strings.Contains(ui.OutputWriter.String(), "VM already running") {
+		t.Errorf("expected already running message, got %q", ui.OutputWriter.String())
+	}
+
+	if len(hostsStorage) != 0 {
+		t.Errorf("expected hosts to be left alone, got %v", hostsStorage)
 	}
 }
 
