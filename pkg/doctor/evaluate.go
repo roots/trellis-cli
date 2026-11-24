@@ -2,10 +2,13 @@ package doctor
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/roots/trellis-cli/pkg/lima"
 )
 
 const (
@@ -153,6 +156,40 @@ func (e *evaluator) osRelease() {
 	}
 
 	e.add(r)
+
+	if e.f.OSID != "ubuntu" {
+		return
+	}
+
+	newest := newestSupportedUbuntu()
+	if c, ok := compareVersions(e.f.OSVersion, newest); ok && c < 0 {
+		e.add(Result{
+			ID:      "ubuntu-newer",
+			Title:   "Newer Ubuntu",
+			Status:  StatusInfo,
+			Message: fmt.Sprintf("%s is the newest LTS release Trellis supports", newest),
+			Details: []string{"Trellis doesn't upgrade Ubuntu in place; moving to it means a new server (e.g. `trellis server create`)"},
+		})
+	}
+}
+
+// supportedUbuntu lists the Ubuntu releases Trellis supports: the ones
+// trellis-cli builds VMs with. A var so tests can override it.
+var supportedUbuntu = func() []string {
+	return slices.Collect(maps.Keys(lima.UbuntuImages))
+}
+
+func newestSupportedUbuntu() string {
+	newest := ""
+	for _, v := range supportedUbuntu() {
+		if _, ok := compareVersions(v, v); !ok {
+			continue
+		}
+		if c, _ := compareVersions(v, newest); newest == "" || c > 0 {
+			newest = v
+		}
+	}
+	return newest
 }
 
 // pkgResult evaluates installed vs candidate for a package. upgradable is

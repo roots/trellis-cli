@@ -68,7 +68,7 @@ func TestEvaluateHealthy(t *testing.T) {
 	report := Evaluate(healthyFacts(), testVars, phpRelease("8.3.37", testNow.AddDate(0, 0, -4), true))
 
 	for _, r := range report.Results {
-		if r.Status != StatusOK {
+		if r.Status != StatusOK && (r.Status != StatusInfo || r.ID != "ubuntu-newer") {
 			t.Errorf("%s: expected ok, got %s: %s %v", r.ID, r.Status, r.Message, r.Details)
 		}
 	}
@@ -587,5 +587,42 @@ func TestEvaluateFreshResolute(t *testing.T) {
 		if got := findResult(t, report, id).Status; got != want {
 			t.Errorf("%s: expected %s, got %s", id, want, got)
 		}
+	}
+}
+
+func TestEvaluateNewerUbuntu(t *testing.T) {
+	old := supportedUbuntu
+	supportedUbuntu = func() []string { return []string{"22.04", "26.04", "24.04"} }
+	defer func() { supportedUbuntu = old }()
+
+	report := Evaluate(healthyFacts(), testVars, nil)
+	r := findResult(t, report, "ubuntu-newer")
+	if r.Status != StatusInfo || !strings.Contains(r.Message, "26.04 is the newest LTS release Trellis supports") || r.Title != "Newer Ubuntu" {
+		t.Errorf("unexpected result %+v", r)
+	}
+
+	f := healthyFacts()
+	f.OSVersion = "26.04"
+	if report := Evaluate(f, testVars, nil); hasResultPrefix(report, "ubuntu-newer") {
+		t.Error("didn't expect a newer release on the newest Ubuntu")
+	}
+
+	f.OSID = "debian"
+	if report := Evaluate(f, testVars, nil); hasResultPrefix(report, "ubuntu-newer") {
+		t.Error("didn't expect a newer Ubuntu release on Debian")
+	}
+}
+
+func TestNewestSupportedUbuntu(t *testing.T) {
+	if newest := newestSupportedUbuntu(); newest == "" {
+		t.Error("expected trellis-cli to support at least one Ubuntu release")
+	}
+
+	old := supportedUbuntu
+	supportedUbuntu = func() []string { return []string{"bogus", "24.04", "26.04", "22.04"} }
+	defer func() { supportedUbuntu = old }()
+
+	if newest := newestSupportedUbuntu(); newest != "26.04" {
+		t.Errorf("expected 26.04, got %q", newest)
 	}
 }

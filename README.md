@@ -182,7 +182,7 @@ Supported commands so far:
 
 ### `doctor`
 
-`trellis doctor` checks whether your Trellis project and servers are up to date and prints the `trellis provision` command to fix anything that isn't. On each server it compares the installed Nginx, PHP-FPM and MariaDB with what their apt sources and [php.net](https://www.php.net/releases/) offer, and checks for a required reboot, unattended-upgrades, and the Ubuntu release's end of support. Ubuntu's unattended-upgrades doesn't cover Nginx, PHP or MariaDB, since Trellis installs them from their own repositories.
+`trellis doctor` checks whether your Trellis project and servers are up to date and prints the `trellis provision` command to fix anything that isn't. On each server it compares the installed Nginx, PHP-FPM and MariaDB with what their apt sources and [php.net](https://www.php.net/releases/) offer, and checks for a required reboot, unattended-upgrades, and the Ubuntu release's end of support (and whether a newer LTS release is available). Ubuntu's unattended-upgrades doesn't cover Nginx, PHP or MariaDB, since Trellis installs them from their own repositories.
 
 It connects the same way `trellis provision` does, never uses sudo, and changes nothing on your servers.
 
