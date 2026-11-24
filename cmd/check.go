@@ -13,29 +13,6 @@ type CheckCommand struct {
 	Trellis *trellis.Trellis
 }
 
-var Requirements = []trellis.Requirement{
-	{
-		Name:              "Python",
-		Command:           "python3",
-		Optional:          false,
-		Url:               "https://www.python.org/",
-		VersionConstraint: ">= 3.8.0",
-		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "Python ", "", 1)
-		},
-	},
-	{
-		Name:              "Lima",
-		Command:           "limactl",
-		Optional:          true,
-		Url:               "https://lima-vm.io/",
-		VersionConstraint: ">= 1.0.2",
-		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "limactl version ", "", 1)
-		},
-	},
-}
-
 func (c *CheckCommand) Run(args []string) int {
 	commandArgumentValidator := &CommandArgumentValidator{required: 0, optional: 0}
 	commandArgumentErr := commandArgumentValidator.validate(args)
@@ -51,7 +28,7 @@ func (c *CheckCommand) Run(args []string) int {
 
 	requirementsMet := true
 
-	for _, req := range Requirements {
+	for _, req := range trellis.Requirements {
 		if req.Optional {
 			continue
 		}
@@ -70,7 +47,7 @@ func (c *CheckCommand) Run(args []string) int {
 
 	c.UI.Info("\nOptional:\n")
 
-	for _, req := range Requirements {
+	for _, req := range trellis.Requirements {
 		if !req.Optional {
 			continue
 		}
