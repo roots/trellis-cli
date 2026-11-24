@@ -9,30 +9,6 @@ import (
 	"github.com/mcuadros/go-version"
 )
 
-// Requirements lists the local tools Trellis depends on.
-var Requirements = []Requirement{
-	{
-		Name:              "Python",
-		Command:           "python3",
-		Optional:          false,
-		Url:               "https://www.python.org/",
-		VersionConstraint: ">= 3.8.0",
-		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "Python ", "", 1)
-		},
-	},
-	{
-		Name:              "Lima",
-		Command:           "limactl",
-		Optional:          true,
-		Url:               "https://lima-vm.io/",
-		VersionConstraint: ">= 1.0.2",
-		ExtractVersion: func(output string) string {
-			return strings.Replace(output, "limactl version ", "", 1)
-		},
-	},
-}
-
 type Requirement struct {
 	Name              string
 	Command           string

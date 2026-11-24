@@ -29,11 +29,10 @@ const placeholderHost = "your_server_hostname"
 // doctorUsageError is the exit code when doctor can't run at all.
 const doctorUsageError = 2
 
-func NewDoctorCommand(ui cli.Ui, trellis *trellis.Trellis, cliVersion string) *DoctorCommand {
+func NewDoctorCommand(ui cli.Ui, trellis *trellis.Trellis) *DoctorCommand {
 	c := &DoctorCommand{
-		UI:         ui,
-		Trellis:    trellis,
-		CLIVersion: cliVersion,
+		UI:      ui,
+		Trellis: trellis,
 		stdinIsTerminal: func() bool {
 			return isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
 		},
@@ -43,15 +42,12 @@ func NewDoctorCommand(ui cli.Ui, trellis *trellis.Trellis, cliVersion string) *D
 }
 
 type DoctorCommand struct {
-	UI         cli.Ui
-	Trellis    *trellis.Trellis
-	CLIVersion string
-	flags      *flag.FlagSet
-	json       bool
-	quiet      bool
-	offline    bool
-	strict     bool
-	fix        bool
+	UI      cli.Ui
+	Trellis *trellis.Trellis
+	flags   *flag.FlagSet
+	quiet   bool
+	offline bool
+	fix     bool
 	// stdinIsTerminal reports whether --fix can ask for confirmation.
 	stdinIsTerminal func() bool
 	// Names of the temporary playbook and probe files for this run.
@@ -62,11 +58,9 @@ type DoctorCommand struct {
 func (c *DoctorCommand) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.BoolVar(&c.json, "json", false, "Output as JSON")
 	c.flags.BoolVar(&c.quiet, "q", false, "Only output problems")
 	c.flags.BoolVar(&c.quiet, "quiet", false, "Only output problems")
 	c.flags.BoolVar(&c.offline, "offline", false, "Skip php.net and GitHub lookups")
-	c.flags.BoolVar(&c.strict, "strict", false, "Exit non-zero on warnings too")
 	c.flags.BoolVar(&c.fix, "fix", false, "Offer to run the suggested provision commands")
 }
 
@@ -76,11 +70,6 @@ func (c *DoctorCommand) Run(args []string) int {
 	}
 
 	args = c.flags.Args()
-
-	if c.fix && c.json {
-		c.UI.Error("--fix can't be combined with --json.")
-		return doctorUsageError
-	}
 
 	if c.fix && !c.stdinIsTerminal() {
 		c.UI.Error("--fix asks before running anything, so it needs a terminal. Run the printed `trellis provision` command instead.")
@@ -92,19 +81,15 @@ func (c *DoctorCommand) Run(args []string) int {
 		return doctorUsageError
 	}
 
-	// Keep --quiet (cron) and --json output to what doctor finds.
-	if !c.quiet && !c.json {
+	// Keep --quiet (cron) output to what doctor finds.
+	if !c.quiet {
 		c.Trellis.CheckVirtualenv(c.UI)
 	}
 
 	explicit := len(args) > 0
 	envs := args
 	if !explicit {
-		for _, env := range c.Trellis.EnvironmentNames() {
-			if env != "development" {
-				envs = append(envs, env)
-			}
-		}
+		envs = slices.DeleteFunc(c.Trellis.EnvironmentNames(), func(env string) bool { return env == "development" })
 	}
 
 	for _, env := range envs {
@@ -117,90 +102,45 @@ func (c *DoctorCommand) Run(args []string) int {
 		}
 	}
 
-	if !c.json && !c.quiet && isatty.IsTerminal(os.Stdout.Fd()) {
-		target := "local requirements"
-		if len(envs) > 0 {
-			target = strings.Join(envs, ", ")
-		}
-		c.UI.Info(fmt.Sprintf("Checking %s...\n", target))
+	if !c.quiet && isatty.IsTerminal(os.Stdout.Fd()) && len(envs) > 0 {
+		c.UI.Info(fmt.Sprintf("Checking %s...\n", strings.Join(envs, ", ")))
 	}
 
 	report := &doctor.Report{
-		Schema: doctor.ReportSchema,
-		Local: doctor.LocalChecks(doctor.LocalOptions{
-			CLIVersion:     c.CLIVersion,
-			TrellisVersion: c.Trellis.Version(),
-			Requirements:   trellis.Requirements,
-			CacheDir:       app_paths.CacheDir(),
-			Offline:        c.offline,
-		}),
-		Environments: make([]doctor.EnvReport, len(envs)),
-	}
-
-	var phpNet *doctor.PHPNet
-	var php doctor.PHPReleaseLookup
-	if !c.offline {
-		phpNet = &doctor.PHPNet{}
-		php = phpNet.Release
+		Local: []doctor.Result{doctor.TrellisRelease(c.Trellis.Version(), app_paths.CacheDir(), c.offline)},
 	}
 
 	if len(envs) > 0 {
-		cleanup := c.writePlaybook()
-		defer cleanup()
+		defer c.writePlaybook()()
 
-		// A vault password prompt needs the terminal to itself.
-		if c.Trellis.CliConfig.AskVaultPass || isTruthy(os.Getenv("ANSIBLE_ASK_VAULT_PASS")) {
-			for i, env := range envs {
-				report.Environments[i] = c.checkEnv(env, explicit, php)
-			}
-		} else {
-			var wg sync.WaitGroup
-			for i, env := range envs {
-				wg.Go(func() {
-					report.Environments[i] = c.checkEnv(env, explicit, php)
-				})
-			}
-			wg.Wait()
+		// One at a time, so a vault password or ssh prompt has the terminal.
+		for _, env := range envs {
+			report.Environments = append(report.Environments, c.checkEnv(env, explicit))
 		}
 	}
 
-	if phpNet != nil {
-		if err := phpNet.Err(); err != nil {
-			report.Local = append(report.Local, doctor.Result{
-				ID:      "php-net",
-				Title:   "php.net",
-				Status:  doctor.StatusUnknown,
-				Message: "couldn't fetch PHP releases, so PHP wasn't checked against them",
-				Details: []string{err.Error()},
-			})
-		}
-	}
+	c.printText(report)
 
-	var out bytes.Buffer
-	if c.json {
-		if err := report.WriteJSON(&out); err != nil {
-			c.UI.Error(fmt.Sprintf("Error encoding JSON: %s", err))
-			return doctorUsageError
-		}
-	} else {
-		report.WriteText(&out, c.quiet)
-	}
-	if out.Len() > 0 {
-		c.UI.Output(strings.TrimRight(out.String(), "\n"))
-	}
-
-	if c.fix && !c.applyFixes(report, php) {
+	if c.fix && !c.applyFixes(report) {
 		// A provision run failed, whatever the re-check shows.
 		return 1
 	}
 
-	return report.ExitCode(c.strict)
+	return report.ExitCode()
+}
+
+func (c *DoctorCommand) printText(report *doctor.Report) {
+	var out bytes.Buffer
+	report.WriteText(&out, c.quiet)
+	if out.Len() > 0 {
+		c.UI.Output(strings.TrimRight(out.String(), "\n"))
+	}
 }
 
 // applyFixes offers to run each environment's fix, then checks the fixed
 // environments again and replaces their results in report. It returns false
 // if a provision run failed.
-func (c *DoctorCommand) applyFixes(report *doctor.Report, php doctor.PHPReleaseLookup) bool {
+func (c *DoctorCommand) applyFixes(report *doctor.Report) bool {
 	ok := true
 	var fixed []int
 
@@ -214,20 +154,24 @@ func (c *DoctorCommand) applyFixes(report *doctor.Report, php doctor.PHPReleaseL
 			c.UI.Warn(note)
 		}
 
-		answer, err := c.UI.Ask(fmt.Sprintf("Upgrade %s on %s with `trellis provision`? [y/N]", strings.Join(env.Fix.Tags, ", "), env.Name))
+		var names []string
+		for _, s := range env.Fix.Services {
+			names = append(names, s.Name)
+		}
+
+		answer, err := c.UI.Ask(fmt.Sprintf("Upgrade %s on %s with `trellis provision`? [y/N]", strings.Join(names, ", "), env.Name))
 		if err != nil {
 			// Stop asking (e.g. Ctrl-D), but still check what was fixed.
 			c.UI.Error("Canceled; not running anything else.")
 			break
 		}
 
-		if !isYes(answer) {
+		if answer := strings.ToLower(strings.TrimSpace(answer)); answer != "y" && answer != "yes" {
 			c.UI.Info(fmt.Sprintf("Skipped %s.", env.Name))
 			continue
 		}
 
-		provision := NewProvisionCommand(c.UI, c.Trellis)
-		if code := provision.Run(env.Fix.ProvisionArgs(env.Name)); code != 0 {
+		if NewProvisionCommand(c.UI, c.Trellis).Run(env.Fix.ProvisionArgs()) != 0 {
 			ok = false
 			c.UI.Error(fmt.Sprintf("Provisioning %s failed; checking it again to see where it stands.", env.Name))
 		}
@@ -242,29 +186,17 @@ func (c *DoctorCommand) applyFixes(report *doctor.Report, php doctor.PHPReleaseL
 		return ok
 	}
 
-	recheck := &doctor.Report{Schema: doctor.ReportSchema}
+	recheck := &doctor.Report{}
 	for _, i := range fixed {
 		env := report.Environments[i].Name
 		c.UI.Info(fmt.Sprintf("\nChecking %s again...\n", env))
-		report.Environments[i] = c.checkEnv(env, true, php)
+		report.Environments[i] = c.checkEnv(env, true)
 		recheck.Environments = append(recheck.Environments, report.Environments[i])
 	}
 
-	var out bytes.Buffer
-	recheck.WriteText(&out, c.quiet)
-	if out.Len() > 0 {
-		c.UI.Output(strings.TrimRight(out.String(), "\n"))
-	}
+	c.printText(recheck)
 
 	return ok
-}
-
-func isYes(s string) bool {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "y", "yes":
-		return true
-	}
-	return false
 }
 
 // writePlaybook writes the temporary playbook and probe into the project
@@ -307,7 +239,7 @@ func (c *DoctorCommand) writePlaybook() func() {
 
 // checkEnv probes every web host in an environment. Environments that were
 // never set up are skipped unless explicitly requested.
-func (c *DoctorCommand) checkEnv(env string, explicit bool, php doctor.PHPReleaseLookup) doctor.EnvReport {
+func (c *DoctorCommand) checkEnv(env string, explicit bool) doctor.EnvReport {
 	report := doctor.EnvReport{Name: env}
 
 	notReady := func(reason string) doctor.EnvReport {
@@ -343,88 +275,36 @@ func (c *DoctorCommand) checkEnv(env string, explicit bool, php doctor.PHPReleas
 	// Don't let Ansible consume input meant for --fix's prompts. Password
 	// and host key prompts read from the terminal, not stdin.
 	run.Stdin = nil
-	run.Env = append(run.Environ(), "ANSIBLE_STDOUT_CALLBACK=json")
+	// Errors are shown in the report, so keep Ansible's color codes out.
+	run.Env = append(run.Environ(), "ANSIBLE_STDOUT_CALLBACK=json", "ANSIBLE_FORCE_COLOR=false", "ANSIBLE_NOCOLOR=true")
 	if env == "development" {
 		run.Env = append(run.Env, "ANSIBLE_HOST_KEY_CHECKING=false")
 	}
 
 	runErr := run.Run()
 
-	hosts, err := doctor.ParsePlaybookOutput(stdout.Bytes())
+	result, err := doctor.EvaluateEnv(env, stdout.Bytes(), c.offline)
 	if errors.Is(err, doctor.ErrNoHosts) {
 		return notReady(fmt.Sprintf("no hosts in both the [%s] and [web] groups of the inventory", env))
 	}
 	if err != nil {
-		report.Status, report.Reason = doctor.EnvError, playbookFailure(err, runErr, stderr.String())
+		reason := err.Error()
+		if runErr != nil {
+			reason = fmt.Sprintf("ansible-playbook failed (%s)", runErr)
+		}
+		if msg := lastLines(stderr.String(), 10); msg != "" {
+			reason += ":\n" + msg
+		}
+		report.Status, report.Reason = doctor.EnvError, reason
 		return report
 	}
 
-	report.Status = doctor.EnvChecked
-	var hostReports []doctor.HostReport
-	unchecked := 0
-
-	for _, host := range hosts {
-		result := doctor.HostResult{Name: host.Name, Address: host.Address, User: host.User, Error: host.Error}
-
-		if strings.Contains(result.Error, "Host key verification failed") {
-			result.Error += fmt.Sprintf("\nConnect once with `trellis ssh %s` to accept the server's host key.", env)
-		}
-
-		if result.Error == "" {
-			facts, err := doctor.ParseProbe(host.Probe)
-			if err != nil {
-				result.Error = err.Error()
-			} else {
-				hostReport := doctor.Evaluate(facts, host.Vars, php)
-				result.Results = hostReport.Results
-				hostReports = append(hostReports, hostReport)
-			}
-		}
-
-		if result.Error != "" {
-			unchecked++
-		}
-
-		report.Hosts = append(report.Hosts, result)
-	}
-
-	report.Fix, report.FixNote = doctor.EnvFix(env, hostReports, unchecked)
-
-	return report
-}
-
-// playbookFailure explains why ansible-playbook produced no usable output.
-func playbookFailure(parseErr, runErr error, stderr string) string {
-	// The json stdout callback is in the ansible.posix collection, which the
-	// full `ansible` package includes but ansible-core alone doesn't.
-	if strings.Contains(stderr, "callback") && strings.Contains(stderr, "json") {
-		return "Ansible's json output callback isn't available. It's in the ansible.posix collection, included in the `ansible` package; install it with `ansible-galaxy collection install ansible.posix`."
-	}
-
-	reason := parseErr.Error()
-	if runErr != nil {
-		reason = fmt.Sprintf("ansible-playbook failed (%s)", runErr)
-	}
-	if msg := lastLines(stderr, 10); msg != "" {
-		reason += ":\n" + msg
-	}
-	return reason
+	return result
 }
 
 func lastLines(s string, n int) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
-}
-
-func isTruthy(s string) bool {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "1", "true", "yes", "on", "y":
-		return true
-	}
-	return false
+	return strings.Join(lines[max(len(lines)-n, 0):], "\n")
 }
 
 func (c *DoctorCommand) Synopsis() string {
@@ -435,14 +315,13 @@ func (c *DoctorCommand) Help() string {
 	helpText := `
 Usage: trellis doctor [options] [ENVIRONMENT...]
 
-Checks whether your Trellis project and servers are up to date, and prints
-the command to fix anything that isn't (or can't be confirmed to be).
+Checks whether your Trellis servers are up to date, and prints the command to
+fix anything that isn't (or can't be confirmed to be).
 
-Locally, it checks requirements and whether the project's Trellis is on the
-latest release. On each server, it compares the installed Nginx, PHP-FPM and
-MariaDB with what's available from their apt sources and php.net, and checks
-for a required reboot, unattended-upgrades and the Ubuntu release's support
-window.
+On each server, it compares the installed Nginx, PHP-FPM and MariaDB with
+what's available from their apt sources and php.net, and checks for a
+required reboot, unattended-upgrades and the Ubuntu release's support window.
+It also checks whether the project's Trellis is on the latest release.
 
 It connects the same way 'trellis provision' does. Without --fix, it never
 uses sudo and changes nothing on your servers. It doesn't check WordPress
@@ -475,10 +354,8 @@ Arguments:
                placeholder host are skipped.
 
 Options:
-      --json     Output as JSON
   -q, --quiet    Only output problems; print nothing when all is well
       --offline  Skip php.net and GitHub lookups
-      --strict   Exit with 1 on warnings too
       --fix      Offer to run the suggested provision commands
   -h, --help     Show this help
 
@@ -488,8 +365,8 @@ Statuses:
   ✓ ok   ! warning   ✗ failed   ? couldn't verify   · info   - skipped
 
 Exit codes:
-  0  nothing failed (warnings are allowed without --strict)
-  1  a check failed: something is outdated or a requirement is missing
+  0  nothing failed (warnings are allowed)
+  1  a check failed: something is outdated
   2  nothing failed, but something couldn't be checked or verified (e.g. an
      unreachable server, or no environment was checked), or doctor couldn't
      run
@@ -504,10 +381,8 @@ func (c *DoctorCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *DoctorCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"--json":    complete.PredictNothing,
 		"--quiet":   complete.PredictNothing,
 		"--offline": complete.PredictNothing,
-		"--strict":  complete.PredictNothing,
 		"--fix":     complete.PredictNothing,
 	}
 }

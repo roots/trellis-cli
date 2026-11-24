@@ -13,8 +13,8 @@ func TestUpstreamVersion(t *testing.T) {
 	}
 
 	for in, want := range cases {
-		if got := UpstreamVersion(in); got != want {
-			t.Errorf("UpstreamVersion(%q) = %q, want %q", in, got, want)
+		if got := upstreamVersion(in); got != want {
+			t.Errorf("upstreamVersion(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -28,27 +28,8 @@ func TestBranch(t *testing.T) {
 	}
 
 	for in, want := range cases {
-		if got := Branch(in); got != want {
-			t.Errorf("Branch(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-func TestKernelNewer(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want bool
-	}{
-		{"6.8.0-110-generic", "6.8.0-107-generic", true},
-		{"6.8.0-107-generic", "6.8.0-110-generic", false},
-		{"6.8.0-110-generic", "6.8.0-110-generic", false},
-		{"6.11.0-1-generic", "6.8.0-110-generic", true},
-		{"", "6.8.0-110-generic", false},
-	}
-
-	for _, tc := range cases {
-		if got := kernelNewer(tc.a, tc.b); got != tc.want {
-			t.Errorf("kernelNewer(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		if got := branchOf(in); got != want {
+			t.Errorf("branchOf(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -67,17 +48,5 @@ func TestDisplayVersions(t *testing.T) {
 		if a != tc.wantA || b != tc.wantB {
 			t.Errorf("displayVersions(%q, %q) = %q, %q; want %q, %q", tc.installed, tc.candidate, a, b, tc.wantA, tc.wantB)
 		}
-	}
-}
-
-func TestSummarizeRebootPackages(t *testing.T) {
-	got := summarizeRebootPackages([]string{"libc6", "linux-base", "linux-image-6.8.0-124-generic", "linux-image-6.8.0-149-generic", "linux-image-6.8.0-138-generic"})
-	want := "libc6, linux-base, 3 kernel packages (newest linux-image-6.8.0-149-generic)"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-
-	if got := summarizeRebootPackages([]string{"libc6", "linux-image-6.8.0-149-generic"}); got != "libc6, linux-image-6.8.0-149-generic" {
-		t.Errorf("unexpected short summary %q", got)
 	}
 }

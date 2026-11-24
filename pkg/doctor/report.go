@@ -1,7 +1,6 @@
 package doctor
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"slices"
@@ -10,14 +9,9 @@ import (
 	"github.com/fatih/color"
 )
 
-// ReportSchema is the version of the --json output. Bump it on breaking
-// changes.
-const ReportSchema = 1
-
 type Report struct {
-	Schema       int         `json:"schema"`
-	Local        []Result    `json:"local"`
-	Environments []EnvReport `json:"environments"`
+	Local        []Result
+	Environments []EnvReport
 }
 
 type EnvStatus string
@@ -29,101 +23,79 @@ const (
 )
 
 type EnvReport struct {
-	Name   string       `json:"name"`
-	Status EnvStatus    `json:"status"`
-	Reason string       `json:"reason,omitempty"`
-	Hosts  []HostResult `json:"hosts,omitempty"`
-	Fix    *Fix         `json:"fix,omitempty"`
+	Name   string
+	Status EnvStatus
+	Reason string
+	Hosts  []HostResult
+	Fix    *Fix
 	// FixNote explains why there's no fix when one would otherwise apply.
-	FixNote string `json:"fix_note,omitempty"`
+	FixNote string
 }
 
 type HostResult struct {
-	Name    string   `json:"name"`
-	Address string   `json:"address,omitempty"`
-	User    string   `json:"user,omitempty"`
-	Error   string   `json:"error,omitempty"`
-	Results []Result `json:"results,omitempty"`
+	Name    string
+	Address string
+	User    string
+	// Error is set when the host couldn't be checked.
+	Error   string
+	Results []Result
+
+	// upgrades are services that `trellis provision` can bring up to date.
+	upgrades []*Service
+	// withheld are services that provisioning with the package state set to
+	// latest could switch to another version on this host (or that can't be
+	// judged), so no upgrade command may include them.
+	withheld []*Service
+	// staleLists is true when the apt package lists are too old to confirm
+	// packages are current; such packages are included in upgrades, since
+	// provisioning refreshes the lists first.
+	staleLists bool
 }
 
-// ExitCode is 1 if any check failed (or, with strict, warned), else 2 if
-// anything couldn't be checked (including when no environment was checked
-// at all), else 0.
-func (r *Report) ExitCode(strict bool) int {
-	failed, incomplete := false, !r.CheckedAny()
-
-	check := func(results []Result) {
-		for _, res := range results {
-			switch {
-			case res.Status == StatusFail || (strict && res.Status == StatusWarn):
-				failed = true
-			case res.Status == StatusUnknown:
-				incomplete = true
-			}
-		}
-	}
-
-	check(r.Local)
+// ExitCode is 1 if any check failed, else 2 if anything couldn't be checked
+// (including when no environment was checked at all), else 0.
+func (r *Report) ExitCode() int {
+	results := slices.Clone(r.Local)
+	incomplete := !r.checkedAny()
 
 	for _, env := range r.Environments {
-		if env.Status == EnvError {
-			incomplete = true
-		}
+		incomplete = incomplete || env.Status == EnvError
 		for _, host := range env.Hosts {
-			if host.Error != "" {
-				incomplete = true
-			}
-			check(host.Results)
+			incomplete = incomplete || host.Error != ""
+			results = append(results, host.Results...)
 		}
 	}
 
 	switch {
-	case failed:
+	case slices.ContainsFunc(results, func(res Result) bool { return res.Status == StatusFail }):
 		return 1
-	case incomplete:
+	case incomplete || slices.ContainsFunc(results, func(res Result) bool { return res.Status == StatusUnknown }):
 		return 2
 	default:
 		return 0
 	}
 }
 
-// CheckedAny reports whether at least one environment was checked.
-func (r *Report) CheckedAny() bool {
-	for _, env := range r.Environments {
-		if env.Status == EnvChecked {
-			return true
-		}
-	}
-	return false
+func (r *Report) checkedAny() bool {
+	return slices.ContainsFunc(r.Environments, func(e EnvReport) bool { return e.Status == EnvChecked })
 }
 
-func (r *Report) WriteJSON(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(r)
+var statusStyles = map[Status]struct {
+	symbol string
+	color  *color.Color
+}{
+	StatusOK:      {"✓", color.New(color.FgGreen)},
+	StatusWarn:    {"!", color.New(color.FgYellow)},
+	StatusFail:    {"✗", color.New(color.FgRed)},
+	StatusUnknown: {"?", color.New(color.FgMagenta)},
+	StatusInfo:    {"·", color.New(color.FgBlue)},
+	StatusSkip:    {"-", color.New(color.Faint)},
 }
 
-var statusSymbols = map[Status]string{
-	StatusOK:      "✓",
-	StatusWarn:    "!",
-	StatusFail:    "✗",
-	StatusUnknown: "?",
-	StatusInfo:    "·",
-	StatusSkip:    "-",
-}
+var bold = color.New(color.Bold).SprintFunc()
 
-var statusColors = map[Status]*color.Color{
-	StatusOK:      color.New(color.FgGreen),
-	StatusWarn:    color.New(color.FgYellow),
-	StatusFail:    color.New(color.FgRed),
-	StatusUnknown: color.New(color.FgMagenta),
-	StatusInfo:    color.New(color.FgBlue),
-	StatusSkip:    color.New(color.Faint),
-}
-
-// notable results are shown in quiet mode.
-func notable(r Result) bool {
-	return r.Status == StatusFail || r.Status == StatusWarn || r.Status == StatusUnknown
+func symbol(s Status) string {
+	return statusStyles[s].color.Sprint(statusStyles[s].symbol)
 }
 
 // WriteText writes the human-readable report. In quiet mode only problems
@@ -141,8 +113,8 @@ func (r *Report) WriteText(w io.Writer, quiet bool) {
 		}
 	}
 
-	if !r.CheckedAny() {
-		notice := color.New(color.Bold).Sprint("No servers were checked.")
+	if !r.checkedAny() {
+		notice := bold("No servers were checked.")
 		// Only suggest naming an environment when they were all skipped;
 		// otherwise each one's reason is already shown.
 		if !slices.ContainsFunc(r.Environments, func(e EnvReport) bool { return e.Status == EnvError }) {
@@ -158,12 +130,10 @@ func (r *Report) WriteText(w io.Writer, quiet bool) {
 
 // couldntCheck formats an environment or host that couldn't be checked.
 func couldntCheck(reason string) string {
-	return fmt.Sprintf("  %s couldn't check: %s\n", statusColors[StatusUnknown].Sprint(statusSymbols[StatusUnknown]), indentContinuation(reason, "    "))
+	return fmt.Sprintf("  %s couldn't check: %s\n", symbol(StatusUnknown), strings.ReplaceAll(strings.TrimSpace(reason), "\n", "\n    "))
 }
 
 func renderEnv(env EnvReport, quiet bool) string {
-	bold := color.New(color.Bold).SprintFunc()
-
 	switch env.Status {
 	case EnvSkipped:
 		if quiet {
@@ -174,52 +144,40 @@ func renderEnv(env EnvReport, quiet bool) string {
 		return bold(env.Name) + "\n" + couldntCheck(env.Reason)
 	}
 
-	var b strings.Builder
-	multiHost := len(env.Hosts) > 1
+	var sections []string
 
-	for i, host := range env.Hosts {
+	for _, host := range env.Hosts {
 		heading := env.Name
-		if multiHost || host.Address != "" {
+		if len(env.Hosts) > 1 || host.Address != "" {
 			heading += " · " + hostLabel(host)
 		}
 
 		if host.Error != "" {
-			if i > 0 {
-				b.WriteString("\n")
+			sections = append(sections, bold(heading)+"\n"+couldntCheck(host.Error))
+		} else if body := renderResults("", host.Results, quiet); body != "" {
+			sections = append(sections, bold(heading)+"\n"+body)
+		}
+	}
+
+	if env.Fix != nil || env.FixNote != "" {
+		if len(sections) == 0 {
+			sections = append(sections, bold(env.Name)+"\n")
+		}
+
+		var fix strings.Builder
+		fix.WriteString("  " + bold("Fix:"))
+		if env.Fix == nil {
+			fmt.Fprintf(&fix, " No upgrade command suggested because %s.\n", env.FixNote)
+		} else {
+			fix.WriteString("\n")
+			for _, line := range append(slices.Clone(env.Fix.Notes), env.Fix.Command) {
+				fmt.Fprintf(&fix, "    %s\n", line)
 			}
-			b.WriteString(bold(heading) + "\n" + couldntCheck(host.Error))
-			continue
 		}
-
-		body := renderResults("", host.Results, quiet)
-		if body == "" {
-			continue
-		}
-		if b.Len() > 0 {
-			b.WriteString("\n")
-		}
-		b.WriteString(bold(heading) + "\n" + body)
+		sections = append(sections, fix.String())
 	}
 
-	if env.Fix == nil && env.FixNote != "" {
-		if b.Len() == 0 {
-			b.WriteString(bold(env.Name) + "\n")
-		}
-		fmt.Fprintf(&b, "\n  %s No upgrade command suggested because %s.\n", bold("Fix:"), env.FixNote)
-	}
-
-	if env.Fix != nil {
-		if b.Len() == 0 {
-			b.WriteString(bold(env.Name) + "\n")
-		}
-		b.WriteString("\n  " + bold("Fix:") + "\n")
-		for _, note := range env.Fix.Notes {
-			fmt.Fprintf(&b, "    %s\n", note)
-		}
-		fmt.Fprintf(&b, "    %s\n", env.Fix.Command)
-	}
-
-	return b.String()
+	return strings.Join(sections, "\n")
 }
 
 func hostLabel(h HostResult) string {
@@ -234,12 +192,10 @@ func hostLabel(h HostResult) string {
 }
 
 func renderResults(heading string, results []Result, quiet bool) string {
-	var shown []Result
-	for _, r := range results {
-		if !quiet || notable(r) {
-			shown = append(shown, r)
-		}
-	}
+	// Quiet mode shows only problems.
+	shown := slices.DeleteFunc(slices.Clone(results), func(r Result) bool {
+		return quiet && r.Status != StatusFail && r.Status != StatusWarn && r.Status != StatusUnknown
+	})
 
 	if len(shown) == 0 {
 		return ""
@@ -252,21 +208,17 @@ func renderResults(heading string, results []Result, quiet bool) string {
 
 	var b strings.Builder
 	if heading != "" {
-		b.WriteString(color.New(color.Bold).Sprint(heading) + "\n")
+		b.WriteString(bold(heading) + "\n")
 	}
 
 	pad := strings.Repeat(" ", 4+width+2)
 	for _, r := range shown {
 		title := r.Title + strings.Repeat(" ", width-len([]rune(r.Title)))
-		fmt.Fprintf(&b, "  %s %s  %s\n", statusColors[r.Status].Sprint(statusSymbols[r.Status]), title, r.Message)
+		fmt.Fprintf(&b, "  %s %s  %s\n", symbol(r.Status), title, r.Message)
 		for _, d := range r.Details {
 			fmt.Fprintf(&b, "%s%s\n", pad, color.New(color.Faint).Sprint(d))
 		}
 	}
 
 	return b.String()
-}
-
-func indentContinuation(s, indent string) string {
-	return strings.ReplaceAll(strings.TrimSpace(s), "\n", "\n"+indent)
 }

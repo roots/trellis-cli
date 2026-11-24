@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
-	"strconv"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -28,15 +28,15 @@ const (
 // group in the inventory.
 var ErrNoHosts = errors.New("no hosts in the inventory's web group for this environment")
 
-// HostRun is the playbook's outcome for one host.
-type HostRun struct {
-	Name    string      `json:"name"`
-	Address string      `json:"address,omitempty"`
-	User    string      `json:"user,omitempty"`
-	Vars    ProjectVars `json:"-"`
-	Probe   string      `json:"-"`
+// hostRun is the playbook's outcome for one host.
+type hostRun struct {
+	Name    string
+	Address string
+	User    string
+	Vars    projectVars
+	Probe   string
 	// Error is set when the host couldn't be probed.
-	Error string `json:"error,omitempty"`
+	Error string
 }
 
 type ansibleOutput struct {
@@ -60,40 +60,17 @@ type taskResult struct {
 	Unreachable bool            `json:"unreachable"`
 }
 
-// varsMsg is the vars task's message. Values are decoded loosely: the
-// playbook converts them to strings, but older or customized setups could
-// still report numbers (e.g. an unquoted `php_version: 8.3`).
+// varsMsg is the vars task's message. The playbook converts each value to a
+// string.
 type varsMsg struct {
-	Vars map[string]any `json:"vars"`
-	Host any            `json:"host"`
-	User any            `json:"user"`
+	Vars projectVars `json:"vars"`
+	Host string      `json:"host"`
+	User string      `json:"user"`
 }
 
-func (m varsMsg) projectVars() ProjectVars {
-	return ProjectVars{
-		PHPVersion:           scalarString(m.Vars["php_version"]),
-		MariaDBVersion:       scalarString(m.Vars["mariadb_version"]),
-		NginxPackage:         scalarString(m.Vars["nginx_package"]),
-		MariaDBServerPackage: scalarString(m.Vars["mariadb_server_package"]),
-	}
-}
-
-func scalarString(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return ""
-	case string:
-		return x
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	default:
-		return fmt.Sprint(x)
-	}
-}
-
-// ParsePlaybookOutput parses ansible-playbook output from the json stdout
-// callback into one HostRun per host, sorted by name.
-func ParsePlaybookOutput(stdout []byte) ([]HostRun, error) {
+// parsePlaybookOutput parses ansible-playbook output from the json stdout
+// callback into one hostRun per host, sorted by name.
+func parsePlaybookOutput(stdout []byte) ([]hostRun, error) {
 	var out ansibleOutput
 	if err := json.Unmarshal(stdout, &out); err != nil {
 		return nil, fmt.Errorf("couldn't parse ansible-playbook output: %w", err)
@@ -103,9 +80,10 @@ func ParsePlaybookOutput(stdout []byte) ([]HostRun, error) {
 		return nil, ErrNoHosts
 	}
 
-	runs := map[string]*HostRun{}
+	runs := map[string]*hostRun{}
+	varsRead := map[string]bool{}
 	for name := range out.Stats {
-		runs[name] = &HostRun{Name: name}
+		runs[name] = &hostRun{Name: name}
 	}
 
 	for _, play := range out.Plays {
@@ -124,8 +102,8 @@ func ParsePlaybookOutput(stdout []byte) ([]HostRun, error) {
 				case varsTaskName:
 					var msg varsMsg
 					if err := json.Unmarshal(res.Msg, &msg); err == nil {
-						run.Vars = msg.projectVars()
-						run.Address, run.User = scalarString(msg.Host), scalarString(msg.User)
+						run.Vars, run.Address, run.User = msg.Vars, msg.Host, msg.User
+						varsRead[host] = true
 					}
 				case probeTaskName:
 					if !res.Failed && !res.Unreachable {
@@ -136,17 +114,19 @@ func ParsePlaybookOutput(stdout []byte) ([]HostRun, error) {
 		}
 	}
 
-	names := make([]string, 0, len(runs))
-	for name := range runs {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(runs))
 
-	result := make([]HostRun, 0, len(names))
+	result := make([]hostRun, 0, len(names))
 	for _, name := range names {
 		run := runs[name]
-		if run.Probe == "" && run.Error == "" {
+		switch {
+		case run.Error != "":
+		case run.Probe == "":
 			run.Error = "probe didn't run"
+		case !varsRead[name]:
+			// Without the project's package names and versions, packages
+			// would look uninstalled.
+			run.Error = "couldn't read the project's variables for this host"
 		}
 		result = append(result, *run)
 	}
@@ -172,5 +152,13 @@ func resultMessage(res taskResult) string {
 		msg = "failed"
 	}
 
-	return strings.TrimSpace(msg)
+	// Some failures (e.g. Trellis's host key check) include pages of
+	// verbose ssh output; the first lines say what happened.
+	const maxLines = 8
+	lines := strings.Split(strings.TrimSpace(msg), "\n")
+	if len(lines) > maxLines {
+		lines = append(lines[:maxLines], "…")
+	}
+
+	return strings.Join(lines, "\n")
 }

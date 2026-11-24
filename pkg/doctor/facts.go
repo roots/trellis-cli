@@ -4,7 +4,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,10 +20,9 @@ const (
 	probeVersion = "v=1"
 )
 
-var ErrProbeTruncated = errors.New("probe output was truncated (no end marker)")
+var errProbeTruncated = errors.New("probe output was truncated (no end marker)")
 
-type Package struct {
-	Name      string
+type aptPackage struct {
 	Installed string // dpkg version, "" if not installed
 	// Candidate is the dpkg version apt would install, "" if none. When an
 	// installed package's source is gone, apt reports the installed version
@@ -39,28 +39,22 @@ type Package struct {
 	AptError bool
 }
 
-// Facts are what the probe collected on one host.
-type Facts struct {
+// hostFacts are what the probe collected on one host.
+type hostFacts struct {
 	Now time.Time
 
 	OSID      string
 	OSVersion string
 	OSName    string
-	Codename  string
 	OSEOL     time.Time // zero if unknown
 
-	KernelRunning string
-	KernelLatest  string
-	Uptime        time.Duration
-
+	Uptime         time.Duration
 	RebootRequired bool
-	RebootPackages []string
-	RebootNotifier bool
 
 	AptUpdated time.Time // last successful `apt-get update`, zero if unknown
 
-	// Pending updates from update-notifier's apt-check; -1 if unknown.
-	UpdatesPending  int
+	// Pending security updates, from update-notifier's apt-check; -1 if
+	// unknown.
 	SecurityPending int
 	// SecurityApprox is true when SecurityPending was counted from
 	// `apt list --upgradable` because apt-check isn't available.
@@ -75,12 +69,12 @@ type Facts struct {
 	// state ("active", "inactive", ...).
 	PHPFPM map[string]string
 
-	Packages map[string]*Package
+	Packages map[string]*aptPackage
 }
 
-// ParseProbe parses the output of probe.sh. Lines outside the begin/end
+// parseProbe parses the output of probe.sh. Lines outside the begin/end
 // markers are ignored.
-func ParseProbe(output string) (*Facts, error) {
+func parseProbe(output string) (*hostFacts, error) {
 	values := map[string]string{}
 	begun, ended := false, false
 
@@ -113,30 +107,26 @@ func ParseProbe(output string) (*Facts, error) {
 		return nil, errors.New("no probe output found")
 	}
 	if !ended {
-		return nil, ErrProbeTruncated
+		return nil, errProbeTruncated
 	}
 
 	return newFacts(values), nil
 }
 
-func newFacts(v map[string]string) *Facts {
-	f := &Facts{
-		Now:            unixTime(v["now"]),
-		OSID:           v["os.id"],
-		OSVersion:      v["os.version_id"],
-		OSName:         v["os.name"],
-		Codename:       v["os.codename"],
-		KernelRunning:  v["kernel.running"],
-		KernelLatest:   v["kernel.latest"],
-		RebootRequired: v["reboot.required"] == "1",
-		RebootNotifier: v["reboot.notifier"] == "1",
-		UpdatesPending: -1,
-		UUInstalled:    v["uu.installed"] == "1",
-		UUSetting:      v["uu.setting"],
-		UUTimer:        v["uu.timer"],
-		UURan:          unixTime(v["uu.stamp"]),
-		PHPFPM:         map[string]string{},
-		Packages:       map[string]*Package{},
+func newFacts(v map[string]string) *hostFacts {
+	f := &hostFacts{
+		Now:             unixTime(v["now"]),
+		OSID:            v["os.id"],
+		OSVersion:       v["os.version_id"],
+		OSName:          v["os.name"],
+		RebootRequired:  v["reboot.required"] == "1",
+		SecurityPending: -1,
+		UUInstalled:     v["uu.installed"] == "1",
+		UUSetting:       v["uu.setting"],
+		UUTimer:         v["uu.timer"],
+		UURan:           unixTime(v["uu.stamp"]),
+		PHPFPM:          map[string]string{},
+		Packages:        map[string]*aptPackage{},
 	}
 
 	if f.Now.IsZero() {
@@ -151,22 +141,15 @@ func newFacts(v map[string]string) *Facts {
 		f.Uptime = time.Duration(secs) * time.Second
 	}
 
-	if pkgs := v["reboot.pkgs"]; pkgs != "" {
-		f.RebootPackages = strings.Split(pkgs, ",")
-	}
-
 	f.AptUpdated = unixTime(v["apt.update_success"])
 	if f.AptUpdated.IsZero() {
 		f.AptUpdated = unixTime(v["apt.pkgcache"])
 	}
 
-	f.SecurityPending = -1
-	if updates, security, ok := strings.Cut(v["apt.check"], ";"); ok {
-		u, errU := strconv.Atoi(updates)
-		s, errS := strconv.Atoi(security)
-		if errU == nil && errS == nil {
-			f.UpdatesPending = u
-			f.SecurityPending = s
+	// apt-check prints "updates;security".
+	if _, security, ok := strings.Cut(v["apt.check"], ";"); ok {
+		if n, err := strconv.Atoi(security); err == nil {
+			f.SecurityPending = n
 		}
 	} else if n, err := strconv.Atoi(v["apt.upgradable_security"]); err == nil {
 		f.SecurityPending = n
@@ -193,7 +176,7 @@ func newFacts(v map[string]string) *Facts {
 
 		pkg, ok := f.Packages[name]
 		if !ok {
-			pkg = &Package{Name: name}
+			pkg = &aptPackage{}
 			f.Packages[name] = pkg
 		}
 
@@ -216,20 +199,14 @@ func newFacts(v map[string]string) *Facts {
 	return f
 }
 
-// PHPBranches returns installed PHP-FPM branches, sorted.
-func (f *Facts) PHPBranches() []string {
-	branches := make([]string, 0, len(f.PHPFPM))
-	for b := range f.PHPFPM {
-		branches = append(branches, b)
-	}
-	sort.Slice(branches, func(i, j int) bool {
-		c, ok := compareVersions(branches[i], branches[j])
-		if !ok {
-			return branches[i] < branches[j]
+// phpBranches returns installed PHP-FPM branches, sorted.
+func (f *hostFacts) phpBranches() []string {
+	return slices.SortedFunc(maps.Keys(f.PHPFPM), func(a, b string) int {
+		if c, ok := compareVersions(a, b); ok {
+			return c
 		}
-		return c < 0
+		return strings.Compare(a, b)
 	})
-	return branches
 }
 
 func unixTime(s string) time.Time {

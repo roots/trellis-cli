@@ -77,7 +77,6 @@ if [ -r /etc/os-release ]; then
   . /etc/os-release
   kv os.id "$ID"
   kv os.version_id "$VERSION_ID"
-  kv os.codename "$VERSION_CODENAME"
   kv os.name "$PRETTY_NAME"
 
   if [ -r /usr/share/distro-info/ubuntu.csv ] && [ -n "$VERSION_CODENAME" ]; then
@@ -87,25 +86,12 @@ if [ -r /etc/os-release ]; then
   fi
 fi
 
-running=$(uname -r)
-kv kernel.running "$running"
-flavor=${running##*-}
-# Kernel images are root-only (0600) but their names are listable.
-kv kernel.latest "$(for k in /boot/vmlinuz-*-"$flavor"; do [ -e "$k" ] && printf '%s\n' "${k#/boot/vmlinuz-}"; done | sort -V | tail -n 1)"
 kv uptime "$(cut -d. -f1 /proc/uptime 2>/dev/null)"
 
 if [ -e /var/run/reboot-required ]; then
   kv reboot.required 1
 else
   kv reboot.required 0
-fi
-if [ -r /var/run/reboot-required.pkgs ]; then
-  kv reboot.pkgs "$(sort -u /var/run/reboot-required.pkgs | paste -sd, -)"
-fi
-if [ -x /usr/share/update-notifier/notify-reboot-required ]; then
-  kv reboot.notifier 1
-else
-  kv reboot.notifier 0
 fi
 
 kv apt.update_success "$(mtime /var/lib/apt/periodic/update-success-stamp)"

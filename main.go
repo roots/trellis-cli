@@ -81,7 +81,7 @@ func main() {
 			return cmd.NewDotEnvCommand(ui, trellis), nil
 		},
 		"doctor": func() (cli.Command, error) {
-			return cmd.NewDoctorCommand(ui, trellis, c.Version), nil
+			return cmd.NewDoctorCommand(ui, trellis), nil
 		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
@@ -263,8 +263,7 @@ func main() {
 			color.YellowString(newRelease.URL),
 		)
 
-		// stderr keeps it out of command output such as --json.
-		fmt.Fprintln(os.Stderr, msg)
+		ui.Info(msg)
 	}
 
 	os.Exit(exitStatus)

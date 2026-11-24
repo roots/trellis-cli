@@ -16,18 +16,9 @@ const (
 )
 
 type Result struct {
-	ID      string   `json:"id"`
-	Title   string   `json:"title"`
-	Status  Status   `json:"status"`
-	Message string   `json:"message"`
-	Details []string `json:"details,omitempty"`
+	ID      string
+	Title   string
+	Status  Status
+	Message string
+	Details []string
 }
-
-// Service is a Trellis-managed service that `trellis provision` can upgrade.
-type Service string
-
-const (
-	ServiceNginx   Service = "nginx"
-	ServicePHP     Service = "php"
-	ServiceMariaDB Service = "mariadb"
-)

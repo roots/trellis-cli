@@ -18,19 +18,19 @@ func readFixture(t *testing.T, name string) string {
 }
 
 func TestParseProbeFixture(t *testing.T) {
-	f, err := ParseProbe(readFixture(t, "noble_outdated.txt"))
+	f, err := parseProbe(readFixture(t, "noble_outdated.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if f.OSID != "ubuntu" || f.OSVersion != "24.04" || f.Codename != "noble" {
-		t.Errorf("unexpected OS: %q %q %q", f.OSID, f.OSVersion, f.Codename)
+	if f.OSID != "ubuntu" || f.OSVersion != "24.04" {
+		t.Errorf("unexpected OS: %q %q", f.OSID, f.OSVersion)
 	}
 	if f.OSEOL.Format(time.DateOnly) != "2029-05-31" {
 		t.Errorf("unexpected EOL: %v", f.OSEOL)
 	}
-	if f.UpdatesPending != 333 || f.SecurityPending != 209 || f.SecurityApprox {
-		t.Errorf("unexpected updates: %d;%d approx=%v", f.UpdatesPending, f.SecurityPending, f.SecurityApprox)
+	if f.SecurityPending != 209 || f.SecurityApprox {
+		t.Errorf("unexpected security updates: %d approx=%v", f.SecurityPending, f.SecurityApprox)
 	}
 	if !f.UUInstalled || f.UUSetting != "1" || f.UUTimer != "enabled" || f.UURan.IsZero() {
 		t.Errorf("unexpected unattended-upgrades facts: %+v", f)
@@ -38,8 +38,8 @@ func TestParseProbeFixture(t *testing.T) {
 	if f.PHPFPM["8.3"] != "inactive" || f.PHPFPM["8.4"] != "active" {
 		t.Errorf("unexpected PHP-FPM: %v", f.PHPFPM)
 	}
-	if got := strings.Join(f.PHPBranches(), ","); got != "8.3,8.4" {
-		t.Errorf("PHPBranches() = %q", got)
+	if got := strings.Join(f.phpBranches(), ","); got != "8.3,8.4" {
+		t.Errorf("phpBranches() = %q", got)
 	}
 
 	php := f.Packages["php8.4-fpm"]
@@ -64,7 +64,7 @@ func TestParseProbeIgnoresNoiseAndCRLF(t *testing.T) {
 		"doctor_end\r\n" +
 		"after=ignored\r\n"
 
-	f, err := ParseProbe(out)
+	f, err := parseProbe(out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,13 +79,13 @@ func TestParseProbeIgnoresNoiseAndCRLF(t *testing.T) {
 	if _, ok := f.Packages["after"]; ok {
 		t.Error("parsed a line after the end marker")
 	}
-	if f.SecurityPending != -1 || f.UpdatesPending != -1 {
-		t.Errorf("missing apt-check should be unknown, got %d;%d", f.UpdatesPending, f.SecurityPending)
+	if f.SecurityPending != -1 {
+		t.Errorf("missing apt-check should be unknown, got %d", f.SecurityPending)
 	}
 }
 
 func TestParseProbeAptError(t *testing.T) {
-	f, err := ParseProbe("doctor_begin v=1\npkg.nginx.error=1\npkg.nginx.installed=1.29.1-1~noble\ndoctor_end\n")
+	f, err := parseProbe("doctor_begin v=1\npkg.nginx.error=1\npkg.nginx.installed=1.29.1-1~noble\ndoctor_end\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestParseProbeAptError(t *testing.T) {
 }
 
 func TestParseProbeApproxSecurityCount(t *testing.T) {
-	f, err := ParseProbe("doctor_begin v=1\napt.upgradable_security=4\ndoctor_end\n")
+	f, err := parseProbe("doctor_begin v=1\napt.upgradable_security=4\ndoctor_end\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,13 +105,13 @@ func TestParseProbeApproxSecurityCount(t *testing.T) {
 }
 
 func TestParseProbeErrors(t *testing.T) {
-	if _, err := ParseProbe("doctor_begin v=1\nnow=1\n"); !errors.Is(err, ErrProbeTruncated) {
+	if _, err := parseProbe("doctor_begin v=1\nnow=1\n"); !errors.Is(err, errProbeTruncated) {
 		t.Errorf("expected truncated error, got %v", err)
 	}
-	if _, err := ParseProbe("bash: line 1: sh: not found\n"); err == nil {
+	if _, err := parseProbe("bash: line 1: sh: not found\n"); err == nil {
 		t.Error("expected error for missing output")
 	}
-	if _, err := ParseProbe("doctor_begin v=2\ndoctor_end\n"); err == nil {
+	if _, err := parseProbe("doctor_begin v=2\ndoctor_end\n"); err == nil {
 		t.Error("expected error for unsupported version")
 	}
 }
