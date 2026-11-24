@@ -36,11 +36,15 @@ var serviceOrder = []Service{ServiceNginx, ServicePHP, ServiceMariaDB}
 // withheld it, and there's no fix when a host couldn't be checked. note
 // explains a missing fix when there would otherwise have been one.
 func EnvFix(env string, hosts []HostReport, unchecked int) (fix *Fix, note string) {
-	var upgrades, withheld []Service
+	// confirmed are upgrades known to be needed on at least one host.
+	var upgrades, withheld, confirmed []Service
 	for _, h := range hosts {
 		for _, s := range h.Upgrades {
 			if !slices.Contains(upgrades, s) {
 				upgrades = append(upgrades, s)
+			}
+			if !slices.Contains(h.Unconfirmed, s) {
+				confirmed = append(confirmed, s)
 			}
 		}
 		withheld = append(withheld, h.Withheld...)
@@ -52,7 +56,49 @@ func EnvFix(env string, hosts []HostReport, unchecked int) (fix *Fix, note strin
 		return nil, "not every host could be checked, and provisioning runs on all of them"
 	}
 
-	return NewFix(env, upgrades), ""
+	fix = NewFix(env, upgrades)
+	if fix == nil {
+		return nil, ""
+	}
+
+	var unconfirmed []string
+	for _, s := range serviceOrder {
+		if slices.Contains(upgrades, s) && !slices.Contains(confirmed, s) {
+			unconfirmed = append(unconfirmed, serviceNames[s])
+		}
+	}
+
+	if len(unconfirmed) > 0 {
+		notes := []string{fmt.Sprintf("Includes %s because the package lists are out of date; provisioning refreshes them and only upgrades what's newer", joinAnd(unconfirmed))}
+		for _, n := range fix.Notes {
+			if n == mariaDBBackupNote && slices.Contains(unconfirmed, serviceNames[ServiceMariaDB]) {
+				n = "If MariaDB has an update, back up your databases first"
+			}
+			notes = append(notes, n)
+		}
+		fix.Notes = notes
+	}
+
+	return fix, ""
+}
+
+var serviceNames = map[Service]string{
+	ServiceNginx:   "Nginx",
+	ServicePHP:     "PHP",
+	ServiceMariaDB: "MariaDB",
+}
+
+const mariaDBBackupNote = "Back up your databases before upgrading MariaDB"
+
+func joinAnd(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	default:
+		return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
+	}
 }
 
 // NewFix returns the command that upgrades services in an environment, or
@@ -79,7 +125,7 @@ func NewFix(env string, services []Service) *Fix {
 	}
 
 	if slices.Contains(services, ServiceMariaDB) {
-		fix.Notes = append(fix.Notes, "Back up your databases before upgrading MariaDB")
+		fix.Notes = append(fix.Notes, mariaDBBackupNote)
 	}
 
 	return fix

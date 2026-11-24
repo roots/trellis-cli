@@ -139,6 +139,22 @@ func TestEvaluate(t *testing.T) {
 			name:   "current but apt lists stale",
 			mutate: func(f *Facts) { f.AptUpdated = testNow.AddDate(0, 0, -5) },
 			id:     "nginx", status: StatusUnknown, contains: "5 days ago",
+			upgrades: []Service{ServiceNginx, ServicePHP, ServiceMariaDB},
+		},
+		{
+			name: "stale apt lists and held",
+			mutate: func(f *Facts) {
+				f.AptUpdated = testNow.AddDate(0, 0, -5)
+				f.Packages["nginx"].Held = true
+			},
+			id: "nginx", status: StatusUnknown, upgrades: []Service{ServicePHP, ServiceMariaDB},
+		},
+		{
+			name:   "stale apt lists with unknown mariadb_version",
+			mutate: func(f *Facts) { f.AptUpdated = testNow.AddDate(0, 0, -5) },
+			vars:   &ProjectVars{PHPVersion: "8.3"},
+			id:     "mariadb", status: StatusUnknown, upgrades: []Service{ServiceNginx, ServicePHP},
+			contains: "can't confirm it's the latest",
 		},
 		{
 			name: "behind with stale lists is still a failure",
@@ -147,7 +163,7 @@ func TestEvaluate(t *testing.T) {
 				p := f.Packages["nginx"]
 				p.Installed, p.Cmp = "1.29.1-1~noble", "lt"
 			},
-			id: "nginx", status: StatusFail, upgrades: []Service{ServiceNginx},
+			id: "nginx", status: StatusFail, upgrades: []Service{ServiceNginx, ServicePHP, ServiceMariaDB},
 		},
 		{
 			name:   "no candidate",
@@ -395,7 +411,7 @@ func TestEvaluate(t *testing.T) {
 			mutate: func(f *Facts) { f.AptUpdated = testNow.AddDate(0, 0, -5) },
 			php:    phpRelease("8.3.38", testNow.AddDate(0, 0, -1), true),
 			id:     "php", status: StatusFail, contains: "predate",
-			upgrades: []Service{ServicePHP},
+			upgrades: []Service{ServiceNginx, ServicePHP, ServiceMariaDB},
 		},
 		{
 			name: "drifted php_version installed but inactive isn't a leftover",
@@ -438,6 +454,7 @@ func TestEvaluate(t *testing.T) {
 				f.AptUpdated = time.Time{}
 			},
 			id: "unattended-upgrades", status: StatusInfo,
+			upgrades: []Service{ServiceNginx, ServicePHP, ServiceMariaDB},
 		},
 		{
 			name:   "ubuntu past end of support",
@@ -643,5 +660,57 @@ func TestEvaluateWithheld(t *testing.T) {
 
 	if report := Evaluate(healthyFacts(), testVars, nil); len(report.Withheld) != 0 {
 		t.Errorf("expected nothing withheld, got %v", report.Withheld)
+	}
+}
+
+func TestEvaluateUnconfirmed(t *testing.T) {
+	f := healthyFacts()
+	f.AptUpdated = testNow.AddDate(0, 0, -5)
+	f.Packages["nginx"].Installed, f.Packages["nginx"].Cmp = "1.29.1-1~noble", "lt"
+
+	report := Evaluate(f, testVars, phpRelease("8.3.38", testNow.AddDate(0, 0, -1), true))
+
+	// nginx is known to be outdated, and php.net confirms the PHP release;
+	// only MariaDB is included without knowing.
+	if !slices.Equal(report.Unconfirmed, []Service{ServiceMariaDB}) {
+		t.Errorf("expected only MariaDB unconfirmed, got %v", report.Unconfirmed)
+	}
+
+	// Withheld services never claim they'll be upgraded.
+	f = healthyFacts()
+	f.AptUpdated = testNow.AddDate(0, 0, -5)
+	report = Evaluate(f, ProjectVars{PHPVersion: "8.3"}, nil)
+	r := findResult(t, report, "mariadb")
+	for _, d := range r.Details {
+		if strings.Contains(d, "refreshes") {
+			t.Errorf("withheld MariaDB shouldn't mention the upgrade command: %v", r.Details)
+		}
+	}
+}
+
+func TestEvaluateHeldStalePHPRelease(t *testing.T) {
+	f := healthyFacts()
+	f.AptUpdated = testNow.AddDate(0, 0, -5)
+	f.Packages["php8.3-fpm"].Held = true
+
+	r := findResult(t, Evaluate(f, testVars, phpRelease("8.3.38", testNow.AddDate(0, 0, -1), true)), "php")
+
+	text := strings.Join(r.Details, "\n")
+	if n := strings.Count(text, "is held"); n != 1 || !strings.Contains(text, "apt-mark unhold php8.3-fpm") {
+		t.Errorf("expected one held detail with the unhold hint, got %v", r.Details)
+	}
+}
+
+func TestEvaluateUnconfirmedPHPWithUnpackagedRelease(t *testing.T) {
+	// Lists are stale but newer than the php.net release, and the apt
+	// source doesn't have it: PHP is still only included because the lists
+	// are stale.
+	f := healthyFacts()
+	f.AptUpdated = testNow.AddDate(0, 0, -3)
+
+	report := Evaluate(f, testVars, phpRelease("8.3.38", testNow.AddDate(0, 0, -5), true))
+
+	if !slices.Contains(report.Upgrades, ServicePHP) || !slices.Contains(report.Unconfirmed, ServicePHP) {
+		t.Errorf("expected PHP upgraded but unconfirmed, got upgrades %v unconfirmed %v", report.Upgrades, report.Unconfirmed)
 	}
 }

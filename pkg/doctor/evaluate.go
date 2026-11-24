@@ -53,6 +53,9 @@ type HostReport struct {
 	// latest could switch to another version on this host (or that can't be
 	// judged), so no upgrade command may include them.
 	Withheld []Service `json:"withheld,omitempty"`
+	// Unconfirmed are upgrades included only because the apt package lists
+	// are too old to tell whether anything newer is available.
+	Unconfirmed []Service `json:"unconfirmed,omitempty"`
 }
 
 func Evaluate(f *Facts, vars ProjectVars, php PHPReleaseLookup) HostReport {
@@ -112,6 +115,18 @@ func cmpBool(a, b bool) int {
 func (e *evaluator) withhold(s Service) {
 	if !slices.Contains(e.report.Withheld, s) {
 		e.report.Withheld = append(e.report.Withheld, s)
+	}
+}
+
+// upgradeIf records s as an upgrade if upgradable, noting whether it's
+// unconfirmed (only included because the package lists are stale).
+func (e *evaluator) upgradeIf(s Service, upgradable, unconfirmed bool) {
+	if !upgradable {
+		return
+	}
+	e.upgrade(s)
+	if unconfirmed && !slices.Contains(e.report.Unconfirmed, s) {
+		e.report.Unconfirmed = append(e.report.Unconfirmed, s)
 	}
 }
 
@@ -203,15 +218,17 @@ func newestSupportedUbuntu() string {
 }
 
 // pkgResult evaluates installed vs candidate for a package. upgradable is
-// true when provisioning with the package state set to latest would update it.
-func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
+// true when provisioning with the package state set to latest would update it
+// (or might: unconfirmed is true when that's only because the apt package
+// lists are too old to tell).
+func (e *evaluator) pkgResult(id, name string) (r Result, upgradable, unconfirmed bool) {
 	r = Result{ID: id, Title: name}
 	p := e.f.Packages[name]
 
 	if p == nil || p.Installed == "" {
 		r.Status = StatusSkip
 		r.Message = "not installed"
-		return r, false
+		return r, false, false
 	}
 
 	installed := UpstreamVersion(p.Installed)
@@ -221,7 +238,7 @@ func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
 		r.Status = StatusUnknown
 		r.Message = fmt.Sprintf("%s installed; apt-cache failed on the server, so available updates are unknown", installed)
 		r.Details = append(r.Details, "Run `apt-cache policy` on the server to see the error; a broken apt source stops all updates")
-		return r, false
+		return r, false, false
 	case p.Candidate == "":
 		r.Status = StatusWarn
 		r.Message = fmt.Sprintf("%s installed, but no version is available from the server's apt sources", installed)
@@ -245,6 +262,13 @@ func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
 		if e.aptListsStale() {
 			r.Status = StatusUnknown
 			r.Message = fmt.Sprintf("%s (%s; can't confirm it's the latest)", installed, e.aptListsAge())
+			// The Trellis roles refresh the apt cache before installing, so
+			// the upgrade command picks up anything newer (or does nothing).
+			if p.Held {
+				r.Details = append(r.Details, fmt.Sprintf("%s is held (apt-mark hold), so provisioning won't upgrade it", name))
+			} else {
+				upgradable, unconfirmed = true, true
+			}
 		} else {
 			r.Status = StatusOK
 			r.Message = installed
@@ -258,7 +282,7 @@ func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
 		r.Details = append(r.Details, aptSourceDetail+p.Origin)
 	}
 
-	return r, upgradable
+	return r, upgradable, unconfirmed
 }
 
 func (e *evaluator) nginx() {
@@ -267,12 +291,9 @@ func (e *evaluator) nginx() {
 		name = "nginx"
 	}
 
-	r, upgradable := e.pkgResult("nginx", name)
+	r, upgradable, unconfirmed := e.pkgResult("nginx", name)
 	e.add(r)
-
-	if upgradable {
-		e.upgrade(ServiceNginx)
-	}
+	e.upgradeIf(ServiceNginx, upgradable, unconfirmed)
 }
 
 // phpFPM evaluates the PHP-FPM branch serving sites, version drift against
@@ -303,8 +324,11 @@ func (e *evaluator) phpFPM() {
 
 	name := "php" + serving + "-fpm"
 	rel := e.php(serving)
-	r, upgradable := e.pkgResult("php", name)
-	upgradable = e.applyPHPRelease(&r, name, rel) || upgradable
+	r, upgradable, unconfirmed := e.pkgResult("php", name)
+	if e.applyPHPRelease(&r, name, rel) {
+		// php.net confirms a newer release.
+		upgradable, unconfirmed = true, false
+	}
 
 	if drift || target == "" {
 		e.withhold(ServicePHP)
@@ -320,10 +344,7 @@ func (e *evaluator) phpFPM() {
 	}
 
 	e.add(r)
-
-	if upgradable {
-		e.upgrade(ServicePHP)
-	}
+	e.upgradeIf(ServicePHP, upgradable, unconfirmed)
 
 	if rel != nil && rel.Supported != nil && !*rel.Supported {
 		e.add(Result{
@@ -431,6 +452,8 @@ func (e *evaluator) applyPHPRelease(r *Result, name string, rel *PHPRelease) boo
 		case !p.Held:
 			upgradable = true
 		case p.Cmp != "lt": // otherwise pkgResult already explained the hold
+			// Replace pkgResult's shorter note for stale package lists.
+			r.Details = slices.DeleteFunc(r.Details, func(d string) bool { return strings.HasPrefix(d, name+" is held") })
 			r.Details = append(r.Details, fmt.Sprintf("%s is held (apt-mark hold), so provisioning won't upgrade it; run `sudo apt-mark unhold %s` on the server first", name, name))
 		}
 	case e.since(rel.Date) > phpSourceLagAfter:
@@ -458,7 +481,7 @@ func (e *evaluator) mariaDB() {
 		name = "mariadb-server"
 	}
 
-	r, upgradable := e.pkgResult("mariadb", name)
+	r, upgradable, unconfirmed := e.pkgResult("mariadb", name)
 	p := e.f.Packages[name]
 
 	if p != nil && p.Installed != "" {
@@ -505,10 +528,7 @@ func (e *evaluator) mariaDB() {
 	}
 
 	e.add(r)
-
-	if upgradable {
-		e.upgrade(ServiceMariaDB)
-	}
+	e.upgradeIf(ServiceMariaDB, upgradable, unconfirmed)
 }
 
 func (e *evaluator) reboot() {

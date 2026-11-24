@@ -54,3 +54,39 @@ func TestEnvFix(t *testing.T) {
 		t.Errorf("expected nothing when nothing needs upgrading, got %+v %q", fix, note)
 	}
 }
+
+func TestEnvFixUnconfirmed(t *testing.T) {
+	stale := HostReport{
+		Upgrades:    []Service{ServiceNginx, ServicePHP, ServiceMariaDB},
+		Unconfirmed: []Service{ServiceNginx, ServiceMariaDB},
+	}
+
+	fix, _ := EnvFix("production", []HostReport{stale}, 0)
+	want := []string{
+		"Includes Nginx and MariaDB because the package lists are out of date; provisioning refreshes them and only upgrades what's newer",
+		"If MariaDB has an update, back up your databases first",
+	}
+	if !slices.Equal(fix.Notes, want) {
+		t.Errorf("unexpected notes\ngot  %q\nwant %q", fix.Notes, want)
+	}
+
+	// Another host confirms the MariaDB upgrade.
+	outdated := HostReport{Upgrades: []Service{ServiceMariaDB}}
+	fix, _ = EnvFix("production", []HostReport{stale, outdated}, 0)
+	want = []string{
+		"Includes Nginx because the package lists are out of date; provisioning refreshes them and only upgrades what's newer",
+		mariaDBBackupNote,
+	}
+	if !slices.Equal(fix.Notes, want) {
+		t.Errorf("unexpected notes\ngot  %q\nwant %q", fix.Notes, want)
+	}
+}
+
+func TestJoinAnd(t *testing.T) {
+	cases := map[string][]string{"": nil, "PHP": {"PHP"}, "Nginx and PHP": {"Nginx", "PHP"}, "Nginx, PHP and MariaDB": {"Nginx", "PHP", "MariaDB"}}
+	for want, items := range cases {
+		if got := joinAnd(items); got != want {
+			t.Errorf("joinAnd(%q) = %q, want %q", items, got, want)
+		}
+	}
+}

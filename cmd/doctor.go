@@ -436,7 +436,7 @@ func (c *DoctorCommand) Help() string {
 Usage: trellis doctor [options] [ENVIRONMENT...]
 
 Checks whether your Trellis project and servers are up to date, and prints
-the command to fix anything that isn't.
+the command to fix anything that isn't (or can't be confirmed to be).
 
 Locally, it checks requirements and whether the project's Trellis is on the
 latest release. On each server, it compares the installed Nginx, PHP-FPM and
