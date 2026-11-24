@@ -162,6 +162,7 @@ Supported commands so far:
 | `check` | Checks if Trellis requirements are met |
 | `db` | Commands for database management |
 | `deploy` | Deploys a site to the specified environment |
+| `doctor` | Checks whether your servers are patched and up to date |
 | `dotenv` | Template .env files to local system |
 | `droplet` | Commands for DigitalOcean Droplets |
 | `exec` | Exec runs a command in the Trellis virtualenv |
@@ -178,6 +179,31 @@ Supported commands so far:
 | `valet` | Commands for Laravel Valet |
 | `vault` | Commands for Ansible Vault |
 | `xdebug-tunnel` | Commands for managing Xdebug tunnels |
+
+### `doctor`
+
+`trellis doctor` checks whether your Trellis project and servers are up to date and prints the `trellis provision` command to fix anything that isn't. On each server it compares the installed Nginx, PHP-FPM and MariaDB with what their apt sources and [php.net](https://www.php.net/releases/) offer, and checks for a required reboot, unattended-upgrades, and the Ubuntu release's end of support. Ubuntu's unattended-upgrades doesn't cover Nginx, PHP or MariaDB, since Trellis installs them from their own repositories.
+
+It connects the same way `trellis provision` does, never uses sudo, and changes nothing on your servers.
+
+```bash
+# Every environment except development (environments still using the placeholder host are skipped)
+trellis doctor
+
+# Specific environments
+trellis doctor production staging
+
+# Only print problems
+trellis doctor --quiet production
+```
+
+Results are marked ✓ ok, `!` warning, ✗ failed, `?` couldn't verify, `·` info and `-` skipped. It exits with `0` when nothing failed, `1` when a check failed (with `--strict`, warnings too), and `2` when nothing failed but something couldn't be checked or verified, such as an unreachable server. `--json` prints the results as JSON, and `--offline` skips the php.net and GitHub lookups.
+
+To run it from cron, `cd` into the project, use the full path to `trellis`, and use an SSH key that doesn't need a passphrase prompt. Connect once interactively first (e.g. `trellis ssh production`) so the server's host key is known. A vault password prompt can't work under cron, so the project needs a `.vault_pass` file rather than `ask_vault_pass`.
+
+```bash
+0 7 * * 1-5 cd /path/to/site/trellis && /opt/homebrew/bin/trellis doctor --quiet production
+```
 
 ## Configuration
 There are three ways to set configuration settings for trellis-cli and they are

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -29,7 +31,7 @@ func (p *AdHocPlaybook) removeFiles() {
 	for fileName := range p.files {
 		destination := filepath.Join(p.path, fileName)
 
-		if err := os.Remove(destination); err != nil {
+		if err := os.Remove(destination); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			panic("Could not delete temporary file. This is probably a bug in trellis-cli; please open an issue to let us know.")
 		}
 	}

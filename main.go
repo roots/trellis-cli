@@ -80,6 +80,9 @@ func main() {
 		"dotenv": func() (cli.Command, error) {
 			return cmd.NewDotEnvCommand(ui, trellis), nil
 		},
+		"doctor": func() (cli.Command, error) {
+			return cmd.NewDoctorCommand(ui, trellis, c.Version), nil
+		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",
@@ -260,7 +263,8 @@ func main() {
 			color.YellowString(newRelease.URL),
 		)
 
-		ui.Info(msg)
+		// stderr keeps it out of command output such as --json.
+		fmt.Fprintln(os.Stderr, msg)
 	}
 
 	os.Exit(exitStatus)
