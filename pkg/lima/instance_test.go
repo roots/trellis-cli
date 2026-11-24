@@ -332,7 +332,7 @@ func TestCreateInventoryFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := `default ansible_host=127.0.0.1 ansible_port=1234 ansible_user=dev ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+	expected := `default ansible_host=127.0.0.1 ansible_port=1234 ansible_user=dev ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
 [development]
 default
