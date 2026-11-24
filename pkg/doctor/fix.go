@@ -8,8 +8,16 @@ import (
 
 // Fix is the provisioning command that brings outdated services up to date.
 type Fix struct {
-	Command string   `json:"command"`
-	Notes   []string `json:"notes,omitempty"`
+	// Command is the full command line, for display.
+	Command   string   `json:"command"`
+	Tags      []string `json:"tags"`
+	ExtraVars []string `json:"extra_vars"`
+	Notes     []string `json:"notes,omitempty"`
+}
+
+// ProvisionArgs are the `trellis provision` arguments that apply the fix.
+func (f *Fix) ProvisionArgs(env string) []string {
+	return []string{"--tags", strings.Join(f.Tags, ","), "--extra-vars", strings.Join(f.ExtraVars, " "), env}
 }
 
 // extra vars that make each role upgrade its packages. Role-specific vars are
@@ -22,6 +30,30 @@ var upgradeExtraVars = map[Service][]string{
 }
 
 var serviceOrder = []Service{ServiceNginx, ServicePHP, ServiceMariaDB}
+
+// EnvFix returns the fix for an environment with the given hosts. Provisioning
+// runs on every host in an environment, so a service is left out if any host
+// withheld it, and there's no fix when a host couldn't be checked. note
+// explains a missing fix when there would otherwise have been one.
+func EnvFix(env string, hosts []HostReport, unchecked int) (fix *Fix, note string) {
+	var upgrades, withheld []Service
+	for _, h := range hosts {
+		for _, s := range h.Upgrades {
+			if !slices.Contains(upgrades, s) {
+				upgrades = append(upgrades, s)
+			}
+		}
+		withheld = append(withheld, h.Withheld...)
+	}
+
+	upgrades = slices.DeleteFunc(upgrades, func(s Service) bool { return slices.Contains(withheld, s) })
+
+	if len(upgrades) > 0 && unchecked > 0 {
+		return nil, "not every host could be checked, and provisioning runs on all of them"
+	}
+
+	return NewFix(env, upgrades), ""
+}
 
 // NewFix returns the command that upgrades services in an environment, or
 // nil if there's nothing to upgrade.
@@ -41,7 +73,9 @@ func NewFix(env string, services []Service) *Fix {
 	}
 
 	fix := &Fix{
-		Command: fmt.Sprintf("trellis provision --tags %s --extra-vars \"%s\" %s", strings.Join(tags, ","), strings.Join(vars, " "), env),
+		Command:   fmt.Sprintf("trellis provision --tags %s --extra-vars \"%s\" %s", strings.Join(tags, ","), strings.Join(vars, " "), env),
+		Tags:      tags,
+		ExtraVars: vars,
 	}
 
 	if slices.Contains(services, ServiceMariaDB) {

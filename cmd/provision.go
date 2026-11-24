@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -89,7 +88,6 @@ func (c *ProvisionCommand) Run(args []string) int {
 	}
 
 	if environment == "development" {
-		os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "false")
 		playbook.SetName("dev.yml")
 		playbook.SetInventory(c.Trellis.VmInventoryPath())
 	}
@@ -98,6 +96,12 @@ func (c *ProvisionCommand) Run(args []string) int {
 		command.WithUiOutput(c.UI),
 		command.WithLogging(c.UI),
 	).Cmd("ansible-playbook", playbook.CmdArgs())
+
+	if environment == "development" {
+		// Only for this command: `trellis doctor --fix` may provision other
+		// environments afterwards in the same process.
+		provision.Env = append(provision.Environ(), "ANSIBLE_HOST_KEY_CHECKING=false")
+	}
 
 	if err := provision.Run(); err != nil {
 		c.UI.Error(err.Error())

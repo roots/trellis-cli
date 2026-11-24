@@ -203,3 +203,17 @@ func TestWriteJSON(t *testing.T) {
 		t.Errorf("unexpected staging %v", staging)
 	}
 }
+
+func TestWriteTextFixNote(t *testing.T) {
+	report := &Report{Environments: []EnvReport{{
+		Name: "production", Status: EnvChecked, FixNote: "not every host could be checked, and provisioning runs on all of them",
+		Hosts: []HostResult{{Name: "web1", Error: "unreachable"}},
+	}}}
+
+	var out bytes.Buffer
+	report.WriteText(&out, true)
+
+	if want := "Fix: No upgrade command suggested because not every host could be checked, and provisioning runs on all of them."; !strings.Contains(out.String(), want) {
+		t.Errorf("expected %q in:\n%s", want, out.String())
+	}
+}

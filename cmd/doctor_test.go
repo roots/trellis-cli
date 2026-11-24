@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -17,21 +18,42 @@ import (
 	"github.com/roots/trellis-cli/trellis"
 )
 
-// mockAnsiblePlaybook makes every command print output (as ansible-playbook
-// with the json callback would) and records each command's args.
+// mockAnsiblePlaybook makes doctor's playbook runs print output (as
+// ansible-playbook with the json callback would), makes every other command
+// succeed silently, and records each command's args.
 func mockAnsiblePlaybook(t *testing.T, output string) *[][]string {
+	t.Helper()
+	return mockAnsible(t, []string{output}, 0)
+}
+
+// mockAnsible is mockAnsiblePlaybook with a different output for each doctor
+// playbook run (the last one repeats) and an exit code for every other
+// command, such as provisioning.
+func mockAnsible(t *testing.T, outputs []string, otherExitCode int) *[][]string {
 	t.Helper()
 
 	var mu sync.Mutex
 	calls := &[][]string{}
+	doctorRuns := 0
 
 	command.Mock(func(name string, args []string) *exec.Cmd {
 		mu.Lock()
+		defer mu.Unlock()
 		*calls = append(*calls, append([]string{name}, args...))
-		mu.Unlock()
+
+		commandOutput, exitCode := "", otherExitCode
+		if len(args) > 0 && strings.HasPrefix(args[0], doctor.FilePrefix) {
+			commandOutput = outputs[min(doctorRuns, len(outputs)-1)]
+			exitCode = 0
+			doctorRuns++
+		}
 
 		cmd := exec.Command(os.Args[0], "-test.run=TestDoctorHelperProcess", "--")
-		cmd.Env = []string{"GO_WANT_DOCTOR_HELPER_PROCESS=1", "DOCTOR_HELPER_OUTPUT=" + output}
+		cmd.Env = []string{
+			"GO_WANT_DOCTOR_HELPER_PROCESS=1",
+			"DOCTOR_HELPER_OUTPUT=" + commandOutput,
+			fmt.Sprintf("DOCTOR_HELPER_EXIT_CODE=%d", exitCode),
+		}
 		return cmd
 	})
 	t.Cleanup(command.Restore)
@@ -45,7 +67,8 @@ func TestDoctorHelperProcess(t *testing.T) {
 	}
 
 	fmt.Fprint(os.Stdout, os.Getenv("DOCTOR_HELPER_OUTPUT"))
-	os.Exit(0)
+	code, _ := strconv.Atoi(os.Getenv("DOCTOR_HELPER_EXIT_CODE"))
+	os.Exit(code)
 }
 
 func readDoctorFixture(t *testing.T, name string) string {
@@ -314,5 +337,186 @@ func TestIsTruthy(t *testing.T) {
 		if isTruthy(s) {
 			t.Errorf("expected %q not to be truthy", s)
 		}
+	}
+}
+
+func newFixCommand(ui *cli.MockUi, answers string) *DoctorCommand {
+	ui.InputReader = strings.NewReader(answers)
+	c := NewDoctorCommand(ui, trellis.NewTrellis(), "1.0.0")
+	c.stdinIsTerminal = func() bool { return true }
+	return c
+}
+
+func playbookCalls(calls [][]string, playbook string) [][]string {
+	var matching [][]string
+	for _, call := range calls {
+		if len(call) > 1 && strings.HasPrefix(call[1], playbook) {
+			matching = append(matching, call)
+		}
+	}
+	return matching
+}
+
+func TestDoctorFix(t *testing.T) {
+	output := readDoctorFixture(t, "playbook_ok.json")
+	defer trellis.LoadFixtureProject(t)()
+	calls := mockAnsiblePlaybook(t, output)
+
+	ui := cli.NewMockUi()
+	code := newFixCommand(ui, "y\n").Run([]string{"--offline", "--fix", "production"})
+
+	// The mocked servers are still outdated after "provisioning".
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d", code)
+	}
+
+	provisions := playbookCalls(*calls, "server.yml")
+	if len(provisions) != 1 {
+		t.Fatalf("expected 1 provision run, got %v", *calls)
+	}
+	want := []string{"ansible-playbook", "server.yml", "-e nginx_package_state=latest apt_package_state=latest mariadb_server_package_state=latest mariadb_client_package_state=latest", "--tags=nginx,php,mariadb", "-e env=production"}
+	if !slices.Equal(provisions[0], want) {
+		t.Errorf("unexpected provision command\ngot  %q\nwant %q", provisions[0], want)
+	}
+
+	if checks := playbookCalls(*calls, doctor.FilePrefix); len(checks) != 2 {
+		t.Errorf("expected doctor to check production twice, got %d runs", len(checks))
+	}
+
+	text := ui.OutputWriter.String()
+	if !strings.Contains(text, "Checking production again") {
+		t.Errorf("expected a re-check:\n%s", text)
+	}
+	if !strings.Contains(ui.ErrorWriter.String(), "Back up your databases before upgrading MariaDB") {
+		t.Errorf("expected the backup note:\n%s", ui.ErrorWriter.String())
+	}
+}
+
+func TestDoctorFixDeclined(t *testing.T) {
+	output := readDoctorFixture(t, "playbook_ok.json")
+	defer trellis.LoadFixtureProject(t)()
+	calls := mockAnsiblePlaybook(t, output)
+
+	ui := cli.NewMockUi()
+	code := newFixCommand(ui, "n\n").Run([]string{"--offline", "--fix", "production"})
+
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d", code)
+	}
+	if provisions := playbookCalls(*calls, "server.yml"); len(provisions) != 0 {
+		t.Errorf("expected no provision run, got %v", provisions)
+	}
+	if !strings.Contains(ui.OutputWriter.String(), "Skipped production.") {
+		t.Errorf("expected skipped message:\n%s", ui.OutputWriter.String())
+	}
+}
+
+func TestDoctorFixNothingToDo(t *testing.T) {
+	output := readDoctorFixture(t, "playbook_unreachable.json")
+	defer trellis.LoadFixtureProject(t)()
+	calls := mockAnsiblePlaybook(t, output)
+
+	ui := cli.NewMockUi()
+	newFixCommand(ui, "").Run([]string{"--offline", "--fix", "production"})
+
+	if provisions := playbookCalls(*calls, "server.yml"); len(provisions) != 0 {
+		t.Errorf("expected no provision run, got %v", provisions)
+	}
+	if !strings.Contains(ui.OutputWriter.String(), "--fix has nothing to run.") {
+		t.Errorf("expected nothing-to-do message:\n%s", ui.OutputWriter.String())
+	}
+}
+
+func TestDoctorFixValidation(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	calls := mockAnsiblePlaybook(t, "")
+
+	ui := cli.NewMockUi()
+	if code := newFixCommand(ui, "").Run([]string{"--fix", "--json", "production"}); code != 2 {
+		t.Errorf("--fix --json: expected exit code 2, got %d", code)
+	}
+
+	ui = cli.NewMockUi()
+	c := NewDoctorCommand(ui, trellis.NewTrellis(), "1.0.0")
+	c.stdinIsTerminal = func() bool { return false }
+	if code := c.Run([]string{"--fix", "production"}); code != 2 {
+		t.Errorf("--fix without a terminal: expected exit code 2, got %d", code)
+	}
+	if !strings.Contains(ui.ErrorWriter.String(), "needs a terminal") {
+		t.Errorf("expected terminal error:\n%s", ui.ErrorWriter.String())
+	}
+
+	if len(*calls) != 0 {
+		t.Errorf("expected nothing to run, got %v", *calls)
+	}
+}
+
+// healthyPlaybookOutput turns the outdated fixture into one where every
+// package is current.
+func healthyPlaybookOutput(outdated string) string {
+	return strings.ReplaceAll(outdated, ".cmp=lt", ".cmp=eq")
+}
+
+func TestDoctorFixExitCodeFromRecheck(t *testing.T) {
+	outdated := readDoctorFixture(t, "playbook_ok.json")
+	defer trellis.LoadFixtureProject(t)()
+	mockAnsible(t, []string{outdated, healthyPlaybookOutput(outdated)}, 0)
+
+	ui := cli.NewMockUi()
+	code := newFixCommand(ui, "y\n").Run([]string{"--offline", "--fix", "production"})
+
+	if code != 0 {
+		t.Errorf("expected exit code 0 after a successful fix, got %d\n%s", code, ui.OutputWriter.String())
+	}
+}
+
+func TestDoctorFixProvisionFailure(t *testing.T) {
+	outdated := readDoctorFixture(t, "playbook_ok.json")
+	defer trellis.LoadFixtureProject(t)()
+	mockAnsible(t, []string{outdated, healthyPlaybookOutput(outdated)}, 2)
+
+	ui := cli.NewMockUi()
+	code := newFixCommand(ui, "y\n").Run([]string{"--offline", "--fix", "production"})
+
+	if code != 1 {
+		t.Errorf("expected exit code 1 when provisioning fails, got %d", code)
+	}
+	if !strings.Contains(ui.ErrorWriter.String(), "Provisioning production failed") {
+		t.Errorf("expected failure message:\n%s", ui.ErrorWriter.String())
+	}
+}
+
+func TestDoctorFixOnlyRunsOnYes(t *testing.T) {
+	output := readDoctorFixture(t, "playbook_ok.json")
+
+	for name, answer := range map[string]string{"empty": "\n", "other": "maybe\n", "eof": ""} {
+		t.Run(name, func(t *testing.T) {
+			defer trellis.LoadFixtureProject(t)()
+			calls := mockAnsiblePlaybook(t, output)
+
+			ui := cli.NewMockUi()
+			newFixCommand(ui, answer).Run([]string{"--offline", "--fix", "production"})
+
+			if provisions := playbookCalls(*calls, "server.yml"); len(provisions) != 0 {
+				t.Errorf("expected no provision run for answer %q, got %v", answer, provisions)
+			}
+		})
+	}
+}
+
+func TestDoctorFixDevelopmentKeepsHostKeyChecking(t *testing.T) {
+	output := readDoctorFixture(t, "playbook_ok.json")
+	defer trellis.LoadFixtureProject(t)()
+	calls := mockAnsiblePlaybook(t, output)
+	t.Setenv("ANSIBLE_HOST_KEY_CHECKING", "")
+
+	ui := cli.NewMockUi()
+	newFixCommand(ui, "y\n").Run([]string{"--offline", "--fix", "development"})
+
+	if provisions := playbookCalls(*calls, "dev.yml"); len(provisions) != 1 {
+		t.Fatalf("expected development to be provisioned, got %v", *calls)
+	}
+	if v := os.Getenv("ANSIBLE_HOST_KEY_CHECKING"); v != "" {
+		t.Errorf("provisioning development changed the process environment: ANSIBLE_HOST_KEY_CHECKING=%q", v)
 	}
 }

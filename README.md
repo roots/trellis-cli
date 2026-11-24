@@ -184,7 +184,7 @@ Supported commands so far:
 
 `trellis doctor` checks whether your Trellis project and servers are up to date and prints the `trellis provision` command to fix anything that isn't. On each server it compares the installed Nginx, PHP-FPM and MariaDB with what their apt sources and [php.net](https://www.php.net/releases/) offer, and checks for a required reboot, unattended-upgrades, and the Ubuntu release's end of support (and whether a newer LTS release is available). Ubuntu's unattended-upgrades doesn't cover Nginx, PHP or MariaDB, since Trellis installs them from their own repositories.
 
-It connects the same way `trellis provision` does, never uses sudo, and changes nothing on your servers.
+It connects the same way `trellis provision` does. Without `--fix`, it never uses sudo and changes nothing on your servers.
 
 ```bash
 # Every environment except development (environments still using the placeholder host are skipped)
@@ -195,7 +195,12 @@ trellis doctor production staging
 
 # Only print problems
 trellis doctor --quiet production
+
+# Offer to run the suggested upgrades, then check again
+trellis doctor --fix production
 ```
+
+`--fix` runs the `trellis provision` command doctor prints, after asking for each environment. It upgrades Nginx, PHP and MariaDB to the newest packages from their current apt sources. It never switches PHP or MariaDB versions, and leaves Ubuntu's own packages and reboots to you.
 
 Results are marked ✓ ok, `!` warning, ✗ failed, `?` couldn't verify, `·` info and `-` skipped. It exits with `0` when nothing failed, `1` when a check failed (with `--strict`, warnings too), and `2` when nothing failed but something couldn't be checked or verified, such as an unreachable server. `--json` prints the results as JSON, and `--offline` skips the php.net and GitHub lookups.
 

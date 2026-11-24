@@ -626,3 +626,22 @@ func TestNewestSupportedUbuntu(t *testing.T) {
 		t.Errorf("expected 26.04, got %q", newest)
 	}
 }
+
+func TestEvaluateWithheld(t *testing.T) {
+	// Current, but on another MariaDB series than the project's: an
+	// environment-wide upgrade would switch it.
+	f := healthyFacts()
+	report := Evaluate(f, ProjectVars{PHPVersion: "8.3", MariaDBVersion: "11.8"}, nil)
+	if !slices.Contains(report.Withheld, ServiceMariaDB) || slices.Contains(report.Withheld, ServicePHP) {
+		t.Errorf("unexpected withheld %v", report.Withheld)
+	}
+
+	report = Evaluate(healthyFacts(), ProjectVars{}, nil)
+	if !slices.Equal(report.Withheld, []Service{ServicePHP, ServiceMariaDB}) {
+		t.Errorf("expected unknown versions to be withheld, got %v", report.Withheld)
+	}
+
+	if report := Evaluate(healthyFacts(), testVars, nil); len(report.Withheld) != 0 {
+		t.Errorf("expected nothing withheld, got %v", report.Withheld)
+	}
+}

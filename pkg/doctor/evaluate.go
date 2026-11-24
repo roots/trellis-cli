@@ -49,6 +49,10 @@ type HostReport struct {
 	Results []Result `json:"results"`
 	// Upgrades are services that `trellis provision` can bring up to date.
 	Upgrades []Service `json:"upgrades,omitempty"`
+	// Withheld are services that provisioning with the package state set to
+	// latest could switch to another version on this host (or that can't be
+	// judged), so no upgrade command may include them.
+	Withheld []Service `json:"withheld,omitempty"`
 }
 
 func Evaluate(f *Facts, vars ProjectVars, php PHPReleaseLookup) HostReport {
@@ -102,6 +106,12 @@ func cmpBool(a, b bool) int {
 		return 1
 	default:
 		return -1
+	}
+}
+
+func (e *evaluator) withhold(s Service) {
+	if !slices.Contains(e.report.Withheld, s) {
+		e.report.Withheld = append(e.report.Withheld, s)
 	}
 }
 
@@ -296,6 +306,10 @@ func (e *evaluator) phpFPM() {
 	r, upgradable := e.pkgResult("php", name)
 	upgradable = e.applyPHPRelease(&r, name, rel) || upgradable
 
+	if drift || target == "" {
+		e.withhold(ServicePHP)
+	}
+
 	if upgradable && (drift || target == "") {
 		upgradable = false
 		reason := "the PHP version mismatch is resolved"
@@ -451,6 +465,13 @@ func (e *evaluator) mariaDB() {
 		serverBranch := Branch(p.Installed)
 		candidateBranch := Branch(p.Candidate)
 		target := e.vars.MariaDBVersion
+
+		switch {
+		case target == "",
+			serverBranch != "" && serverBranch != target,
+			p.Cmp == "lt" && candidateBranch != "" && candidateBranch != serverBranch:
+			e.withhold(ServiceMariaDB)
+		}
 
 		switch {
 		case target != "" && serverBranch != "" && serverBranch != target:

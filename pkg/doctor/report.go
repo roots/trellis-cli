@@ -34,6 +34,8 @@ type EnvReport struct {
 	Reason string       `json:"reason,omitempty"`
 	Hosts  []HostResult `json:"hosts,omitempty"`
 	Fix    *Fix         `json:"fix,omitempty"`
+	// FixNote explains why there's no fix when one would otherwise apply.
+	FixNote string `json:"fix_note,omitempty"`
 }
 
 type HostResult struct {
@@ -197,6 +199,13 @@ func renderEnv(env EnvReport, quiet bool) string {
 			b.WriteString("\n")
 		}
 		b.WriteString(bold(heading) + "\n" + body)
+	}
+
+	if env.Fix == nil && env.FixNote != "" {
+		if b.Len() == 0 {
+			b.WriteString(bold(env.Name) + "\n")
+		}
+		fmt.Fprintf(&b, "\n  %s No upgrade command suggested because %s.\n", bold("Fix:"), env.FixNote)
 	}
 
 	if env.Fix != nil {

@@ -30,7 +30,14 @@ const placeholderHost = "your_server_hostname"
 const doctorUsageError = 2
 
 func NewDoctorCommand(ui cli.Ui, trellis *trellis.Trellis, cliVersion string) *DoctorCommand {
-	c := &DoctorCommand{UI: ui, Trellis: trellis, CLIVersion: cliVersion}
+	c := &DoctorCommand{
+		UI:         ui,
+		Trellis:    trellis,
+		CLIVersion: cliVersion,
+		stdinIsTerminal: func() bool {
+			return isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
+		},
+	}
 	c.init()
 	return c
 }
@@ -44,6 +51,9 @@ type DoctorCommand struct {
 	quiet      bool
 	offline    bool
 	strict     bool
+	fix        bool
+	// stdinIsTerminal reports whether --fix can ask for confirmation.
+	stdinIsTerminal func() bool
 	// Names of the temporary playbook and probe files for this run.
 	playbookFile string
 	probeFile    string
@@ -57,6 +67,7 @@ func (c *DoctorCommand) init() {
 	c.flags.BoolVar(&c.quiet, "quiet", false, "Only output problems")
 	c.flags.BoolVar(&c.offline, "offline", false, "Skip php.net and GitHub lookups")
 	c.flags.BoolVar(&c.strict, "strict", false, "Exit non-zero on warnings too")
+	c.flags.BoolVar(&c.fix, "fix", false, "Offer to run the suggested provision commands")
 }
 
 func (c *DoctorCommand) Run(args []string) int {
@@ -65,6 +76,16 @@ func (c *DoctorCommand) Run(args []string) int {
 	}
 
 	args = c.flags.Args()
+
+	if c.fix && c.json {
+		c.UI.Error("--fix can't be combined with --json.")
+		return doctorUsageError
+	}
+
+	if c.fix && !c.stdinIsTerminal() {
+		c.UI.Error("--fix asks before running anything, so it needs a terminal. Run the printed `trellis provision` command instead.")
+		return doctorUsageError
+	}
 
 	if err := c.Trellis.LoadProject(); err != nil {
 		c.UI.Error(err.Error())
@@ -168,7 +189,82 @@ func (c *DoctorCommand) Run(args []string) int {
 		c.UI.Output(strings.TrimRight(out.String(), "\n"))
 	}
 
+	if c.fix && !c.applyFixes(report, php) {
+		// A provision run failed, whatever the re-check shows.
+		return 1
+	}
+
 	return report.ExitCode(c.strict)
+}
+
+// applyFixes offers to run each environment's fix, then checks the fixed
+// environments again and replaces their results in report. It returns false
+// if a provision run failed.
+func (c *DoctorCommand) applyFixes(report *doctor.Report, php doctor.PHPReleaseLookup) bool {
+	ok := true
+	var fixed []int
+
+	for i, env := range report.Environments {
+		if env.Fix == nil {
+			continue
+		}
+
+		c.UI.Output("")
+		for _, note := range env.Fix.Notes {
+			c.UI.Warn(note)
+		}
+
+		answer, err := c.UI.Ask(fmt.Sprintf("Upgrade %s on %s with `trellis provision`? [y/N]", strings.Join(env.Fix.Tags, ", "), env.Name))
+		if err != nil {
+			// Stop asking (e.g. Ctrl-D), but still check what was fixed.
+			c.UI.Error("Canceled; not running anything else.")
+			break
+		}
+
+		if !isYes(answer) {
+			c.UI.Info(fmt.Sprintf("Skipped %s.", env.Name))
+			continue
+		}
+
+		provision := NewProvisionCommand(c.UI, c.Trellis)
+		if code := provision.Run(env.Fix.ProvisionArgs(env.Name)); code != 0 {
+			ok = false
+			c.UI.Error(fmt.Sprintf("Provisioning %s failed; checking it again to see where it stands.", env.Name))
+		}
+
+		fixed = append(fixed, i)
+	}
+
+	if len(fixed) == 0 {
+		if !slices.ContainsFunc(report.Environments, func(e doctor.EnvReport) bool { return e.Fix != nil }) {
+			c.UI.Info("\n--fix has nothing to run.")
+		}
+		return ok
+	}
+
+	recheck := &doctor.Report{Schema: doctor.ReportSchema}
+	for _, i := range fixed {
+		env := report.Environments[i].Name
+		c.UI.Info(fmt.Sprintf("\nChecking %s again...\n", env))
+		report.Environments[i] = c.checkEnv(env, true, php)
+		recheck.Environments = append(recheck.Environments, report.Environments[i])
+	}
+
+	var out bytes.Buffer
+	recheck.WriteText(&out, c.quiet)
+	if out.Len() > 0 {
+		c.UI.Output(strings.TrimRight(out.String(), "\n"))
+	}
+
+	return ok
+}
+
+func isYes(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "y", "yes":
+		return true
+	}
+	return false
 }
 
 // writePlaybook writes the temporary playbook and probe into the project
@@ -244,11 +340,10 @@ func (c *DoctorCommand) checkEnv(env string, explicit bool, php doctor.PHPReleas
 	run := command.Cmd("ansible-playbook", playbook.CmdArgs())
 	run.Stdout = &stdout
 	run.Stderr = &stderr
-	runEnv := run.Env
-	if runEnv == nil {
-		runEnv = os.Environ()
-	}
-	run.Env = append(runEnv, "ANSIBLE_STDOUT_CALLBACK=json")
+	// Don't let Ansible consume input meant for --fix's prompts. Password
+	// and host key prompts read from the terminal, not stdin.
+	run.Stdin = nil
+	run.Env = append(run.Environ(), "ANSIBLE_STDOUT_CALLBACK=json")
 	if env == "development" {
 		run.Env = append(run.Env, "ANSIBLE_HOST_KEY_CHECKING=false")
 	}
@@ -265,7 +360,8 @@ func (c *DoctorCommand) checkEnv(env string, explicit bool, php doctor.PHPReleas
 	}
 
 	report.Status = doctor.EnvChecked
-	var upgrades []doctor.Service
+	var hostReports []doctor.HostReport
+	unchecked := 0
 
 	for _, host := range hosts {
 		result := doctor.HostResult{Name: host.Name, Address: host.Address, User: host.User, Error: host.Error}
@@ -281,18 +377,18 @@ func (c *DoctorCommand) checkEnv(env string, explicit bool, php doctor.PHPReleas
 			} else {
 				hostReport := doctor.Evaluate(facts, host.Vars, php)
 				result.Results = hostReport.Results
-				for _, s := range hostReport.Upgrades {
-					if !slices.Contains(upgrades, s) {
-						upgrades = append(upgrades, s)
-					}
-				}
+				hostReports = append(hostReports, hostReport)
 			}
+		}
+
+		if result.Error != "" {
+			unchecked++
 		}
 
 		report.Hosts = append(report.Hosts, result)
 	}
 
-	report.Fix = doctor.NewFix(env, upgrades)
+	report.Fix, report.FixNote = doctor.EnvFix(env, hostReports, unchecked)
 
 	return report
 }
@@ -348,9 +444,9 @@ MariaDB with what's available from their apt sources and php.net, and checks
 for a required reboot, unattended-upgrades and the Ubuntu release's support
 window.
 
-It connects the same way 'trellis provision' does, never uses sudo, and
-changes nothing on your servers. It doesn't check WordPress core, plugins
-or TLS certificates.
+It connects the same way 'trellis provision' does. Without --fix, it never
+uses sudo and changes nothing on your servers. It doesn't check WordPress
+core, plugins or TLS certificates.
 
 Check all environments except development:
 
@@ -364,6 +460,15 @@ Only print problems (for cron):
 
   $ trellis doctor --quiet production
 
+Offer to run the suggested upgrades, then check again:
+
+  $ trellis doctor --fix production
+
+--fix only runs the 'trellis provision' command doctor prints, which
+upgrades Nginx, PHP and MariaDB to the newest packages from their current
+apt sources. It asks before each environment, never switches PHP or MariaDB
+versions, and leaves Ubuntu's own packages and reboots to you.
+
 Arguments:
   ENVIRONMENT  Name of environment(s) (ie: production). Defaults to every
                environment except development; ones that still have the
@@ -374,6 +479,7 @@ Options:
   -q, --quiet    Only output problems; print nothing when all is well
       --offline  Skip php.net and GitHub lookups
       --strict   Exit with 1 on warnings too
+      --fix      Offer to run the suggested provision commands
   -h, --help     Show this help
 
 Options must come before environment names.
@@ -402,5 +508,6 @@ func (c *DoctorCommand) AutocompleteFlags() complete.Flags {
 		"--quiet":   complete.PredictNothing,
 		"--offline": complete.PredictNothing,
 		"--strict":  complete.PredictNothing,
+		"--fix":     complete.PredictNothing,
 	}
 }
