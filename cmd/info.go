@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -118,15 +116,9 @@ func (c *InfoCommand) collectInfo() infoData {
 		sites[env] = envSites
 	}
 
-	trellisVersion := ""
-	versionFile := filepath.Join(c.Trellis.Path, "trellis", "VERSION")
-	if data, err := os.ReadFile(versionFile); err == nil {
-		trellisVersion = strings.TrimSpace(string(data))
-	}
-
 	return infoData{
 		Path:           c.Trellis.Path,
-		TrellisVersion: trellisVersion,
+		TrellisVersion: c.Trellis.Version(),
 		Virtualenv:     venvStatus,
 		VM:             vmStatus,
 		Sites:          sites,

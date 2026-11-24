@@ -412,3 +412,14 @@ func (t *Trellis) VmInventoryPath() string {
 	}
 	return inventoryPath
 }
+
+// Version returns the project's Trellis version from its VERSION file
+// (e.g. "v1.33.0", or "dev" on master), or "" if there is none.
+func (t *Trellis) Version() string {
+	data, err := os.ReadFile(filepath.Join(t.Path, "VERSION"))
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(data))
+}
