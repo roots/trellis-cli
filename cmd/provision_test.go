@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -143,5 +144,23 @@ func TestProvisionRun(t *testing.T) {
 				t.Errorf("expected output %q to contain %q", combined, tc.out)
 			}
 		})
+	}
+}
+
+func TestProvisionDevelopmentKeepsProcessHostKeyChecking(t *testing.T) {
+	defer trellis.LoadFixtureProject(t)()
+	trellis := trellis.NewTrellis()
+	trellis.CliConfig.Vm.Manager = "mock"
+	t.Setenv("ANSIBLE_HOST_KEY_CHECKING", "")
+
+	ui := cli.NewMockUi()
+	defer MockUiExec(t, ui)()
+
+	// `trellis doctor --fix` can provision other environments afterwards in
+	// the same process.
+	NewProvisionCommand(ui, trellis).Run([]string{"development"})
+
+	if v := os.Getenv("ANSIBLE_HOST_KEY_CHECKING"); v != "" {
+		t.Errorf("provisioning development changed the process environment: ANSIBLE_HOST_KEY_CHECKING=%q", v)
 	}
 }

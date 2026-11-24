@@ -1,0 +1,119 @@
+{
+  "plays": [
+    {
+      "play": {
+        "name": "Trellis CLI: Doctor"
+      },
+      "tasks": [
+        {
+          "task": {
+            "name": "connection : Require manual definition of remote-user"
+          },
+          "hosts": {
+            "bogus": {
+              "skipped": true,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Check whether Ansible can connect as root"
+          },
+          "hosts": {
+            "bogus": {
+              "msg": "non-zero return code",
+              "rc": 4,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Warn about change in host keys"
+          },
+          "hosts": {
+            "bogus": {
+              "skipped": true,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Set remote user for each host"
+          },
+          "hosts": {
+            "bogus": {
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Announce which user was selected"
+          },
+          "hosts": {
+            "bogus": {
+              "msg": "Note: Ansible will attempt connections as user = admin\n",
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Load become password"
+          },
+          "hosts": {
+            "bogus": {
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "Trellis CLI: Doctor vars"
+          },
+          "hosts": {
+            "bogus": {
+              "msg": {
+                "host": "192.0.2.10",
+                "user": "admin",
+                "vars": {
+                  "mariadb_server_package": "mariadb-server",
+                  "mariadb_version": "10.11",
+                  "nginx_package": "nginx",
+                  "php_version": "8.4"
+                }
+              },
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "Trellis CLI: Doctor probe"
+          },
+          "hosts": {
+            "bogus": {
+              "msg": "Failed to connect to the host via ssh: ssh: connect to host 192.0.2.10 port 22: Operation timed out",
+              "unreachable": true,
+              "changed": false
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "bogus": {
+      "changed": 0,
+      "failures": 0,
+      "ignored": 0,
+      "ok": 5,
+      "rescued": 0,
+      "skipped": 2,
+      "unreachable": 1
+    }
+  }
+}

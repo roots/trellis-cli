@@ -80,6 +80,9 @@ func main() {
 		"dotenv": func() (cli.Command, error) {
 			return cmd.NewDotEnvCommand(ui, trellis), nil
 		},
+		"doctor": func() (cli.Command, error) {
+			return cmd.NewDoctorCommand(ui, trellis), nil
+		},
 		"droplet": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis droplet <subcommand> [<args>]",

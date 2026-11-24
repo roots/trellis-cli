@@ -444,3 +444,20 @@ ask_vault_pass: true
 		t.Errorf("expected load project to load project CLI config file")
 	}
 }
+
+func TestVersion(t *testing.T) {
+	dir := t.TempDir()
+	tp := &Trellis{Path: dir}
+
+	if v := tp.Version(); v != "" {
+		t.Errorf("expected empty version without a VERSION file, got %q", v)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "VERSION"), []byte("v1.33.0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if v := tp.Version(); v != "v1.33.0" {
+		t.Errorf("expected v1.33.0, got %q", v)
+	}
+}

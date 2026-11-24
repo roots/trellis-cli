@@ -263,3 +263,36 @@ latest_release:
 		}
 	}
 }
+
+func TestCheckForUpdateUncacheable(t *testing.T) {
+	// A file where the cache directory should be makes caching fail.
+	cacheDir := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(cacheDir, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		_, _ = rw.Write([]byte(`{"tag_name":"v1.1","html_url":"https://github.com/roots/trellis-cli/releases/tag/v1.1"}`))
+	}))
+	defer server.Close()
+
+	oldBaseURL := github.BaseURL
+	github.BaseURL = server.URL
+	defer func() { github.BaseURL = oldBaseURL }()
+
+	notifier := &Notifier{
+		CacheDir:   filepath.Join(cacheDir, "sub"),
+		ForceCheck: true,
+		Repo:       "roots/trellis-cli",
+		Version:    "v1.0",
+		Client:     server.Client(),
+	}
+
+	release, err := notifier.CheckForUpdate()
+	if err != nil {
+		t.Fatalf("expected a failed cache write not to be an error, got %v", err)
+	}
+	if release == nil || release.Version != "v1.1" {
+		t.Errorf("expected v1.1, got %+v", release)
+	}
+}

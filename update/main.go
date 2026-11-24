@@ -87,10 +87,9 @@ func (n *Notifier) getLatestReleaseInfo(stateFilePath string) (*github.Release, 
 		return nil, err
 	}
 
-	err = setStateEntry(stateFilePath, time.Now(), latestRelease)
-	if err != nil {
-		return nil, err
-	}
+	// Failing to cache the result (e.g. a read-only home directory) only
+	// means checking again next time.
+	_ = setStateEntry(stateFilePath, time.Now(), latestRelease)
 
 	return latestRelease, nil
 }

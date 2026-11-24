@@ -25,6 +25,17 @@ jobs:
             exit 1
           fi
 
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check doctor probe script
+        run: shellcheck --shell=sh pkg/doctor/probe.sh
+
   golangci-lint:
     name: Go Linting
     runs-on: ubuntu-latest
