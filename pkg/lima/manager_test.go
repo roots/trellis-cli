@@ -418,7 +418,7 @@ ip link set %s up`,
 		t.Fatal(err)
 	}
 
-	expectedInventoryContents := fmt.Sprintf(`default ansible_host=127.0.0.1 ansible_port=%d ansible_user=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+	expectedInventoryContents := fmt.Sprintf(`default ansible_host=127.0.0.1 ansible_port=%d ansible_user=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
 [development]
 default
