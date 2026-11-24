@@ -260,7 +260,9 @@ func main() {
 			color.YellowString(newRelease.URL),
 		)
 
-		ui.Info(msg)
+		// Write to stderr so the notice never mixes with a command's stdout
+		// (e.g. `trellis info --json`).
+		fmt.Fprintln(os.Stderr, msg)
 	}
 
 	os.Exit(exitStatus)
