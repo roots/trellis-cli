@@ -252,6 +252,13 @@ func (m *Manager) StartInstance(name string) error {
 	}
 
 	if instance.Running() {
+		// Lima picks a new SSH port each time a VM boots, and it may have been
+		// started outside trellis-cli (e.g. `limactl start`), so make sure the
+		// inventory points at the current one.
+		if err := m.writeInventory(&instance); err != nil {
+			return err
+		}
+
 		m.ui.Info(fmt.Sprintf("%s VM already running", color.GreenString("[✓]")))
 		return nil
 	}
@@ -291,8 +298,6 @@ func (m *Manager) StartInstance(name string) error {
 		return fmt.Errorf("Could not get username: %v", err)
 	}
 
-	instance.Username = string(user)
-
 	// Hydrate instance with data from limactl that is only available after
 	// starting (mainly the forwarded local ports)
 	err = m.hydrateInstance(&instance)
@@ -300,11 +305,27 @@ func (m *Manager) StartInstance(name string) error {
 		return err
 	}
 
+	instance.Username = strings.TrimSpace(string(user))
+
 	if err = m.addHosts(instance); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// writeInventory writes the Ansible inventory for a running instance.
+func (m *Manager) writeInventory(instance *Instance) error {
+	user, err := instance.getUsername()
+	if err != nil {
+		return fmt.Errorf("Could not get username: %v", err)
+	}
+
+	// whoami's output ends with a newline, which would otherwise split the
+	// inventory line.
+	instance.Username = strings.TrimSpace(string(user))
+
+	return instance.CreateInventoryFile()
 }
 
 func (m *Manager) StopInstance(name string) error {
