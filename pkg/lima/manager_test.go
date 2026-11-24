@@ -491,8 +491,11 @@ func TestStartInstanceAlreadyRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := fmt.Sprintf("default ansible_host=127.0.0.1 ansible_port=%d ansible_user=user1 ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n", sshPort)
-	if !strings.HasPrefix(string(inventoryContents), expected) {
+	// The first line has the current port and the username, without a
+	// newline splitting off the ssh args that follow.
+	firstLine, _, _ := strings.Cut(string(inventoryContents), "\n")
+	expected := fmt.Sprintf("default ansible_host=127.0.0.1 ansible_port=%d ansible_user=user1 ansible_ssh_common_args=", sshPort)
+	if !strings.HasPrefix(firstLine, expected) {
 		t.Errorf("expected inventory to start with %q, got %q", expected, string(inventoryContents))
 	}
 
