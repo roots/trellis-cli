@@ -60,8 +60,8 @@ func findResult(t *testing.T, report HostReport, id string) Result {
 	return Result{}
 }
 
-func hasResult(report HostReport, id string) bool {
-	return slices.ContainsFunc(report.Results, func(r Result) bool { return r.ID == id })
+func hasResultPrefix(report HostReport, prefix string) bool {
+	return slices.ContainsFunc(report.Results, func(r Result) bool { return strings.HasPrefix(r.ID, prefix) })
 }
 
 func TestEvaluateHealthy(t *testing.T) {
@@ -92,7 +92,7 @@ func TestEvaluateFixture(t *testing.T) {
 		"mariadb":             StatusFail,
 		"reboot":              StatusOK,
 		"unattended-upgrades": StatusInfo,
-		"php-leftover":        StatusInfo,
+		"php-leftover-8.3":    StatusInfo,
 	} {
 		if got := findResult(t, report, id).Status; got != want {
 			t.Errorf("%s: expected %s, got %s", id, want, got)
@@ -247,7 +247,7 @@ func TestEvaluate(t *testing.T) {
 				f.PHPFPM["8.4"] = "active"
 				f.Packages["php8.4-fpm"] = &Package{Name: "php8.4-fpm", Installed: "8.4.20-1", Candidate: "8.4.20-1", Cmp: "eq"}
 			},
-			id: "php-leftover", status: StatusInfo, contains: "also running",
+			id: "php-leftover-8.4", status: StatusInfo, contains: "also running",
 		},
 		{
 			name: "php branch unsupported upstream",
@@ -269,7 +269,15 @@ func TestEvaluate(t *testing.T) {
 				f.RebootRequired = true
 				f.RebootPackages = []string{"linux-base"}
 			},
-			id: "reboot", status: StatusWarn, contains: "Reboot required",
+			id: "reboot", status: StatusWarn, contains: "trellis ssh <environment>",
+		},
+		{
+			name: "reboot required with unknown uptime",
+			mutate: func(f *Facts) {
+				f.RebootRequired = true
+				f.Uptime = 0
+			},
+			id: "reboot", status: StatusWarn, contains: "sudo reboot",
 		},
 		{
 			name: "newer kernel without update-notifier",
@@ -492,7 +500,7 @@ func TestEvaluatePHPDriftReportsServingBranch(t *testing.T) {
 	if !strings.Contains(strings.Join(r.Details, "\n"), "No upgrade command suggested") {
 		t.Errorf("expected withheld upgrade note, got %v", r.Details)
 	}
-	if hasResult(report, "php-leftover") {
+	if hasResultPrefix(report, "php-leftover") {
 		t.Error("serving branch reported as leftover")
 	}
 }
@@ -502,7 +510,7 @@ func TestEvaluateNoLeftoverForDriftTarget(t *testing.T) {
 	f.PHPFPM = map[string]string{"8.3": "inactive", "8.4": "active"}
 	f.Packages["php8.4-fpm"] = &Package{Name: "php8.4-fpm", Installed: "8.4.20-1", Candidate: "8.4.20-1", Cmp: "eq", Origin: "x"}
 
-	if report := Evaluate(f, testVars, nil); hasResult(report, "php-leftover") {
+	if report := Evaluate(f, testVars, nil); hasResultPrefix(report, "php-leftover") {
 		t.Error("project php_version reported as a leftover")
 	}
 }
@@ -517,7 +525,7 @@ func TestEvaluateMultipleActivePHPWithoutProjectVersion(t *testing.T) {
 	if r := findResult(t, report, "php"); r.Title != "php8.4-fpm" {
 		t.Errorf("expected highest active branch, got %s", r.Title)
 	}
-	if r := findResult(t, report, "php-leftover"); !strings.Contains(r.Message, "also running") {
+	if r := findResult(t, report, "php-leftover-8.3"); !strings.Contains(r.Message, "also running") {
 		t.Errorf("unexpected leftover message %q", r.Message)
 	}
 }
@@ -544,5 +552,40 @@ func TestEvaluateHeldMariaDBSeriesHasNoUnholdAdvice(t *testing.T) {
 
 	if strings.Contains(strings.Join(r.Details, "\n"), "unhold") {
 		t.Errorf("didn't expect unhold advice before a series upgrade: %v", r.Details)
+	}
+}
+
+func TestEvaluateListsAptSourceLast(t *testing.T) {
+	f := healthyFacts()
+	p := f.Packages["php8.3-fpm"]
+	p.Installed = "8.3.36-1+ubuntu24.04.1+deb.sury.org+1"
+	p.Candidate = p.Installed
+
+	r := findResult(t, Evaluate(f, testVars, phpRelease("8.3.37", testNow.AddDate(0, 0, -3), true)), "php")
+
+	if len(r.Details) < 2 || !strings.HasPrefix(r.Details[len(r.Details)-1], "apt source: ") {
+		t.Errorf("expected the apt source last, got %v", r.Details)
+	}
+}
+
+func TestEvaluateFreshResolute(t *testing.T) {
+	f, err := ParseProbe(readFixture(t, "resolute_fresh.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := Evaluate(f, ProjectVars{PHPVersion: "8.5", MariaDBVersion: "11.8"}, nil)
+
+	for id, want := range map[string]Status{
+		"ubuntu-release":      StatusOK,
+		"nginx":               StatusSkip,
+		"php":                 StatusSkip,
+		"mariadb":             StatusSkip,
+		"reboot":              StatusOK,
+		"unattended-upgrades": StatusUnknown,
+	} {
+		if got := findResult(t, report, id).Status; got != want {
+			t.Errorf("%s: expected %s, got %s", id, want, got)
+		}
 	}
 }

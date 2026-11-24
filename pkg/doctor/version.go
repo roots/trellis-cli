@@ -25,6 +25,37 @@ func UpstreamVersion(v string) string {
 	return v
 }
 
+// displayVersions returns installed and candidate dpkg versions for
+// display: their upstream versions, or, when those are equal (a packaging
+// revision bump such as 8.3.37-2 → 8.3.37-3), with the Debian revision too.
+func displayVersions(installed, candidate string) (string, string) {
+	a, b := UpstreamVersion(installed), UpstreamVersion(candidate)
+	if a != b {
+		return a, b
+	}
+
+	a, b = withRevision(installed), withRevision(candidate)
+	if a != b {
+		return a, b
+	}
+
+	return installed, candidate
+}
+
+// withRevision strips the epoch and distribution suffix, keeping the Debian
+// revision: "8.3.37-2+0~deb.sury.org.1+ubuntu24.04" -> "8.3.37-2".
+func withRevision(v string) string {
+	if i := strings.Index(v, ":"); i >= 0 {
+		v = v[i+1:]
+	}
+
+	if i := strings.IndexAny(v, "+~"); i >= 0 {
+		v = v[:i]
+	}
+
+	return v
+}
+
 // Branch returns the "major.minor" part of a version, e.g. "8.3.37" -> "8.3".
 func Branch(v string) string {
 	parts := strings.SplitN(UpstreamVersion(v), ".", 3)

@@ -1,0 +1,24 @@
+doctor_begin v=1
+now=1795483235
+os.id=ubuntu
+os.version_id=26.04
+os.codename=resolute
+os.name=Ubuntu 26.04.1 LTS
+os.eol=2031-05-29
+kernel.running=7.0.0-43-generic
+kernel.latest=7.0.0-43-generic
+uptime=160
+reboot.required=0
+reboot.notifier=1
+apt.update_success=1795483202
+apt.pkgcache=1795483205
+apt.check=41;34
+uu.installed=1
+uu.setting=1
+uu.timer=enabled
+uu.stamp=
+pkg.openssl.installed=3.5.5-1ubuntu3.7
+pkg.openssl.candidate=3.5.5-1ubuntu3.7
+pkg.openssl.origin=http://archive.ubuntu.com/ubuntu resolute-updates/main
+pkg.openssl.cmp=eq
+doctor_end

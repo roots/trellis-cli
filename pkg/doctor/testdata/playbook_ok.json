@@ -1,0 +1,120 @@
+{
+  "plays": [
+    {
+      "play": {
+        "name": "Trellis CLI: Doctor"
+      },
+      "tasks": [
+        {
+          "task": {
+            "name": "connection : Require manual definition of remote-user"
+          },
+          "hosts": {
+            "default": {
+              "skipped": true,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Check whether Ansible can connect as root"
+          },
+          "hosts": {
+            "default": {
+              "msg": "[Errno 2] No such file or directory: b'ansible'",
+              "rc": 2,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Warn about change in host keys"
+          },
+          "hosts": {
+            "default": {
+              "skipped": true,
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Set remote user for each host"
+          },
+          "hosts": {
+            "default": {
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Announce which user was selected"
+          },
+          "hosts": {
+            "default": {
+              "msg": "Note: Ansible will attempt connections as user = admin\n",
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "connection : Load become password"
+          },
+          "hosts": {
+            "default": {
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "Trellis CLI: Doctor vars"
+          },
+          "hosts": {
+            "default": {
+              "msg": {
+                "host": "127.0.0.1",
+                "user": "admin",
+                "vars": {
+                  "mariadb_server_package": "mariadb-server",
+                  "mariadb_version": "10.11",
+                  "nginx_package": "nginx",
+                  "php_version": "8.4"
+                }
+              },
+              "changed": false
+            }
+          }
+        },
+        {
+          "task": {
+            "name": "Trellis CLI: Doctor probe"
+          },
+          "hosts": {
+            "default": {
+              "stdout": "doctor_begin v=1\r\nnow=1795482536\r\nos.id=ubuntu\r\nos.version_id=24.04\r\nos.codename=noble\r\nos.name=Ubuntu 24.04.3 LTS\r\nos.eol=2029-05-31\r\nkernel.running=6.8.0-110-generic\r\nkernel.latest=6.8.0-110-generic\r\nuptime=34657\r\nreboot.required=0\r\nreboot.notifier=1\r\napt.update_success=1795477982\r\napt.pkgcache=1795477983\r\napt.check=333;209\r\nuu.installed=1\r\nuu.setting=1\r\nuu.timer=enabled\r\nuu.stamp=1795449146\r\nphp.fpm.8.3=inactive\r\nphp.fpm.8.4=active\r\npkg.nginx.installed=1.29.1-1~noble\r\npkg.nginx.candidate=1.31.10-1~noble\r\npkg.nginx.origin=http://nginx.org/packages/mainline/ubuntu noble/nginx\r\npkg.nginx.cmp=lt\r\npkg.mariadb-server.installed=1:10.11.14+maria~ubu2404\r\npkg.mariadb-server.candidate=1:10.11.20+maria~ubu2404\r\npkg.mariadb-server.origin=https://mirror.rackspace.com/mariadb/repo/10.11/ubuntu noble/main\r\npkg.mariadb-server.cmp=lt\r\npkg.php8.3-fpm.installed=8.3.25-1+ubuntu24.04.1+deb.sury.org+1\r\npkg.php8.3-fpm.candidate=8.3.30-3+ubuntu24.04.1+deb.sury.org+1\r\npkg.php8.3-fpm.origin=https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble/main\r\npkg.php8.3-fpm.cmp=lt\r\npkg.php8.4-fpm.installed=8.4.18-2+ubuntu24.04.1+deb.sury.org+1\r\npkg.php8.4-fpm.candidate=8.4.20-1+ubuntu24.04.1+deb.sury.org+1\r\npkg.php8.4-fpm.origin=https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble/main\r\npkg.php8.4-fpm.cmp=lt\r\ndoctor_end\r\n",
+              "stderr": "Shared connection to 127.0.0.1 closed.\r\n",
+              "rc": 0,
+              "changed": false
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "default": {
+      "changed": 0,
+      "failures": 0,
+      "ignored": 0,
+      "ok": 6,
+      "rescued": 0,
+      "skipped": 2,
+      "unreachable": 0
+    }
+  }
+}

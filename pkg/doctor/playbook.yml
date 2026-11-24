@@ -1,0 +1,45 @@
+---
+# Temporary playbook written by `trellis doctor` and removed after it runs.
+# It's read-only: it connects the same way server.yml does, runs a probe
+# script without sudo, and reports project vars. It changes nothing.
+#
+# Expects extra vars: env, and trellis_cli_doctor_probe (the probe script's
+# file name next to this playbook).
+- name: 'Trellis CLI: Doctor'
+  hosts: web:&{{ env }}
+  gather_facts: false
+  vars:
+    # Role defaults aren't loaded unless a role runs, so read the few we need
+    # from the project's own roles; group_vars and host_vars still take
+    # precedence. These are read as plain values: a templated default
+    # (e.g. "{{ ... }}") wouldn't be rendered, which is fine for the keys
+    # used here.
+    trellis_cli_doctor_nginx_defaults: "{{ lookup('file', 'roles/nginx/defaults/main.yml', errors='ignore') | default('', true) | from_yaml | default({}, true) }}"
+    trellis_cli_doctor_mariadb_defaults: "{{ lookup('file', 'roles/mariadb/defaults/main.yml', errors='ignore') | default('', true) | from_yaml | default({}, true) }}"
+    # `| string` keeps versions like `mariadb_version: 10.11` (unquoted, so
+    # a YAML float) from being reported as numbers.
+    trellis_cli_doctor_vars:
+      php_version: "{{ php_version | default('') | string }}"
+      mariadb_version: "{{ mariadb_version | default(trellis_cli_doctor_mariadb_defaults.mariadb_version | default('')) | string }}"
+      nginx_package: "{{ nginx_package | default(trellis_cli_doctor_nginx_defaults.nginx_package | default('nginx')) | string }}"
+      mariadb_server_package: "{{ mariadb_server_package | default(trellis_cli_doctor_mariadb_defaults.mariadb_server_package | default('mariadb-server')) | string }}"
+  roles:
+    - { role: connection, tags: [connection, always] }
+  tasks:
+    - name: 'Trellis CLI: Doctor vars'
+      debug:
+        msg:
+          vars: "{{ trellis_cli_doctor_vars }}"
+          host: "{{ ansible_host | default(inventory_hostname) | string }}"
+          user: "{{ ansible_user | default('') | string }}"
+
+    - name: 'Trellis CLI: Doctor probe'
+      script: >-
+        {{ trellis_cli_doctor_probe }}
+        {{ trellis_cli_doctor_vars.php_version | quote }}
+        {{ trellis_cli_doctor_vars.nginx_package | quote }}
+        {{ trellis_cli_doctor_vars.mariadb_server_package | quote }}
+      args:
+        executable: /bin/sh
+      changed_when: false
+      check_mode: false

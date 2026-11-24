@@ -82,7 +82,24 @@ type evaluator struct {
 }
 
 func (e *evaluator) add(r Result) {
+	// List the apt source after any explanation.
+	slices.SortStableFunc(r.Details, func(a, b string) int {
+		return cmpBool(strings.HasPrefix(a, aptSourceDetail), strings.HasPrefix(b, aptSourceDetail))
+	})
 	e.report.Results = append(e.report.Results, r)
+}
+
+const aptSourceDetail = "apt source: "
+
+func cmpBool(a, b bool) int {
+	switch {
+	case a == b:
+		return 0
+	case a:
+		return 1
+	default:
+		return -1
+	}
 }
 
 func (e *evaluator) upgrade(s Service) {
@@ -162,16 +179,18 @@ func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
 		r.Status = StatusWarn
 		r.Message = fmt.Sprintf("%s installed, but no version is available from the server's apt sources", installed)
 	case p.Cmp == "lt":
+		from, to := displayVersions(p.Installed, p.Candidate)
 		r.Status = StatusFail
-		r.Message = fmt.Sprintf("%s → %s available", installed, UpstreamVersion(p.Candidate))
+		r.Message = fmt.Sprintf("%s → %s available", from, to)
 		if p.Held {
 			r.Details = append(r.Details, fmt.Sprintf("%s is held (apt-mark hold), so provisioning won't upgrade it; run `sudo apt-mark unhold %s` on the server first", name, name))
 		} else {
 			upgradable = true
 		}
 	case p.Cmp == "gt":
+		from, to := displayVersions(p.Installed, p.Candidate)
 		r.Status = StatusWarn
-		r.Message = fmt.Sprintf("%s installed is newer than %s available; the apt source may have changed", installed, UpstreamVersion(p.Candidate))
+		r.Message = fmt.Sprintf("%s installed is newer than %s available; the apt source may have changed", from, to)
 	case p.Cmp == "eq" && p.Origin == "":
 		r.Status = StatusWarn
 		r.Message = fmt.Sprintf("%s installed, but it isn't available from any of the server's apt sources, so it won't get updates", installed)
@@ -189,7 +208,7 @@ func (e *evaluator) pkgResult(id, name string) (r Result, upgradable bool) {
 	}
 
 	if p.Origin != "" && r.Status != StatusOK {
-		r.Details = append(r.Details, "apt source: "+p.Origin)
+		r.Details = append(r.Details, aptSourceDetail+p.Origin)
 	}
 
 	return r, upgradable
@@ -271,13 +290,13 @@ func (e *evaluator) phpFPM() {
 			continue
 		}
 
-		msg := fmt.Sprintf("php%s-fpm is installed but %s", b, e.f.PHPFPM[b])
+		msg := "installed but " + e.f.PHPFPM[b]
 		if e.f.PHPFPM[b] == "active" {
-			msg = fmt.Sprintf("php%s-fpm is also running; provisioning PHP stops and disables PHP-FPM versions other than php_version", b)
+			msg = "also running; provisioning PHP stops and disables PHP-FPM versions other than php_version"
 		}
 
 		e.add(Result{
-			ID:      "php-leftover",
+			ID:      "php-leftover-" + b,
 			Title:   "php" + b + "-fpm",
 			Status:  StatusInfo,
 			Message: msg,
@@ -375,8 +394,8 @@ func (e *evaluator) applyPHPRelease(r *Result, name string, rel *PHPRelease) boo
 		r.Details = append(r.Details, released+"; it isn't available from the server's apt source yet")
 	}
 
-	if p.Origin != "" && !slices.Contains(r.Details, "apt source: "+p.Origin) {
-		r.Details = append(r.Details, "apt source: "+p.Origin)
+	if p.Origin != "" && !slices.Contains(r.Details, aptSourceDetail+p.Origin) {
+		r.Details = append(r.Details, aptSourceDetail+p.Origin)
 	}
 
 	return upgradable
@@ -419,7 +438,7 @@ func (e *evaluator) mariaDB() {
 			r.Message = fmt.Sprintf("%s installed; the server's MariaDB repository offers %s", UpstreamVersion(p.Installed), UpstreamVersion(p.Candidate))
 			r.Details = []string{fmt.Sprintf("Not suggesting an upgrade from MariaDB %s to %s; back up your databases and upgrade deliberately", serverBranch, candidateBranch)}
 			if p.Origin != "" {
-				r.Details = append(r.Details, "apt source: "+p.Origin)
+				r.Details = append(r.Details, aptSourceDetail+p.Origin)
 			}
 		case upgradable && target == "":
 			upgradable = false
@@ -441,12 +460,14 @@ func (e *evaluator) reboot() {
 		uptime = fmt.Sprintf("running kernel %s, up %s", e.f.KernelRunning, humanDuration(e.f.Uptime))
 	}
 
+	const rebootHint = "Reboot when convenient: connect with `trellis ssh <environment>` and run `sudo reboot`"
+
 	switch {
 	case e.f.RebootRequired:
 		r.Status = StatusWarn
 		r.Message = "Reboot required"
 		if len(e.f.RebootPackages) > 0 {
-			r.Details = append(r.Details, "Updated: "+strings.Join(e.f.RebootPackages, ", "))
+			r.Details = append(r.Details, "Updated: "+summarizeRebootPackages(e.f.RebootPackages))
 		}
 	case !e.f.RebootNotifier && kernelNewer(e.f.KernelLatest, e.f.KernelRunning):
 		// Without update-notifier, /var/run/reboot-required is never
@@ -462,6 +483,9 @@ func (e *evaluator) reboot() {
 	if uptime != "" {
 		r.Details = append(r.Details, uptime)
 	}
+	if r.Status == StatusWarn {
+		r.Details = append(r.Details, rebootHint)
+	}
 
 	e.add(r)
 }
@@ -473,10 +497,13 @@ func (e *evaluator) unattendedUpgrades() {
 	switch {
 	case !e.f.UUInstalled:
 		r.Message = "not installed; Ubuntu security updates aren't applied automatically"
+		r.Details = []string{"Install it on the server: sudo apt-get install unattended-upgrades"}
 	case !enabled:
 		r.Message = "disabled (APT::Periodic::Unattended-Upgrade); Ubuntu security updates aren't applied automatically"
+		r.Details = []string{"Enable it on the server: sudo dpkg-reconfigure -plow unattended-upgrades"}
 	case e.f.UUTimer != "" && e.f.UUTimer != "enabled":
 		r.Message = fmt.Sprintf("apt-daily-upgrade.timer is %s; Ubuntu security updates aren't applied automatically", e.f.UUTimer)
+		r.Details = []string{"Enable it on the server: sudo systemctl enable --now apt-daily-upgrade.timer"}
 	case e.f.UURan.IsZero():
 		r.Status = StatusUnknown
 		r.Message = "enabled, but there's no record of it running yet"
@@ -553,4 +580,31 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
+}
+
+// summarizeRebootPackages lists the packages that need a reboot, collapsing
+// kernel packages (often many, after months without a reboot).
+func summarizeRebootPackages(pkgs []string) string {
+	var others, kernels []string
+	for _, p := range pkgs {
+		if strings.HasPrefix(p, "linux-image-") || strings.HasPrefix(p, "linux-modules-") {
+			kernels = append(kernels, p)
+		} else {
+			others = append(others, p)
+		}
+	}
+
+	if len(kernels) <= 2 {
+		return strings.Join(pkgs, ", ")
+	}
+
+	newest := kernels[0]
+	for _, k := range kernels[1:] {
+		if kernelNewer(strings.TrimPrefix(strings.TrimPrefix(k, "linux-image-"), "linux-modules-"),
+			strings.TrimPrefix(strings.TrimPrefix(newest, "linux-image-"), "linux-modules-")) {
+			newest = k
+		}
+	}
+
+	return strings.Join(append(others, fmt.Sprintf("%d kernel packages (newest %s)", len(kernels), newest)), ", ")
 }
