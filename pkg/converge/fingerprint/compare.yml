@@ -1,0 +1,12 @@
+# Config for `fingerprint compare` of a stock Trellis server against a
+# converge one (see README).
+
+# Volatile facts that change on any running server.
+ignore:
+  - '^sysctl/(fs\.(aio-nr|dentry-state|file-nr|inode-nr|inode-state)|kernel\.(ns_last_pid|random\.(uuid|boot_id))|net\.netfilter\.nf_conntrack_count)$'
+  - '^timedate/(TimeUSec|RTCTimeUSec|NTPSynchronized)$'
+  - '^units-active/(user@|user-runtime-dir@)'
+  - '^tree/.*/\.(ansible|cache|sudo_as_admin_successful|bash_history|lesshst|viminfo)'
+
+# Differences we intend, with the reason.
+expected: []
