@@ -296,7 +296,7 @@ Options:
   --host          Address for a single-node environment (e.g. the dev VM)
   --user          SSH user (default: admin, falling back to root)
   --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
-  --agent-binary  Linux trellis-cli binary to run on the node
+  --agent-binary  Linux trellis-agent binary (default: embedded)
 %s`, c.verb(), extra)
 }
 

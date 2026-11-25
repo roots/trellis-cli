@@ -1,9 +1,10 @@
 # node db1 (roles: db)
-# hash a9d2de4c679e68d2f076c92e42c049d1d530a7c817099a6b6220c49637382047
+# hash c2d5c75f7ea6391b3dd4e23519b6baf795f6626c36f99cc122916f0f9f2122ef
 
 == repos
 download      /etc/apt/keyrings/mariadb.asc ← https://mariadb.org/mariadb_release_signing_key.asc
               ↳ run apt-get update
+exec          timezone: timedatectl set-timezone Etc/UTC
 file          /etc/apt/sources.list.d/trellis-mariadb.sources 0644 root:root
               ↳ run apt-get update
     │ # Managed by Trellis.
@@ -122,6 +123,3 @@ database_user example_com@10.0.0.4 → example_com
 service       fail2ban.service enabled active
 service       mariadb.service enabled active
 service       nftables.service enabled active
-
-== exec
-exec          timezone: timedatectl set-timezone Etc/UTC

@@ -1,5 +1,5 @@
 # node 203.0.113.10 (roles: web, db)
-# hash 1fc9dbccae2003094df22f1c67575fa2bb53b3283376dc2774dbee5eb2b3ff48
+# hash 8d75b23e699b7441b1758b02659ad3e379c2820617d66aae3971eb3d7434e9e6
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
@@ -10,6 +10,7 @@ download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signi
               ↳ run apt-get update
 download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg
               ↳ run apt-get update
+exec          timezone: timedatectl set-timezone Etc/UTC
 file          /etc/apt/sources.list.d/trellis-mariadb.sources 0644 root:root
               ↳ run apt-get update
     │ # Managed by Trellis.
@@ -489,6 +490,3 @@ service       nftables.service enabled active
 service       nginx.service enabled active
 service       php8.4-fpm.service enabled active
 service       wp-cron-example-com.timer enabled active
-
-== exec
-exec          timezone: timedatectl set-timezone Etc/UTC

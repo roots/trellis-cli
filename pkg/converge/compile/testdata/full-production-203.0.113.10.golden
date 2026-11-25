@@ -1,5 +1,5 @@
 # node 203.0.113.10 (roles: web, db)
-# hash e52230da521833a098ce6ffd3003c5405ce456db816d742382056719f34b7f78
+# hash 06416f102c9e0301823276c01c02c52f8fc98c84097cb570332e4914e7f01326
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
@@ -11,6 +11,7 @@ download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signi
               ↳ run apt-get update
 download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg
               ↳ run apt-get update
+exec          timezone: timedatectl set-timezone America/Toronto
 file          /etc/apt/apt.conf.d/50trellis-snapshot 0644 root:root
               ↳ run apt-get update
     │ // Managed by Trellis: pin the Ubuntu archive to snapshot.ubuntu.com.
@@ -686,5 +687,4 @@ service       wp-cron-example-com.timer enabled active
 service       wp-cron-shop-example-com.timer enabled active
 
 == exec
-exec          timezone: timedatectl set-timezone America/Toronto
 exec          user:rebuild-font-cache: /bin/sh -c fc-cache -f

@@ -73,7 +73,9 @@ func (b *builder) base() {
 
 	b.add(
 		m.NewRootFile("/etc/systemd/journald.conf.d/50-trellis.conf", b.render("journald/journald.conf", nil), 0o644, journaldRestart),
-		m.NewExec("timezone", []string{"timedatectl", "set-timezone", b.env.Server.Timezone}, b.env.Server.Timezone),
+		// First, before packages: services read the timezone when they
+		// start, and apt starts them on install (MariaDB's system_time_zone).
+		m.NewExec("timezone", []string{"timedatectl", "set-timezone", b.env.Server.Timezone}, b.env.Server.Timezone).InPhase(m.PhaseRepos),
 		m.NewService("nftables.service", enabled, true),
 		m.NewService("fail2ban.service", enabled, true),
 	)

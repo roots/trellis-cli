@@ -120,6 +120,7 @@ func TestFirstRunOrdering(t *testing.T) {
 		return slices.IndexFunc(h.Log, func(c string) bool { return strings.HasPrefix(c, prefix) })
 	}
 	order := []string{
+		"timedatectl",      // before apt starts services that cache the timezone
 		"apt-get update",   // after sources are written
 		"apt-get install",  // one transaction
 		"systemd-sysusers", // users before directories
@@ -127,7 +128,6 @@ func TestFirstRunOrdering(t *testing.T) {
 		"systemctl daemon-reload",
 		"mariadb", // databases after the server is installed
 		"systemctl start nginx.service",
-		"timedatectl",
 		"certbot certonly", // after nginx is serving the ACME location
 	}
 	last := -1
@@ -307,17 +307,17 @@ func TestRemovingASitePrunesItsResources(t *testing.T) {
 func TestFailedRunKeepsOwnershipForPruning(t *testing.T) {
 	h := newFake()
 	m := compileEnv(t, "full", "production", nil)[0]
-	h.Fail["timedatectl"] = "boom" // fails in the exec phase, after files
+	h.Fail["/bin/sh -c fc-cache"] = "boom" // the user exec runs last, after files
 	p, obs := plan(t, h, m)
 	if _, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{}); err == nil {
 		t.Fatal("expected failure")
 	}
-	delete(h.Fail, "timedatectl")
+	delete(h.Fail, "/bin/sh -c fc-cache")
 
 	// Exec that failed must re-run; resources that succeeded must not.
 	p2, _ := plan(t, h, m)
 	got := describe(p2)
-	if !strings.Contains(got, "run exec:timezone") {
+	if !strings.Contains(got, "run exec:user:rebuild-font-cache") {
 		t.Errorf("failed exec not retried:\n%s", got)
 	}
 	if strings.Contains(got, "file:/etc/nginx/nginx.conf") {

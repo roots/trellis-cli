@@ -1,5 +1,5 @@
 # node web1 (roles: web)
-# hash 195b49004f3c85082cc8472aa3ac793285608dd021e0e203924801e8b2d7f681
+# hash c382014334e0731c672622b2302d4cdf7579933a7423bde14fc77b1df047c224
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
@@ -8,6 +8,7 @@ download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signi
               ↳ run apt-get update
 download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg
               ↳ run apt-get update
+exec          timezone: timedatectl set-timezone Etc/UTC
 file          /etc/apt/sources.list.d/trellis-nginx.sources 0644 root:root
               ↳ run apt-get update
     │ # Managed by Trellis.
@@ -452,6 +453,3 @@ service       nftables.service enabled active
 service       nginx.service enabled active
 service       php8.4-fpm.service enabled active
 service       wp-cron-example-com.timer enabled active
-
-== exec
-exec          timezone: timedatectl set-timezone Etc/UTC
