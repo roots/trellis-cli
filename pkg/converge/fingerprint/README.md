@@ -24,6 +24,16 @@ provisioning, and keeps only facts a provisioner changed. Each one is then
 classed as same, differ, only Trellis, or only converge. Differences we
 intend go in `compare.yml` with a reason, so the report shows what's left.
 
+To build both servers and compare them in one go (about 10 minutes):
+
+```sh
+pkg/converge/fingerprint/compare-lima.sh ~/dev/trellis
+```
+
+This creates two fresh Lima VMs. It provisions one with your Trellis checkout's stock production config (via Ansible) and the other with an equivalent `trellis.yml` (via converge), then writes `report.md`.
+
+Running the tool by hand:
+
 ```sh
 go build -o fingerprint ./pkg/converge/fingerprint/cmd/fingerprint
 ./fingerprint probe | limactl shell vm sudo bash -s > vm.before.txt

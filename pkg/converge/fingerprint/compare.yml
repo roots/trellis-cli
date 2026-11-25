@@ -1,12 +1,121 @@
 # Config for `fingerprint compare` of a stock Trellis server against a
-# converge one (see README).
+# converge one (see README). Audit and reasons: roots/trellis#1708.
 
 # Volatile facts that change on any running server.
 ignore:
-  - '^sysctl/(fs\.(aio-nr|dentry-state|file-nr|inode-nr|inode-state)|kernel\.(ns_last_pid|random\.(uuid|boot_id))|net\.netfilter\.nf_conntrack_count)$'
+  - '^sysctl/(fs\.(aio-nr|dentry-state|file-nr|inode-nr|inode-state|quota\.)|kernel\.(ns_last_pid|random\.(uuid|boot_id))|net\.netfilter\.nf_conntrack_count)'
   - '^timedate/(TimeUSec|RTCTimeUSec|NTPSynchronized)$'
-  - '^units-active/(user@|user-runtime-dir@)'
+  - '^units-active/(user@|user-runtime-dir@|systemd-timedated\.service)'
   - '^tree/.*/\.(ansible|cache|sudo_as_admin_successful|bash_history|lesshst|viminfo)'
+  - '^mariadb-vars/server_uid$'
+  - '^reboot-required/'
+  - '^listen/.*containerd'  # Lima's guest containerd
 
-# Differences we intend, with the reason.
-expected: []
+# Differences we intend, with the reason. Anything not listed here is either
+# a gap or a regression.
+expected:
+  # SSH
+  - key: '^sshd/(kexalgorithms|ciphers|macs)$'
+    reason: Subtract weak algorithms from OpenSSH's defaults instead of an allowlist, which drops post-quantum key exchange
+  - key: '^(sshd/(addressfamily|listenaddress)|listen/tcp (\*|0\.0\.0\.0):22)$'
+    reason: SSH on IPv6 as well as IPv4
+  - key: '^sshd/subsystem$'
+    reason: internal-sftp is only needed for chrooted users
+  - key: '^sshd/(acceptenv|printlastlog|printmotd)$'
+    reason: Ubuntu defaults; no security effect
+  - key: '^sshd/permitrootlogin$'
+    reason: Root login disabled; admin uses sudo with a password
+  - key: '^sshd/clientaliveinterval$'
+    reason: 300s keepalive (Trellis 600s)
+
+  # Firewall and fail2ban
+  - key: '^firewall/input/accept tcp 22 from '
+    reason: No automatic allowlist of the provisioning machine's IP (ipify)
+  - key: '^firewall/input/(accept (tcp (22|80|443)|established|loopback|icmpv6)|ratelimit tcp 22|policy drop)$'
+    reason: Same rules for IPv6 (Trellis filters IPv6 only until reboot); 443 open regardless of SSL
+  - key: '^firewall/input/accept udp 500$'
+    reason: Leftover IPsec rule from the Debian ferm package defaults
+  - key: '^fail2ban/ssh/'
+    reason: Trellis runs a duplicate ssh jail next to Debian's sshd
+  - key: '^fail2ban/sshd/(actions|logpath)$'
+    reason: nftables ban action, journal backend
+  - key: '^fail2ban/sshd/bantime$'
+    reason: 1h bans (Trellis 10m)
+  - key: '^(units-enabled|units-active)/(ferm|nftables)\.service$'
+    reason: Native nftables instead of ferm/iptables-legacy
+  - key: '^sysctl/net\.netfilter\.nf_log\.'
+    reason: Loaded by ferm's LOG rules
+
+  # Time and scheduling
+  - key: '^((units-enabled|units-active|timers)/ntpsec|cron/cron\.d/ntpsec|timedate/(CanNTP|NTP|service\.)|listen/udp .*:123)'
+    reason: systemd-timesyncd instead of an ntpsec server
+  - key: '^((units-enabled|units-active|timers)/wp-cron-|cron/cron\.d/wordpress-)'
+    reason: WP-Cron as a systemd timer instead of cron.d
+
+  # Users and layout
+  - key: '^(users/admin|tree//home/admin.*)$'
+    reason: admin's primary group is its own (Trellis uses sudo); sudo membership is the same
+  - key: '^sudo/admin$'
+    reason: "Ubuntu's legacy %admin sudoers rule also matches admin's own group; same rights, password required"
+  - key: '^sudo/web$'
+    reason: Exactly the PHP-FPM reload deploys need, not `service php-fpm *`
+  - key: '^tree//srv/www(/acme)?$'
+    reason: /srv/www is root-owned; a root-owned ACME webroot is shared by all sites
+  - key: '^tree//srv/www/[^/]+/(releases|shared.*)$'
+    reason: Deploy directories and .env are provisioned, not created by the first deploy
+  - key: '^tree//root/(\.composer|\.config|\.local|\.gnupg)'
+    reason: Left behind by Trellis running composer and gpg as root
+  - key: '^tree//srv/www/[^/]+/logs/(access|error)\.log$'
+    reason: Logs are 0640 web:www-data (created by tmpfiles and logrotate), not world-readable
+
+  # PHP
+  - key: '^php-fpm-pools/(wordpress|[a-z0-9.-]+\.[a-z]+)/'
+    reason: One pool per site (isolation, per-site open_basedir) instead of a shared pool
+  - key: '^php-ini-(fpm|cli)/(zend\.assertions|zend\.exception_ignore_args|zend\.exception_string_param_max_len|short_open_tag|variables_order|request_order|enable_dl|allow_url_include|ignore_repeated_errors|ignore_repeated_source|log_errors|mail\.add_x_header|mail\.mixed_lf_and_crlf|zlib\.output_compression|session\.gc_probability|session\.gc_divisor|session\.save_path|session\.sid_bits_per_character|session\.use_strict_mode|html_errors|output_buffering|serialize_precision|precision|error_reporting|max_input_time|memory_limit)$'
+    reason: Keep Ubuntu's php.ini-production and override in conf.d (Trellis replaces php.ini, losing production defaults)
+  - key: '^php-modules-fpm/xmlrpc$'
+    reason: Unmaintained PECL extension; WordPress ships its own XML-RPC implementation
+  - key: '^php-ini-cli/'
+    reason: CLI uses production defaults plus the same overrides as FPM (Trellis has a separate CLI template)
+
+  # Packages
+  - key: '^packages/(autoconf|automake|autotools-dev|binutils.*|build-essential|cpp.*|dpkg-dev|fakeroot|g\+\+.*|gcc.*|lto-disabled-list|m4|make|pkg-?conf.*|pkg-config|shtool|php[0-9.]+-(dev|xmlrpc)|subversion|imagemagick.*|netpbm|fontconfig|hicolor-icon-theme|ferm|ntpsec|python3-(ntp|pycurl|pymysql)|bzip2)$'
+    reason: No build tools, ntpsec, ferm or Ansible modules on production servers
+  - key: '^packages/(lib.*|bsdextrautils|bsdutils|dpkg|eject|fdisk|mount|openssh-.*|openssl|systemd.*|udev|util-linux|uuid-runtime|dirmngr|gnupg.*|gpg.*|keyboxd)$'
+    reason: Trellis upgrades security packages on every provision; converge relies on unattended-upgrades (and dependencies of the above)
+
+  # MariaDB
+  - key: "^(mariadb-grants/'root'@|tree//root/\\.my\\.cnf$)"
+    reason: root authenticates over the unix socket only; no TCP root accounts or stored password
+  - key: '^mariadb-vars/skip_name_resolve$'
+    reason: Grants use IPs and localhost, so DNS lookups on connect are avoided
+  - key: '^mariadb-vars/(character_set_collations|collation_(connection|database|server)|lc_messages_dir)$'
+    reason: MariaDB 11.8 defaults; databases are created as utf8mb4 explicitly
+
+  # nginx
+  - key: '(add_header (X-XSS-Protection|X-UA-Compatible)| x-xss-protection| x-ua-compatible)$'
+    reason: Obsolete headers
+  - key: 'location\[~\* (Gemfile|gems|composer/installed|auth)'
+    reason: Can't match anything under Bedrock's web/ document root
+  - key: '^nginx/.*open_file_cache'
+    reason: Not adopted; unclear benefit, can serve stale files after symlink deploys
+  - key: '^nginx/.*server\[80.*\] > http[23]$'
+    reason: No-ops on plain HTTP server blocks
+  - key: '^nginx/http > (fastcgi_cache|fastcgi_ignore_headers|fastcgi_pass_header|ssl_)'
+    reason: FastCGI cache settings only when a site uses it; TLS defaults at http level
+  - key: '^nginx/.*(fastcgi_pass|location\[\^~ /\.well-known/acme-challenge/\] > (alias|root|try_files))$'
+    reason: Per-site PHP socket; shared ACME webroot
+  - key: '^nginx/http > server\[80 default_server'
+    reason: Default server also serves ACME challenges; its key differs by server_name
+  - key: '^nginx/http > map\[\$sent_http_content_type \$(cors|expires)\] > '
+    reason: Equivalent maps with fewer entries (regexes and the 1y default cover Trellis's explicit types)
+  - key: '^nginx/http > gzip_types$'
+    reason: Same types minus the obsolete text/vnd.rim.location.xloc
+
+  # System
+  - key: '^logrotate/'
+    reason: Site logs rotate daily, 14 kept, compressed (Trellis weekly, 8)
+  - key: '^(swap/|units-enabled/swapfile\.swap$)'
+    reason: Swapfile sized to memory (max 2G) instead of a fixed 1G
+  - key: '^msmtp/(syslog|tls_trust_file|tls_starttls)$'
+    reason: Equivalent settings
