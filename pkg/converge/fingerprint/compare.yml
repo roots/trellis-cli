@@ -10,6 +10,7 @@ ignore:
   - '^mariadb-vars/server_uid$'
   - '^reboot-required/'
   - '^listen/.*containerd'  # Lima's guest containerd
+  - '^listen/udp [^ ]*:(3[2-9]|[4-6][0-9])[0-9]{3}$'  # ephemeral client ports (e.g. timesyncd)
 
 # Differences we intend, with the reason. Anything not listed here is either
 # a gap or a regression.
@@ -47,7 +48,7 @@ expected:
     reason: Loaded by ferm's LOG rules
 
   # Time and scheduling
-  - key: '^((units-enabled|units-active|timers)/ntpsec|cron/cron\.d/ntpsec|timedate/(CanNTP|NTP|service\.)|listen/udp .*:123)'
+  - key: '^((units-enabled|units-active|timers)/(ntpsec|systemd-timesyncd)|cron/cron\.d/ntpsec|timedate/(CanNTP|NTP|service\.)|listen/udp .*:123)'
     reason: systemd-timesyncd instead of an ntpsec server
   - key: '^((units-enabled|units-active|timers)/wp-cron-|cron/cron\.d/wordpress-)'
     reason: WP-Cron as a systemd timer instead of cron.d
