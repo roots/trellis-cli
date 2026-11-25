@@ -27,10 +27,11 @@ for cmd in go limactl; do command -v $cmd >/dev/null || { echo "missing $cmd" >&
 [ -x "$VENV/ansible-playbook" ] || { echo "no Ansible in $VENV (run \`trellis init\` in $TRELLIS)" >&2; exit 1; }
 log() { printf '\n==> %s\n' "$*"; }
 
-log "Building trellis (with embedded agents) and fingerprint into $WORK"
+BIN=$WORK/bin
+log "Building trellis (with embedded agents) and fingerprint into $BIN"
 (cd "$CLI" && go generate ./pkg/converge/agentbin >/dev/null &&
-  go build -o "$WORK/trellis" . && go build -o "$WORK/fingerprint" ./pkg/converge/fingerprint/cmd/fingerprint)
-"$WORK/fingerprint" probe >"$WORK/probe.sh"
+  go build -o "$BIN/trellis" . && go build -o "$BIN/fingerprint" ./pkg/converge/fingerprint/cmd/fingerprint)
+"$BIN/fingerprint" probe >"$WORK/probe.sh"
 
 vm() {
   limactl delete -f "$1" >/dev/null 2>&1 || true
@@ -84,11 +85,11 @@ environments:
 EOF
 printf 'version: 1\nos: ubuntu-24.04\n' >"$P/trellis.lock"
 export TRELLIS_AGE_KEY_FILE=$KEY # decrypt secrets with the Lima SSH key
-(cd "$P" && rm -f secrets/production.yml.age && "$WORK/trellis" converge secrets init production >/dev/null &&
-  printf 'smtp_password' | "$WORK/trellis" converge secrets set production mail_password >/dev/null)
+(cd "$P" && rm -f secrets/production.yml.age && "$BIN/trellis" converge secrets init production >/dev/null &&
+  printf 'smtp_password' | "$BIN/trellis" converge secrets set production mail_password >/dev/null)
 
 converge() {
-  (cd "$P" && "$WORK/trellis" converge apply production --yes \
+  (cd "$P" && "$BIN/trellis" converge apply production --yes \
     --ssh-option IdentityFile="$KEY" --ssh-option UserKnownHostsFile=/dev/null --ssh-option IdentitiesOnly=yes)
 }
 
@@ -113,7 +114,7 @@ wait $ansible || { echo "Ansible failed; see $WORK/ansible.log" >&2; exit 1; }
 
 log "Probing and comparing"
 probe $A after & probe $C after & wait
-"$WORK/fingerprint" compare -config "$CLI/pkg/converge/fingerprint/compare.yml" \
+"$BIN/fingerprint" compare -config "$CLI/pkg/converge/fingerprint/compare.yml" \
   "$WORK/$A.before.txt" "$WORK/$A.after.txt" "$WORK/$C.before.txt" "$WORK/$C.after.txt" >"$WORK/report.md"
 sed -n '/total/p' "$WORK/report.md"
 echo
