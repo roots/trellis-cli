@@ -127,6 +127,12 @@ func (r *run) execute(p *Plan) error {
 			}
 			acts = append(acts, extra...)
 		}
+		if phase == manifest.PhaseServices && r.installed {
+			var err error
+			if acts, err = r.recheckStarted(acts); err != nil {
+				return err
+			}
+		}
 		if len(acts) == 0 {
 			continue
 		}
@@ -141,6 +147,41 @@ func (r *run) execute(p *Plan) error {
 		return err
 	}
 	return r.issueCerts()
+}
+
+// recheckStarted drops "start" for units a package started earlier in
+// this run (Debian postinst scripts start their services). Those units are
+// running the package's default config, so they must not count as freshly
+// started: their reload/restart notifications still have to run.
+func (r *run) recheckStarted(acts []Action) ([]Action, error) {
+	var units []string
+	for _, a := range acts {
+		if a.Resource.Kind == manifest.KindService && slices.Contains(a.Reasons, "start") {
+			units = append(units, a.Resource.Service.Unit)
+		}
+	}
+	if len(units) == 0 {
+		return acts, nil
+	}
+	out, err := r.h.Run(r.ctx, systemctlShowCmd(units))
+	if err != nil {
+		return nil, err
+	}
+	live := parseSystemctlShow(out)
+	kept := acts[:0:0]
+	for _, a := range acts {
+		if a.Resource.Kind == manifest.KindService {
+			if u, ok := live[a.Resource.Service.Unit]; ok && u.Active() {
+				a.Reasons = slices.DeleteFunc(slices.Clone(a.Reasons), func(s string) bool { return s == "start" })
+				if len(a.Reasons) == 0 {
+					r.completed[a.ID()] = true
+					continue
+				}
+			}
+		}
+		kept = append(kept, a)
+	}
+	return kept, nil
 }
 
 // phase applies one phase's actions and then its command notifications.

@@ -405,3 +405,20 @@ func TestPlanHashBindsApproval(t *testing.T) {
 		t.Error("different state must give a different plan hash")
 	}
 }
+
+// Debian packages start their services on install, before Trellis writes
+// their config. Those must still be reloaded, not treated as fresh starts.
+func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)[0]
+	h := newFake()
+	converge(t, h, m)
+	if got := h.Commands("systemctl start php8.4-fpm.service"); len(got) != 0 {
+		t.Errorf("php-fpm was already running; start is a no-op: %v", got)
+	}
+	for _, unit := range []string{"php8.4-fpm.service", "fail2ban.service"} {
+		n := len(h.Commands("systemctl try-reload-or-restart "+unit)) + len(h.Commands("systemctl try-restart "+unit))
+		if n == 0 {
+			t.Errorf("%s kept the package's default config:\n%s", unit, strings.Join(h.Commands("systemctl"), "\n"))
+		}
+	}
+}

@@ -54,6 +54,9 @@ type Fake struct {
 	// PackageFiles are files a package creates when installed (like
 	// nginx's conf.d/default.conf), to simulate package side effects.
 	PackageFiles map[string][]string
+	// PackageUnits are units a package's postinst enables and starts,
+	// with whatever config exists at that moment.
+	PackageUnits map[string]string
 
 	// Log is every command run, joined by spaces.
 	Log []string
@@ -71,6 +74,13 @@ func New() *Fake {
 			"nginx":      {"/etc/nginx/conf.d/default.conf"},
 			"php8.4-fpm": {"/etc/php/8.4/fpm/pool.d/www.conf"},
 			"php8.3-fpm": {"/etc/php/8.3/fpm/pool.d/www.conf"},
+		},
+		PackageUnits: map[string]string{
+			"php8.4-fpm":     "php8.4-fpm.service",
+			"php8.3-fpm":     "php8.3-fpm.service",
+			"mariadb-server": "mariadb.service",
+			"fail2ban":       "fail2ban.service",
+			"redis-server":   "redis-server.service",
 		},
 		GPG:  map[string]string{},
 		Fail: map[string]string{},
@@ -230,6 +240,10 @@ func (f *Fake) apt(argv []string) error {
 			if _, installed := f.Packages[name]; !installed {
 				for _, p := range f.PackageFiles[name] {
 					f.Files[p] = &File{Data: []byte("from package " + name), Mode: 0o644, Owner: "root", Group: "root"}
+				}
+				if unit, ok := f.PackageUnits[name]; ok {
+					u := f.unit(unit)
+					u.Enabled, u.Active = true, true
 				}
 			}
 			f.Packages[name] = version
