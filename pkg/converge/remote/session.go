@@ -36,9 +36,10 @@ type Session struct {
 	// FindBinary returns the agent binary for a node architecture.
 	FindBinary func(arch string) (Binary, error)
 	Out        io.Writer
-	// Host overrides the address of a single-node environment (e.g. a
-	// development VM's IP).
+	// Host and Port override the address of a single-node environment
+	// (e.g. a local VM).
 	Host string
+	Port int
 	// Users to try when a node doesn't set one.
 	Users []string
 	// SudoPassword is the admin user's sudo password (admin_password).
@@ -60,6 +61,9 @@ func (s *Session) Prepare(ctx context.Context, env *config.Environment, ms []*ma
 	for _, n := range env.Nodes {
 		if s.Host != "" {
 			n.Host = s.Host
+		}
+		if s.Port != 0 {
+			n.Port = s.Port
 		}
 		if n.Host == "" {
 			return nil, fmt.Errorf("node %s has no host (pass --host for the development VM)", n.Name)

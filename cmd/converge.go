@@ -177,6 +177,7 @@ type ConvergeRunCommand struct {
 
 	flags       *flag.FlagSet
 	host        string
+	lima        string
 	user        string
 	sshOptions  flags.StringSliceVar
 	agentBinary string
@@ -188,6 +189,7 @@ func NewConvergeRunCommand(ui cli.Ui, version string, apply bool) *ConvergeRunCo
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
 	c.flags.StringVar(&c.host, "host", "", "Override the address of a single-node environment (e.g. a development VM)")
+	c.flags.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name (single-node environments)")
 	c.flags.StringVar(&c.user, "user", "", "SSH user (default: admin, falling back to root)")
 	c.flags.Var(&c.sshOptions, "ssh-option", "Extra ssh -o option (repeatable), e.g. ProxyJump=bastion")
 	c.flags.StringVar(&c.agentBinary, "agent-binary", "", "Path to a linux trellis-agent binary (default: the one embedded in trellis-cli)")
@@ -222,13 +224,24 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 	ssh := remote.NewSSH()
 	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
 	users := []string{"admin", "root"}
+	host, port := c.host, 0
+	if c.lima != "" {
+		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)
+		if err != nil {
+			c.UI.Error(err.Error())
+			return 1
+		}
+		host, port, users = "127.0.0.1", vm.Port, []string{vm.User}
+		ssh.Options = append(vm.Options(), c.sshOptions...)
+	}
 	if c.user != "" {
 		users = []string{c.user}
 	}
 	s := &remote.Session{
 		SSH:          ssh,
 		Out:          out,
-		Host:         c.host,
+		Host:         host,
+		Port:         port,
 		Users:        users,
 		SudoPassword: compiled.SudoPassword,
 		FindBinary: func(arch string) (remote.Binary, error) {
@@ -295,6 +308,7 @@ between, it refuses.
 
 Options:
   --host          Address for a single-node environment (e.g. the dev VM)
+  --lima          Target a local Lima VM by name (single-node environments)
   --user          SSH user (default: admin, falling back to root)
   --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
   --agent-binary  Linux trellis-agent binary (default: embedded)
