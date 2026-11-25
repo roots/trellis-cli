@@ -65,6 +65,45 @@ func main() {
 		"check": func() (cli.Command, error) {
 			return &cmd.CheckCommand{UI: ui, Trellis: trellis}, nil
 		},
+		"converge": func() (cli.Command, error) {
+			return cmd.NewConvergeNamespace(), nil
+		},
+		"converge apply": func() (cli.Command, error) {
+			return cmd.NewConvergeRunCommand(ui, version, true), nil
+		},
+		"converge compile": func() (cli.Command, error) {
+			return cmd.NewConvergeCompileCommand(ui, version), nil
+		},
+		"converge eject": func() (cli.Command, error) {
+			return cmd.NewConvergeEjectCommand(ui, version), nil
+		},
+		"converge lock": func() (cli.Command, error) {
+			return cmd.NewConvergeLockCommand(ui), nil
+		},
+		"converge plan": func() (cli.Command, error) {
+			return cmd.NewConvergeRunCommand(ui, version, false), nil
+		},
+		"converge secrets": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsNamespace(), nil
+		},
+		"converge secrets edit": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsEditCommand(ui), nil
+		},
+		"converge secrets init": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsInitCommand(ui), nil
+		},
+		"converge secrets keygen": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsKeygenCommand(ui), nil
+		},
+		"converge secrets rekey": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsRekeyCommand(ui), nil
+		},
+		"converge secrets set": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsSetCommand(ui), nil
+		},
+		"converge secrets show": func() (cli.Command, error) {
+			return cmd.NewConvergeSecretsShowCommand(ui), nil
+		},
 		"db": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{
 				HelpText:     "Usage: trellis db <subcommand> [<args>]",
