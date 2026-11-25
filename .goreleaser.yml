@@ -3,6 +3,8 @@ version: 2
 before:
   hooks:
   - go mod download
+  # Build the linux trellis-agent binaries that trellis-cli embeds.
+  - go generate ./pkg/converge/agentbin
 builds:
 - env:
     - CGO_ENABLED=0

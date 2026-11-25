@@ -1,3 +1,5 @@
 trellis-cli
 dist
 tmp
+pkg/converge/agentbin/files/*
+!pkg/converge/agentbin/files/.gitkeep

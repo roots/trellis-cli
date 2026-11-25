@@ -15,3 +15,8 @@ shell:
 .PHONY: test
 test:
 	$(RUN) sh -c 'go build -buildvcs=false -v -o $$TEST_BINARY && go test -v ./...'
+
+# Build the linux trellis-agent binaries embedded by `trellis converge`.
+.PHONY: agents
+agents:
+	go generate ./pkg/converge/agentbin
