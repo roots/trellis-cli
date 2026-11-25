@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	Dir            = "/var/lib/trellis"
-	CurrentPath    = Dir + "/current.json"
-	GenerationsDir = Dir + "/generations"
-	LockPath       = Dir + "/lock"
+	Dir                = "/var/lib/trellis"
+	CurrentPath        = Dir + "/current.json"
+	GenerationsDir     = Dir + "/generations"
+	LockPath           = Dir + "/lock"
+	RebootRequiredPath = "/var/run/reboot-required"
 )
 
 // FileInfo is the observed state of a path.
@@ -52,6 +53,9 @@ type Observed struct {
 	// is safe because database statements are idempotent.
 	DBUnknown bool        `json:"db_unknown,omitempty"`
 	Previous  *Generation `json:"previous,omitempty"`
+	// RebootRequired is set when updates are waiting for a reboot
+	// (/var/run/reboot-required).
+	RebootRequired bool `json:"reboot_required,omitempty"`
 }
 
 // NewObserved returns an empty snapshot.

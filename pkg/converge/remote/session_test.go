@@ -62,7 +62,7 @@ func TestSessionSplitEnvironment(t *testing.T) {
 	if err := s.Apply(ctx, runs); err != nil {
 		t.Fatal(err)
 	}
-	if !db.Databases["example_com"] || db.Packages["nginx"] != "" {
+	if !db.Databases["example_com_production"] || db.Packages["nginx"] != "" {
 		t.Error("db node state wrong")
 	}
 	if web.Packages["nginx"] == "" || web.Packages["mariadb-server"] != "" {

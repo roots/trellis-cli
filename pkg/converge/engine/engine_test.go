@@ -278,10 +278,10 @@ func TestRemovingASitePrunesItsResources(t *testing.T) {
 		}
 	}
 	// Data is never dropped automatically.
-	if strings.Contains(got, "prune database:shop_example_com") {
+	if strings.Contains(got, "prune database:shop_example_com_production") {
 		t.Error("databases must not be pruned")
 	}
-	if !slices.ContainsFunc(p.Warnings, func(w string) bool { return strings.Contains(w, "shop_example_com is no longer managed") }) {
+	if !slices.ContainsFunc(p.Warnings, func(w string) bool { return strings.Contains(w, "shop_example_com_production is no longer managed") }) {
 		t.Errorf("expected database warning, got %v", p.Warnings)
 	}
 	// Services stop before their files are removed.
@@ -296,7 +296,7 @@ func TestRemovingASitePrunesItsResources(t *testing.T) {
 	if _, ok := h.DBUsers["shop_example_com@localhost"]; ok {
 		t.Error("db user not dropped")
 	}
-	if !h.Databases["shop_example_com"] {
+	if !h.Databases["shop_example_com_production"] {
 		t.Error("database must be kept")
 	}
 	if p2, _ := plan(t, h, without); !p2.Empty() {
@@ -420,5 +420,26 @@ func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
 		if n == 0 {
 			t.Errorf("%s kept the package's default config:\n%s", unit, strings.Join(h.Commands("systemctl"), "\n"))
 		}
+	}
+}
+
+// A failed phase command must be retried by the next run, not forgotten
+// because the files that trigger it were already written.
+func TestFailedPhaseCommandIsRetried(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)[0]
+	h := newFake()
+	h.Fail["systemd-tmpfiles"] = "unsafe path transition"
+	p, obs := plan(t, h, m)
+	if _, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{}); err == nil {
+		t.Fatal("expected failure")
+	}
+	delete(h.Fail, "systemd-tmpfiles")
+	h.ResetLog()
+	converge(t, h, m)
+	if len(h.Commands("systemd-tmpfiles")) == 0 {
+		t.Error("systemd-tmpfiles was not re-run after failing")
+	}
+	if p, _ := plan(t, h, m); !p.Empty() {
+		t.Errorf("not converged:\n%s", describe(p))
 	}
 }

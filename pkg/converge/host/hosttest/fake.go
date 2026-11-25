@@ -193,6 +193,9 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 		}
 	}
 	argv := c.Argv
+	if argv[0] == "/bin/sh" && len(argv) == 3 && strings.Contains(argv[2], "gpg --homedir") {
+		argv = []string{"gpg"} // fingerprint check in a throwaway GnuPG home
+	}
 	switch argv[0] {
 	case "dpkg-query":
 		return f.dpkgQuery(argv), nil

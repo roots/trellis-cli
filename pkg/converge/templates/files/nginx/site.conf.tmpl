@@ -45,8 +45,16 @@ server {
   index index.php index.htm index.html;
   charset utf-8;
   client_max_body_size {{ .ClientMaxBodySize }};
+  # Server-level headers apply to every location below; a location (or
+  # drop-in) that sets its own add_header must repeat these.
   add_header Fastcgi-Cache $upstream_cache_status;
   add_header X-Cache-Enabled $loopback_header_x_cache_enabled;
+  add_header X-Content-Type-Options nosniff always;
+  add_header X-Frame-Options SAMEORIGIN always;
+  add_header Content-Security-Policy "frame-ancestors 'self'" always;
+  add_header Access-Control-Allow-Origin $cors;
+  # Long browser cache lifetimes are opt-in (as in Trellis): add
+  # `expires $expires;` in server/nginx/sites/{{ .Site.Name }}/.
 {{- if .Development }}
   sendfile off;
 {{- end }}
@@ -92,9 +100,14 @@ server {
   location ~* composer\.(json|lock)$ { deny all; }
   location ~* package(-lock)?\.json$ { deny all; }
   location ~* yarn\.lock$ { deny all; }
-  location ~ /\.(?!well-known) { deny all; }
+  location ~* /\.(?!well-known\/) { deny all; }
+  # Backups, dumps, logs and editor swap files left in the web root.
+  location ~* (?:\.(?:bak|conf|dist|fla|in[ci]|log|psd|sh|sql|sw[op])|~)$ { deny all; }
+  # Plugin and theme readmes reveal versions.
+  location ~* /app/(plugins|mu-plugins|themes)/.+\.(txt|md)$ { deny all; }
 {{- if not .Site.XMLRPC }}
-  location = /xmlrpc.php { deny all; }
+  # Any path, including Bedrock's /wp/xmlrpc.php.
+  location ~* xmlrpc\.php$ { return 444; }
 {{- end }}
 
   location / {
@@ -102,12 +115,14 @@ server {
   }
 
   location ~ \.php$ {
-    try_files $uri =404;
-    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    # Missing .php files get WordPress's own 404 page.
+    try_files $uri /index.php;
     include fastcgi_params;
     fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
     fastcgi_param DOCUMENT_ROOT $realpath_root;
-    fastcgi_param HTTPS {{ if .SSL }}on{{ else }}off{{ end }};
+    # The requested host (only this server's names reach this block); the
+    # first server_name is wrong for wildcard and multisite names.
+    fastcgi_param SERVER_NAME $host;
     fastcgi_pass unix:/run/php/{{ .Site.Name }}.sock;
 {{- if .FastCGICache }}
     fastcgi_cache wordpress;

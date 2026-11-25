@@ -5,4 +5,17 @@ KbdInteractiveAuthentication no
 PubkeyAuthentication yes
 X11Forwarding no
 AllowAgentForwarding yes
+# Local forwarding only (database tunnels); no remote/reverse forwarding.
+AllowTcpForwarding local
+LoginGraceTime 30
+DebianBanner no
+# Encrypted keepalives instead of spoofable TCP ones.
+TCPKeepAlive no
 ClientAliveInterval 300
+ClientAliveCountMax 3
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+# Subtract weak algorithms from OpenSSH's defaults rather than listing
+# allowed ones, so new defaults (post-quantum key exchange) still arrive.
+KexAlgorithms -ecdh-sha2-*,diffie-hellman-group14-sha256
+MACs -*sha1*,umac-64*

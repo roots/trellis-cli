@@ -50,6 +50,10 @@ func (r Resource) Redacted() Resource {
 		u.Password = redact(r.ID(), u.Password)
 		u.Server = u.Server.redacted(r.ID())
 		r.DatabaseUser = &u
+	case r.Exec != nil && r.Exec.Stdin != "":
+		x := *r.Exec
+		x.Stdin = redact(r.ID(), x.Stdin)
+		r.Exec = &x
 	case r.Database != nil && r.Database.Server != nil:
 		d := *r.Database
 		d.Server = d.Server.redacted(r.ID())

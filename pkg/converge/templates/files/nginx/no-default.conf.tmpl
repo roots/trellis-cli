@@ -1,7 +1,7 @@
 # Managed by Trellis. Drop requests for unknown hosts.
 server {
-  listen 80 default_server;
-  listen [::]:80 default_server;
+  listen 80 default_server deferred;
+  listen [::]:80 default_server deferred;
 {{- if .AnySSL }}
   listen 443 ssl default_server;
   listen [::]:443 ssl default_server;

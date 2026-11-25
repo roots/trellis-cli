@@ -1,0 +1,9 @@
+; Managed by Trellis. Pools are in pool.d/.
+[global]
+pid = /run/php/php{{ .Version }}-fpm.pid
+error_log = /var/log/php{{ .Version }}-fpm.log
+log_level = notice
+; On reload (every deploy), let in-flight requests finish instead of
+; killing them.
+process_control_timeout = 10s
+include = /etc/php/{{ .Version }}/fpm/pool.d/*.conf

@@ -160,6 +160,9 @@ type Compiled struct {
 	// PlaintextSecrets is set when a non-development environment's secrets
 	// file is not encrypted.
 	PlaintextSecrets string
+	// SudoPassword is the admin user's sudo password, used to run the
+	// agent (empty in development, where sudo is passwordless).
+	SudoPassword string
 }
 
 // Compile resolves env and compiles it. keys decrypts the secrets file.
@@ -187,6 +190,9 @@ func (p *Project) Compile(env, version string, keys secrets.Keys) (*Compiled, er
 		return nil, fmt.Errorf("compile %s:\n%w", env, err)
 	}
 	c := &Compiled{Env: e, Manifests: ms}
+	if env != config.DevelopmentEnv {
+		c.SudoPassword, _ = sec.Lookup("admin_password")
+	}
 	if f.Exists && !f.Encrypted && env != config.DevelopmentEnv {
 		c.PlaintextSecrets = f.Path
 	}

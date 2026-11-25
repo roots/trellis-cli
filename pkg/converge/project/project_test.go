@@ -70,6 +70,9 @@ func TestProductionSecretsAreEncryptedToAdminsAndRecipients(t *testing.T) {
 	if _, err := doc.EnsureSite("example.com"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := doc.EnsureAdmin(); err != nil {
+		t.Fatal(err)
+	}
 	b, _ := doc.Marshal()
 	path, warnings, err := p.SaveSecrets("production", b)
 	if err != nil || len(warnings) > 0 {

@@ -14,14 +14,17 @@ import (
 
 // Notifications shared across the compiler.
 var (
-	aptUpdate       = m.RunCommand("apt-get", "update")
-	daemonReload    = m.RunCommand("systemctl", "daemon-reload")
-	sysusersApply   = m.RunCommand("systemd-sysusers")
-	tmpfilesApply   = m.RunCommand("systemd-tmpfiles", "--create", tmpfilesPath)
-	nginxReload     = m.ReloadUnit("nginx.service", "nginx", "-t")
-	sshReload       = m.ReloadUnit("ssh.service", "sshd", "-t")
-	nftReload       = m.ReloadUnit("nftables.service", "nft", "-c", "-f", "/etc/nftables.conf")
-	fail2banReload  = m.ReloadUnit("fail2ban.service", "fail2ban-client", "-t")
+	aptUpdate     = m.RunCommand("apt-get", "update")
+	daemonReload  = m.RunCommand("systemctl", "daemon-reload")
+	sysusersApply = m.RunCommand("systemd-sysusers")
+	tmpfilesApply = m.RunCommand("systemd-tmpfiles", "--create", tmpfilesPath)
+	nginxReload   = m.ReloadUnit("nginx.service", "nginx", "-t")
+	sshReload     = m.ReloadUnit("ssh.service", "sshd", "-t")
+	nftReload     = m.ReloadUnit("nftables.service", "nft", "-c", "-f", "/etc/nftables.conf")
+	// Restart, not reload: fail2ban 1.0's reload drops a jail's actions when
+	// its ban action changes, leaving the jail unable to ban. Bans persist
+	// across restarts in fail2ban's database.
+	fail2banReload  = m.RestartUnit("fail2ban.service", "fail2ban-client", "-t")
 	journaldRestart = m.RestartUnit("systemd-journald.service")
 	mariadbRestart  = m.RestartUnit("mariadb.service")
 
@@ -70,6 +73,12 @@ func (b *builder) base() {
 	b.firewall()
 	b.fail2ban()
 	b.mail()
+	b.swap()
+
+	// Security updates shouldn't wait for someone to provision.
+	b.pkg("unattended-upgrades")
+	b.add(m.NewRootFile("/etc/apt/apt.conf.d/20auto-upgrades",
+		"// Managed by Trellis.\nAPT::Periodic::Update-Package-Lists \"1\";\nAPT::Periodic::Unattended-Upgrade \"1\";\n", 0o644))
 
 	b.add(
 		m.NewRootFile("/etc/systemd/journald.conf.d/50-trellis.conf", b.render("journald/journald.conf", nil), 0o644, journaldRestart),
@@ -97,23 +106,45 @@ func (b *builder) users() {
 			sites = append(sites, sd)
 		}
 	}
-	data := map[string]any{"Web": b.isWeb(), "Sites": sites}
+	type user struct{ Name, Group string }
+	users := []user{{"admin", "admin"}}
+	if b.isWeb() {
+		users = append(users, user{"web", "www-data"})
+	}
+	data := map[string]any{"Web": b.isWeb(), "Sites": sites, "Users": users}
 	b.add(
 		m.NewRootFile(sysusersPath, b.render("users/sysusers.conf", data), 0o644, sysusersApply).InPhase(m.PhaseIdentity),
 		m.NewRootFile(tmpfilesPath, b.render("users/tmpfiles.conf", data), 0o644, tmpfilesApply).InPhase(m.PhaseIdentity),
 	)
 
+	// Shell startup files from /etc/skel (sysusers doesn't copy them),
+	// copied as the user so they own them; existing files are kept.
+	for _, u := range users {
+		skel := `for f in .bashrc .profile .bash_logout; do [ -e "/home/` + u.Name + `/$f" ] || cp "/etc/skel/$f" "/home/` + u.Name + `/$f"; done`
+		b.add(m.NewExec("skel:"+u.Name, []string{"runuser", "-u", u.Name, "--", "/bin/sh", "-c", skel}, "1").InPhase(m.PhaseFiles))
+	}
+
 	admins := b.keys(b.env.Access.Admins, "access.admins")
 	b.add(m.NewFile("/home/admin/.ssh/authorized_keys", admins, 0o600, "admin", "admin"))
 
-	sudoers := "# Managed by Trellis.\nadmin ALL=(ALL) NOPASSWD:ALL\n"
+	// admin's sudo rights come from the sudo group. Outside development it
+	// needs its password (generated in secrets; the CLI supplies it to run
+	// the agent), so a stolen SSH key alone doesn't give root.
+	sudoers := "# Managed by Trellis.\n"
+	if b.env.Name == config.DevelopmentEnv {
+		sudoers += "admin ALL=(ALL) NOPASSWD:ALL\n"
+	} else if pw := b.required("admin_password"); pw != "" {
+		b.add(m.NewExec("admin-password", []string{"chpasswd"}, "").WithStdin("admin:" + pw + "\n").InPhase(m.PhaseFiles))
+	}
 	if b.isWeb() {
 		deploy := b.env.Access.Deploy
 		if len(deploy) == 0 {
 			deploy = b.env.Access.Admins
 		}
-		b.add(m.NewFile("/home/web/.ssh/authorized_keys", b.keys(deploy, "access.deploy"), 0o600, "web", "web"))
-		sudoers += "web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php" + b.env.Server.PHP.Version + "-fpm.service\n"
+		b.add(m.NewFile("/home/web/.ssh/authorized_keys", b.keys(deploy, "access.deploy"), 0o600, "web", "www-data"))
+		// Exactly the reload deploys need; `service` for existing deploy hooks.
+		v := b.env.Server.PHP.Version
+		sudoers += "web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php" + v + "-fpm.service, /usr/sbin/service php" + v + "-fpm reload\n"
 	}
 	b.add(m.NewRootFile("/etc/sudoers.d/90-trellis", sudoers, 0o440).WithValidate("visudo", "-cf", "%s"))
 }
@@ -251,13 +282,41 @@ func (b *builder) mail() {
 	if from == "" {
 		from = "admin@" + b.node.Name
 	}
-	b.pkg("msmtp")
+	// msmtp-mta provides /usr/sbin/sendmail for cron, unattended-upgrades
+	// and anything else that expects it.
+	b.pkg("msmtp", "msmtp-mta")
+	domain := from[strings.LastIndex(from, "@")+1:]
 	conf := b.render("mail/msmtprc", map[string]string{
 		"Host": host, "Port": port,
 		"User":     b.secret(mail.User, "mail.user"),
 		"Password": b.secret(mail.Password, "mail.password"),
 		"From":     from,
+		"Domain":   domain,
 	})
 	// PHP-FPM runs as web:www-data and needs to read it to send mail.
 	b.add(m.NewFile("/etc/msmtprc", conf, 0o640, "root", "www-data").AsSensitive())
+}
+
+const swapUnit = "/etc/systemd/system/swapfile.swap"
+
+// swap adds a swapfile. Small servers otherwise run out of memory during
+// package installs, composer runs or MariaDB spikes. The size depends on
+// the server's memory, so the script decides it there; it only creates
+// /swapfile when missing and never resizes one.
+func (b *builder) swap() {
+	size := b.env.Server.Swap
+	if size == "off" {
+		return
+	}
+	create := `mem=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo); s=$(( mem < 2048 ? mem : 2048 )); [ "$s" -ge 512 ] || s=512; size="${s}M"`
+	guard := `[ ! -e /swapfile ] && [ -z "$(swapon --noheadings --show=NAME)" ]`
+	if size != "auto" {
+		create = "size=" + size
+		guard = "[ ! -e /swapfile ]"
+	}
+	script := "set -e\nif " + guard + "; then\n  " + create + "\n  fallocate -l \"$size\" /swapfile\n  chmod 600 /swapfile\n  mkswap /swapfile >/dev/null\nfi\nif [ -e /swapfile ]; then systemctl enable --now swapfile.swap; fi\n"
+	b.add(
+		m.NewRootFile(swapUnit, "# Managed by Trellis.\n[Unit]\nDescription=Trellis swap file\nConditionPathExists=/swapfile\n\n[Swap]\nWhat=/swapfile\n\n[Install]\nWantedBy=swap.target\n", 0o644, daemonReload),
+		m.NewExec("swapfile", []string{"/bin/sh", "-c", script}, size),
+	)
 }

@@ -45,7 +45,7 @@ func TestMinimalDefaults(t *testing.T) {
 	if diff := cmp.Diff([]string{"example.com", "www.example.com"}, s.Domains()); diff != "" {
 		t.Error(diff)
 	}
-	if s.DBName() != "example_com" {
+	if s.DBName() != "example_com_production" || s.DBUser() != "example_com" {
 		t.Errorf("db name = %q", s.DBName())
 	}
 }

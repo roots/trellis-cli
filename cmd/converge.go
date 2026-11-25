@@ -226,10 +226,11 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 		users = []string{c.user}
 	}
 	s := &remote.Session{
-		SSH:   ssh,
-		Out:   out,
-		Host:  c.host,
-		Users: users,
+		SSH:          ssh,
+		Out:          out,
+		Host:         c.host,
+		Users:        users,
+		SudoPassword: compiled.SudoPassword,
 		FindBinary: func(arch string) (remote.Binary, error) {
 			return remote.FindBinary(c.agentBinary, arch)
 		},
@@ -374,8 +375,6 @@ Resolves everything compilation would otherwise fetch from the network and
 pins it in trellis.lock, so compiling is deterministic and offline.
 `
 }
-
-
 
 // --- eject -----------------------------------------------------------------
 

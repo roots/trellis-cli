@@ -50,6 +50,16 @@ func NewCert(name string, provider CertProvider, domains []string, certPath, key
 		Cert: &Cert{Provider: provider, Domains: domains, CertPath: certPath, KeyPath: keyPath}}
 }
 
+// WithStdin gives an exec resource secret input.
+func (r Resource) WithStdin(stdin string) Resource {
+	if r.Exec != nil {
+		x := *r.Exec
+		x.Stdin = stdin
+		r.Exec = &x
+	}
+	return r
+}
+
 func NewExec(name string, command []string, inputs string) Resource {
 	return Resource{Kind: KindExec, Name: name, Phase: PhaseExec,
 		Exec: &Exec{Command: command, Inputs: inputs}}

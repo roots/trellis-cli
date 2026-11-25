@@ -41,6 +41,8 @@ type Session struct {
 	Host string
 	// Users to try when a node doesn't set one.
 	Users []string
+	// SudoPassword is the admin user's sudo password (admin_password).
+	SudoPassword string
 }
 
 // Prepare pairs manifests with nodes, orders them (db-only nodes first, so
@@ -75,6 +77,9 @@ func (s *Session) Prepare(ctx context.Context, env *config.Environment, ms []*ma
 		}
 		t, err := s.SSH.Connect(ctx, r.Node.Host, r.Node.Port, users)
 		if err != nil {
+			return err
+		}
+		if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
 			return err
 		}
 		r.Target = t

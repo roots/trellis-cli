@@ -44,7 +44,10 @@ type Environment struct {
 
 // Server holds node-level settings shared by every site.
 type Server struct {
-	Timezone string             `yaml:"timezone,omitempty"`
+	Timezone string `yaml:"timezone,omitempty"`
+	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
+	// swap), a size for /swapfile (e.g. "1G"), or "off".
+	Swap     string             `yaml:"swap,omitempty"`
 	PHP      PHP                `yaml:"php,omitempty"`
 	MariaDB  map[string]string  `yaml:"mariadb,omitempty"`
 	Mail     *Mail              `yaml:"mail,omitempty"`
@@ -185,6 +188,7 @@ const (
 
 type Site struct {
 	Name        string            `yaml:"-"`
+	EnvName     string            `yaml:"-"` // the environment it was resolved for
 	Repo        string            `yaml:"repo,omitempty"`
 	Path        string            `yaml:"path,omitempty"`
 	Branch      string            `yaml:"branch,omitempty"`
@@ -257,11 +261,16 @@ func (s Site) Domains() []string {
 
 // DBName is the site's database name (default: site name with dots and
 // dashes replaced by underscores).
+// DBName is the site's database: <site>_<environment>, as Trellis has
+// always named it, so existing servers keep their data.
 func (s Site) DBName() string {
 	if s.DB.Name != "" {
 		return s.DB.Name
 	}
-	return identifier(s.Name)
+	if s.EnvName == "" {
+		return identifier(s.Name)
+	}
+	return identifier(s.Name) + "_" + identifier(s.EnvName)
 }
 
 // DBUser is the site's database user (default: same as DBName, truncated to

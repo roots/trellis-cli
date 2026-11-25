@@ -178,6 +178,8 @@ func (r *Resource) Sensitive() bool {
 		return r.File.Sensitive
 	case KindDatabaseUser:
 		return true
+	case KindExec:
+		return r.Exec.Stdin != ""
 	}
 	return false
 }
@@ -329,6 +331,9 @@ type Cert struct {
 type Exec struct {
 	Command []string `json:"command"`
 	Inputs  string   `json:"inputs"`
+	// Stdin is secret input (e.g. a password for chpasswd). It is redacted
+	// in history; a change to it re-runs the command.
+	Stdin string `json:"stdin,omitempty"`
 }
 
 // Manifest is the desired state of a single node.

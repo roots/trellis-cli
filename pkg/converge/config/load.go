@@ -123,7 +123,7 @@ func (c *Config) Resolve(env string) (*Environment, error) {
 			errs = append(errs, fmt.Errorf("sites.%s (%s): %w", name, env, err))
 			continue
 		}
-		s.Name = name
+		s.Name, s.EnvName = name, env
 		e.Sites = append(e.Sites, s)
 	}
 	if len(errs) > 0 {

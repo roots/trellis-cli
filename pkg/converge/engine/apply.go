@@ -274,7 +274,9 @@ func (r *run) notify(acts []Action) error {
 		}
 		r.log("run", strings.Join(n.Command, " "), "")
 		if _, err := r.h.Run(r.ctx, host.Cmd{Argv: n.Command, Env: aptEnv}); err != nil {
-			return err
+			// Restore the files that triggered it, so the next run sees
+			// them as changed, rewrites them and runs the command again.
+			return errors.Join(err, r.rollback(n.Key()))
 		}
 	}
 	return nil
@@ -422,7 +424,11 @@ func (r *run) apply(a Action) error {
 		return r.cert(a)
 
 	case manifest.KindExec:
-		_, err := r.h.Run(r.ctx, host.Cmd{Argv: res.Exec.Command})
+		cmd := host.Cmd{Argv: res.Exec.Command}
+		if res.Exec.Stdin != "" {
+			cmd.Stdin = []byte(res.Exec.Stdin)
+		}
+		_, err := r.h.Run(r.ctx, cmd)
 		return err
 	}
 	return fmt.Errorf("unsupported kind %s", res.Kind)

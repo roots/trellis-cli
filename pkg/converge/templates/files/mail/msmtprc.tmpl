@@ -4,6 +4,11 @@ auth on
 tls on
 tls_trust_file /etc/ssl/certs/ca-certificates.crt
 syslog LOG_MAIL
+# HELO name, and always send From the configured address so mail aligns
+# with the relay's SPF/DKIM (DMARC).
+domain {{ .Domain }}
+set_from_header on
+allow_from_override on
 
 account default
 host {{ .Host }}

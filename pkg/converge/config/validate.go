@@ -12,6 +12,9 @@ const DevelopmentEnv = "development"
 
 func applyDefaults(e *Environment) {
 	s := &e.Server
+	if s.Swap == "" {
+		s.Swap = "auto"
+	}
 	if s.Timezone == "" {
 		s.Timezone = "Etc/UTC"
 	}
@@ -112,6 +115,8 @@ func oneOf(v string, allowed ...string) bool {
 	return false
 }
 
+var swapSizeRe = regexp.MustCompile(`^[1-9][0-9]*[MG]$`)
+
 func validate(e *Environment) error {
 	var errs []error
 	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
@@ -120,6 +125,9 @@ func validate(e *Environment) error {
 	s := e.Server
 	if !phpVersionRe.MatchString(s.PHP.Version) {
 		add("%s: php.version %q must look like 8.4", p, s.PHP.Version)
+	}
+	if s.Swap != "auto" && s.Swap != "off" && !swapSizeRe.MatchString(s.Swap) {
+		add("%s: swap must be auto, off or a size like 1G or 512M", p)
 	}
 	if !oneOf(s.PHP.FPM.PM, "dynamic", "static", "ondemand") {
 		add("%s: php.fpm.pm must be dynamic, static or ondemand", p)

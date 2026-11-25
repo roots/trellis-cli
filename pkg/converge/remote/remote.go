@@ -45,6 +45,8 @@ type Target struct {
 	Host string
 	Port int
 	User string
+	// sudoPassword is set by Elevate when the user's sudo needs a password.
+	sudoPassword string
 }
 
 func (t Target) String() string { return t.User + "@" + t.Host }
@@ -157,12 +159,47 @@ func FindBinary(explicit, arch string) (Binary, error) {
 	return Binary{}, fmt.Errorf("this trellis-cli has no embedded linux/%s agent; build them with\n  go generate ./pkg/converge/agentbin\nand rebuild trellis-cli, or pass --agent-binary / set TRELLIS_AGENT_DIR", arch)
 }
 
-func sudo(t Target) string {
+// Elevate checks how t's user gets root. Root needs nothing; passwordless
+// sudo is used as is; otherwise password is verified once and then sent as
+// the first line of stdin on every elevated command (`sudo -S` consumes
+// exactly that line; `-k` makes it always ask, so the line is never left
+// for the command to read).
+func (s *SSH) Elevate(ctx context.Context, t *Target, password string) error {
 	if t.User == "root" {
+		return nil
+	}
+	if _, err := s.output(ctx, *t, "sudo -n true"); err == nil {
+		return nil
+	}
+	if password == "" {
+		return fmt.Errorf("%s: sudo needs a password and none is configured (admin_password in the secrets file)", t)
+	}
+	if err := s.Run(ctx, *t, "sudo -k -S -p '' true", strings.NewReader(password+"\n"), io.Discard); err != nil {
+		return fmt.Errorf("%s: sudo rejected admin_password from the secrets file", t)
+	}
+	t.sudoPassword = password
+	return nil
+}
+
+func sudo(t Target) string {
+	switch {
+	case t.User == "root":
 		return ""
+	case t.sudoPassword != "":
+		return "sudo -k -S -p '' "
 	}
 	return "sudo -n "
 }
+
+// elevated prefixes stdin with the sudo password when one is needed.
+func elevated(t Target, stdin io.Reader) io.Reader {
+	if t.sudoPassword == "" || t.User == "root" {
+		return stdin
+	}
+	return io.MultiReader(strings.NewReader(t.sudoPassword+"\n"), stdin)
+}
+
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'" }
 
 // EnsureAgent uploads b unless the node already has it.
 func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
@@ -174,9 +211,11 @@ func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
 	if b.Gzipped {
 		recv = "gzip -dc"
 	}
-	script := fmt.Sprintf(`set -e; t=$(mktemp); trap 'rm -f "$t"' EXIT; %s > "$t"; echo "%s  $t" | sha256sum -c --quiet; %sinstall -D -m 0755 "$t" %s`,
-		recv, b.SHA256, sudo(t), p)
-	return s.Run(ctx, t, script, bytes.NewReader(b.Data), io.Discard)
+	// The whole script runs as root, so a sudo password can precede the
+	// binary on stdin.
+	script := fmt.Sprintf(`set -e; t=$(mktemp); trap 'rm -f "$t"' EXIT; %s > "$t"; echo "%s  $t" | sha256sum -c --quiet; install -D -m 0755 "$t" %s`,
+		recv, b.SHA256, p)
+	return s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(b.Data)), io.Discard)
 }
 
 // Call runs the agent with req and passes each streamed message to onMsg.
@@ -206,7 +245,7 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 		_, _ = io.Copy(io.Discard, pr)
 		done <- sc.Err()
 	}()
-	runErr := s.Run(ctx, t, sudo(t)+b.RemotePath(), bytes.NewReader(body), pw)
+	runErr := s.Run(ctx, t, sudo(t)+b.RemotePath(), elevated(t, bytes.NewReader(body)), pw)
 	_ = pw.Close()
 	scanErr := <-done
 	if agentErr != nil {

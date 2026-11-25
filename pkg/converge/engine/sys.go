@@ -112,8 +112,11 @@ func parseGPGFingerprints(out []byte) []string {
 	return fprs
 }
 
+// gpgShowKeysCmd reads a key's fingerprints with a throwaway GnuPG home,
+// so nothing is left in /root/.gnupg.
 func gpgShowKeysCmd(key []byte) host.Cmd {
-	return host.Cmd{Argv: []string{"gpg", "--show-keys", "--with-colons", "--with-fingerprint"}, Stdin: key}
+	script := `d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT && gpg --homedir "$d" --batch --show-keys --with-colons --with-fingerprint`
+	return host.Cmd{Argv: []string{"/bin/sh", "-c", script}, Stdin: key}
 }
 
 // quoteIdent quotes a MariaDB identifier.

@@ -117,11 +117,23 @@ Users and directories are not resource kinds: the compiler writes
 `apply` sends the hash of the plan you reviewed. The agent refuses to apply
 if the plan it computes differs.
 
+## Comparing with stock Trellis
+
+`pkg/converge/fingerprint` compares the effective configuration of a stock
+Trellis server and a converge one; `compare.yml` lists every intended
+difference with its reason. See its README, and roots/trellis#1708 for the
+Trellis-side findings.
+
 ## Not done yet
 
+- `/etc/hosts` entries for site hostnames (needs the server's hostname at
+  apply time, and coordination with cloud-init).
 - `trellis converge lock` resolves GitHub keys only; package versions, image
-  digests and tool checksums still need resolvers (compile warns when unpinned).
+  digests and tool checksums still need resolvers (compile warns when
+  unpinned). When versions are pinned, an installed version newer than the
+  lock (a security update) must not count as drift.
 - nginx and MariaDB apt signing keys aren't fingerprint-pinned yet (Sury is).
+- Not yet compared against Trellis: SSL/HSTS/HTTP2, the FastCGI cache,
+  Redis/Memcached, multisite.
 - Deploys, the development VM integration (`--host` works with any VM), and
   importing existing `group_vars`.
-- h5bp nginx includes are only partially ported.

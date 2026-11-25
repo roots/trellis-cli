@@ -30,7 +30,6 @@ var phpINIDefaults = map[string]string{
 	"mysqlnd.collect_memory_statistics": "Off",
 	"post_max_size":                     "25M",
 	"upload_max_filesize":               "25M",
-	"session.save_path":                 "/tmp",
 	"session.cookie_httponly":           "On",
 	"session.cookie_secure":             "Off",
 	"session.upload_progress.enabled":   "Off",
@@ -79,6 +78,7 @@ func (b *builder) webStack() {
 	})
 
 	b.pkg("nginx")
+	b.add(m.NewRootFile("/etc/logrotate.d/trellis-sites", siteLogrotate, 0o644))
 	for _, ext := range []string{"bcmath", "cli", "curl", "fpm", "imagick", "intl", "mbstring", "mysql", "xml", "zip"} {
 		b.pkg("php" + v + "-" + ext)
 	}
@@ -111,6 +111,7 @@ func (b *builder) webStack() {
 		m.NewRootFile("/etc/php/"+v+"/fpm/conf.d/90-trellis.ini", b.render("php/php.ini", map[string]any{"INI": templates.Sorted(ini)}), 0o644, b.phpReload()),
 		m.NewRootFile("/etc/php/"+v+"/cli/conf.d/90-trellis.ini", b.render("php/php.ini", map[string]any{"INI": templates.Sorted(cli)}), 0o644),
 		m.NewAbsentFile("/etc/php/"+v+"/fpm/pool.d/www.conf", b.phpReload()),
+		m.NewRootFile("/etc/php/"+v+"/fpm/php-fpm.conf", b.render("php/php-fpm.conf", map[string]any{"Version": v}), 0o644, b.phpReload()),
 		m.NewService(b.phpUnit(), enabled, true),
 	)
 
@@ -291,3 +292,21 @@ func (b *builder) dotenv(s config.Site) string {
 func dotenvQuote(v string) string {
 	return strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v)
 }
+
+// siteLogrotate rotates every site's nginx logs. nginx reopens its logs on
+// USR1 to the master process.
+const siteLogrotate = `# Managed by Trellis.
+/srv/www/*/logs/*.log {
+  daily
+  rotate 14
+  missingok
+  notifempty
+  compress
+  delaycompress
+  create 0640 web www-data
+  sharedscripts
+  postrotate
+    systemctl kill --kill-whom=main --signal=USR1 nginx.service 2>/dev/null || true
+  endscript
+}
+`

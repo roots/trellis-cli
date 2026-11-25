@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -27,6 +28,27 @@ type fakeSSH struct {
 	installed map[string]bool
 	uploads   int
 	calls     []string
+	// sudoPassword, if set, is required by sudo for non-root users.
+	sudoPassword string
+	passwords    int // password lines consumed by sudo -S
+}
+
+var agentPathRe = regexp.MustCompile(`/usr/local/lib/trellis/agent-[0-9a-f]+`)
+
+// readLine reads one line byte by byte, leaving the rest of r unread (as
+// sudo -S does).
+func readLine(r io.Reader) string {
+	var b []byte
+	one := make([]byte, 1)
+	for {
+		n, err := r.Read(one)
+		if n == 1 && one[0] != '\n' {
+			b = append(b, one[0])
+		}
+		if err != nil || (n == 1 && one[0] == '\n') {
+			return string(b)
+		}
+	}
 }
 
 func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -43,6 +65,23 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		_, _ = io.WriteString(stderr, "Permission denied (publickey).")
 		return errors.New("exit status 255")
 	}
+	root := user == "root"
+	switch {
+	case strings.HasPrefix(cmd, "sudo -n "):
+		if !root && f.sudoPassword != "" {
+			_, _ = io.WriteString(stderr, "sudo: a password is required")
+			return errors.New("exit status 1")
+		}
+		cmd, root = strings.TrimPrefix(cmd, "sudo -n "), true
+	case strings.HasPrefix(cmd, "sudo -k -S -p '' "):
+		if readLine(stdin) != f.sudoPassword {
+			return errors.New("sudo: incorrect password")
+		}
+		f.mu.Lock()
+		f.passwords++
+		f.mu.Unlock()
+		cmd, root = strings.TrimPrefix(cmd, "sudo -k -S -p '' "), true
+	}
 	switch {
 	case cmd == "true":
 		return nil
@@ -57,14 +96,17 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		}
 		return errors.New("exit status 1")
 	case strings.Contains(cmd, "install -D -m 0755"):
+		if !root {
+			return errors.New("install needs root")
+		}
 		_, _ = io.Copy(io.Discard, stdin)
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		f.uploads++
-		f.installed[addr+cmd[strings.LastIndex(cmd, " ")+1:]] = true
+		f.installed[addr+agentPathRe.FindString(cmd)] = true
 		return nil
 	case strings.Contains(cmd, "/usr/local/lib/trellis/agent-"):
-		if user != "root" && !strings.HasPrefix(cmd, "sudo -n ") {
+		if !root {
 			return errors.New("agent must run as root")
 		}
 		return agent.Serve(ctx, h, nil, stdin, stdout)
@@ -185,7 +227,7 @@ func TestEmbeddedAgentUploadsCompressed(t *testing.T) {
 	if err := s.EnsureAgent(context.Background(), tgt, b); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.calls[len(f.calls)-1]; !strings.Contains(got, "gzip -dc >") || !strings.Contains(got, "sudo -n install") {
+	if got := f.calls[len(f.calls)-1]; !strings.Contains(got, "gzip -dc >") || !strings.Contains(got, "admin@h sudo -n sh -c ") {
 		t.Errorf("upload command = %s", got)
 	}
 }
@@ -194,5 +236,56 @@ func TestExplicitAgentOverridesEmbedded(t *testing.T) {
 	b := binary(t)
 	if b.Gzipped || !strings.HasSuffix(b.Source, "trellis-agent-linux-amd64") {
 		t.Fatalf("binary = %+v", b)
+	}
+}
+
+func TestSudoPasswordIsVerifiedAndSentOnlyWhenNeeded(t *testing.T) {
+	ctx := context.Background()
+	m := manifest.New("n", []string{"web"})
+	if err := m.Add(manifest.NewPackage("nginx", "")); err != nil {
+		t.Fatal(err)
+	}
+	m.Finalize()
+	b := binary(t)
+
+	// Passwordless sudo (development): no password is ever sent.
+	f := &fakeSSH{host: hosttest.New(), users: map[string]bool{"admin": true}, installed: map[string]bool{}}
+	s := &remote.SSH{Exec: f}
+	tgt := remote.Target{Host: "h", User: "admin"}
+	if err := s.Elevate(ctx, &tgt, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureAgent(ctx, tgt, b); err != nil {
+		t.Fatal(err)
+	}
+	if f.passwords != 0 {
+		t.Errorf("sent %d passwords to passwordless sudo", f.passwords)
+	}
+
+	// Password sudo: verified once, then sent with the upload and the call.
+	f = &fakeSSH{host: hosttest.New(), users: map[string]bool{"admin": true}, installed: map[string]bool{}, sudoPassword: "pw"}
+	s = &remote.SSH{Exec: f}
+	tgt = remote.Target{Host: "h", User: "admin"}
+	if err := s.Elevate(ctx, &tgt, ""); err == nil || !strings.Contains(err.Error(), "admin_password") {
+		t.Errorf("missing password: %v", err)
+	}
+	if err := s.Elevate(ctx, &tgt, "wrong"); err == nil || !strings.Contains(err.Error(), "rejected") {
+		t.Errorf("wrong password: %v", err)
+	}
+	if err := s.Elevate(ctx, &tgt, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureAgent(ctx, tgt, b); err != nil {
+		t.Fatal(err)
+	}
+	var got []agent.Message
+	if err := s.Call(ctx, tgt, b, agent.Request{Mode: agent.ModePlan, Manifest: m}, func(msg agent.Message) { got = append(got, msg) }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Plan == nil {
+		t.Fatalf("agent didn't get the request intact: %+v", got)
+	}
+	if f.passwords != 3 { // verify, upload, call
+		t.Errorf("password lines = %d, want 3", f.passwords)
 	}
 }

@@ -79,6 +79,9 @@ func Compute(desired *manifest.Manifest, obs *state.Observed) *Plan {
 		Generation:   1,
 		Warnings:     slices.Clone(desired.Warnings),
 	}
+	if obs.RebootRequired {
+		p.Warnings = append(p.Warnings, "the server needs a reboot to finish installing updates")
+	}
 	prev := obs.Previous
 	if prev != nil {
 		p.Generation = prev.Number + 1
@@ -242,6 +245,8 @@ func diff(r *manifest.Resource, obs *state.Observed, prev *state.Generation) (Op
 			return OpRun, []string{"never ran"}
 		} else if old.Exec.Inputs != r.Exec.Inputs || !slices.Equal(old.Exec.Command, r.Exec.Command) {
 			return OpRun, []string{"inputs changed"}
+		} else if old.Redacted().Exec.Stdin != r.Redacted().Exec.Stdin {
+			return OpRun, []string{"secret input changed"}
 		}
 	}
 	return "", nil

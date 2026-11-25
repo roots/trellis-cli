@@ -45,6 +45,9 @@ func Observe(ctx context.Context, h host.Host, desired *manifest.Manifest) (*sta
 	}
 	obs := state.NewObserved()
 	obs.Previous = prev
+	if fi, err := h.Stat(state.RebootRequiredPath, false); err == nil && fi.Exists {
+		obs.RebootRequired = true
+	}
 
 	resources := slices.Clone(desired.Resources)
 	for _, r := range prev.Owned() {

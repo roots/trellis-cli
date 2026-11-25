@@ -2,6 +2,7 @@
 u admin - "Trellis admin" /home/admin /bin/bash
 m admin sudo
 {{- if .Web }}
-u web - "Trellis web" /home/web /bin/bash
-m web www-data
+# Primary group www-data, so files the web user creates (deploys, uploads)
+# are readable by nginx.
+u web -:www-data "Trellis web" /home/web /bin/bash
 {{- end }}

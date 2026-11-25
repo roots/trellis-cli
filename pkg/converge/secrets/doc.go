@@ -127,6 +127,19 @@ func slicesContainEmpty(path []string) bool {
 	return false
 }
 
+// EnsureAdmin adds the admin user's sudo password if it is missing and
+// reports whether it did.
+func (d *Doc) EnsureAdmin() (bool, error) {
+	if _, ok := d.Get("admin_password"); ok {
+		return false, nil
+	}
+	v, err := Random(32)
+	if err != nil {
+		return false, err
+	}
+	return d.Set([]string{"admin_password"}, v, false)
+}
+
 // EnsureSite adds any missing generated secrets (database password and
 // WordPress salts) for site and returns their paths. Existing values are
 // never replaced.
