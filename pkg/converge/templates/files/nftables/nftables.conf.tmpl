@@ -1,0 +1,48 @@
+#!/usr/sbin/nft -f
+# Managed by Trellis. Only the `inet trellis` table is managed, so rules
+# owned by other software (e.g. Podman networking) are left alone.
+
+table inet trellis
+delete table inet trellis
+
+table inet trellis {
+{{- if .SSHRateLimit }}
+  set ssh_meter4 { type ipv4_addr; flags dynamic; timeout 5m; }
+  set ssh_meter6 { type ipv6_addr; flags dynamic; timeout 5m; }
+{{- end }}
+
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    ct state established,related accept
+    ct state invalid drop
+    iif lo accept
+    meta l4proto { icmp, ipv6-icmp } accept
+{{- if .SSHRateLimit }}
+
+    tcp dport 22 ct state new add @ssh_meter4 { ip saddr limit rate over 20/minute burst 20 packets } drop
+    tcp dport 22 ct state new add @ssh_meter6 { ip6 saddr limit rate over 20/minute burst 20 packets } drop
+{{- end }}
+{{- if .SSHAny }}
+    tcp dport 22 accept
+{{- else }}
+{{- if .SSHAllow4 }}
+    ip saddr { {{ join .SSHAllow4 ", " }} } tcp dport 22 accept
+{{- end }}
+{{- if .SSHAllow6 }}
+    ip6 saddr { {{ join .SSHAllow6 ", " }} } tcp dport 22 accept
+{{- end }}
+{{- end }}
+{{- if .Web }}
+
+    tcp dport { 80, 443 } accept
+{{- end }}
+{{- range .DBClients }}
+    ip saddr {{ . }} tcp dport 3306 accept
+{{- end }}
+  }
+
+  chain output {
+    type filter hook output priority filter; policy accept;
+  }
+}

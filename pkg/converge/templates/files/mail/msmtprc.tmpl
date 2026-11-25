@@ -1,0 +1,15 @@
+# Managed by Trellis.
+defaults
+auth on
+tls on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+syslog LOG_MAIL
+
+account default
+host {{ .Host }}
+port {{ .Port }}
+{{- if .User }}
+user {{ .User }}
+password {{ .Password }}
+{{- end }}
+from {{ .From }}

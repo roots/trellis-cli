@@ -1,0 +1,127 @@
+# node db1 (roles: db)
+# hash a9d2de4c679e68d2f076c92e42c049d1d530a7c817099a6b6220c49637382047
+
+== repos
+download      /etc/apt/keyrings/mariadb.asc ← https://mariadb.org/mariadb_release_signing_key.asc
+              ↳ run apt-get update
+file          /etc/apt/sources.list.d/trellis-mariadb.sources 0644 root:root
+              ↳ run apt-get update
+    │ # Managed by Trellis.
+    │ Types: deb
+    │ URIs: https://mirror.rackspace.com/mariadb/repo/11.8/ubuntu
+    │ Suites: noble
+    │ Components: main
+    │ Signed-By: /etc/apt/keyrings/mariadb.asc
+
+== packages
+package       ca-certificates
+package       curl
+package       fail2ban
+package       git
+package       gnupg
+package       mariadb-client
+package       mariadb-server
+package       nftables
+package       openssl
+package       python3-systemd
+package       unzip
+
+== identity
+file          /etc/sysusers.d/trellis.conf 0644 root:root
+              ↳ run systemd-sysusers
+    │ # Managed by Trellis.
+    │ u admin - "Trellis admin" /home/admin /bin/bash
+    │ m admin sudo
+file          /etc/tmpfiles.d/trellis.conf 0644 root:root
+              ↳ run systemd-tmpfiles --create /etc/tmpfiles.d/trellis.conf
+    │ # Managed by Trellis.
+    │ d /home/admin 0750 admin admin -
+    │ d /home/admin/.ssh 0700 admin admin -
+
+== files
+file          /etc/fail2ban/jail.d/trellis.local 0644 root:root
+              ↳ reload fail2ban.service (check: fail2ban-client -t)
+    │ # Managed by Trellis.
+    │ [DEFAULT]
+    │ banaction = nftables-multiport
+    │ banaction_allports = nftables-allports
+    │ backend = systemd
+    │ bantime = 1h
+    │ findtime = 10m
+    │ maxretry = 6
+    │ ignoreip = 127.0.0.1/8 ::1
+    │ 
+    │ [sshd]
+    │ enabled = true
+file          /etc/mysql/mariadb.conf.d/90-trellis.cnf 0644 root:root
+              ↳ restart mariadb.service
+    │ # Managed by Trellis. Add overrides in server/mariadb/conf.d/ or mariadb: in trellis.yml.
+    │ [mysqld]
+    │ bind-address = 10.0.0.5
+    │ skip-name-resolve
+    │ skip-log-bin
+    │ innodb_buffer_pool_size = 4G
+file          /etc/nftables.conf 0755 root:root
+              ↳ reload nftables.service (check: nft -c -f /etc/nftables.conf)
+    │ #!/usr/sbin/nft -f
+    │ # Managed by Trellis. Only the `inet trellis` table is managed, so rules
+    │ # owned by other software (e.g. Podman networking) are left alone.
+    │ 
+    │ table inet trellis
+    │ delete table inet trellis
+    │ 
+    │ table inet trellis {
+    │   set ssh_meter4 { type ipv4_addr; flags dynamic; timeout 5m; }
+    │   set ssh_meter6 { type ipv6_addr; flags dynamic; timeout 5m; }
+    │ 
+    │   chain input {
+    │     type filter hook input priority filter; policy drop;
+    │ 
+    │     ct state established,related accept
+    │     ct state invalid drop
+    │     iif lo accept
+    │     meta l4proto { icmp, ipv6-icmp } accept
+    │ 
+    │     tcp dport 22 ct state new add @ssh_meter4 { ip saddr limit rate over 20/minute burst 20 packets } drop
+    │     tcp dport 22 ct state new add @ssh_meter6 { ip6 saddr limit rate over 20/minute burst 20 packets } drop
+    │     tcp dport 22 accept
+    │     ip saddr 10.0.0.4 tcp dport 3306 accept
+    │   }
+    │ 
+    │   chain output {
+    │     type filter hook output priority filter; policy accept;
+    │   }
+    │ }
+file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
+              ↳ reload ssh.service (check: sshd -t)
+    │ # Managed by Trellis.
+    │ PermitRootLogin no
+    │ PasswordAuthentication no
+    │ KbdInteractiveAuthentication no
+    │ PubkeyAuthentication yes
+    │ X11Forwarding no
+    │ AllowAgentForwarding yes
+    │ ClientAliveInterval 300
+file          /etc/sudoers.d/90-trellis 0440 root:root
+    │ # Managed by Trellis.
+    │ admin ALL=(ALL) NOPASSWD:ALL
+file          /etc/systemd/journald.conf.d/50-trellis.conf 0644 root:root
+              ↳ restart systemd-journald.service
+    │ # Managed by Trellis.
+    │ [Journal]
+    │ SystemMaxUse=512M
+file          /home/admin/.ssh/authorized_keys 0600 admin:admin
+    │ # Managed by Trellis.
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+
+== data
+database      example_com
+database_user example_com@10.0.0.4 → example_com
+
+== services
+service       fail2ban.service enabled active
+service       mariadb.service enabled active
+service       nftables.service enabled active
+
+== exec
+exec          timezone: timedatectl set-timezone Etc/UTC

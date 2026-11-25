@@ -1,0 +1,15 @@
+# Managed by Trellis.
+[Unit]
+Description=WP-Cron for {{ .Site.Name }}
+ConditionPathExists=/srv/www/{{ .Site.Name }}/current
+
+[Service]
+Type=oneshot
+User=web
+Group=www-data
+WorkingDirectory=/srv/www/{{ .Site.Name }}/current
+{{- if .Site.Multisite.Enabled }}
+ExecStart=/bin/sh -c 'for url in $(/usr/local/bin/wp site list --field=url); do /usr/local/bin/wp cron event run --due-now --url="$url"; done'
+{{- else }}
+ExecStart=/usr/local/bin/wp cron event run --due-now
+{{- end }}

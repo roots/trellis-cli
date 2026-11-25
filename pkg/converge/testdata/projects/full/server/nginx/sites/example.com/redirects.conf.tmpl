@@ -1,0 +1,2 @@
+# {{ .Site.Name }} on {{ .Env }}
+location = /old { return 301 https://{{ .Site.Domain }}/new; }

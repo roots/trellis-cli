@@ -1,0 +1,4 @@
+version: 1
+ssh_keys:
+  github:example-admin:
+    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example

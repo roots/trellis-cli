@@ -1,0 +1,8 @@
+# Managed by Trellis.
+PermitRootLogin {{ if .PermitRoot }}prohibit-password{{ else }}no{{ end }}
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+X11Forwarding no
+AllowAgentForwarding yes
+ClientAliveInterval 300

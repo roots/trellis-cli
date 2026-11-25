@@ -1,0 +1,21 @@
+; Managed by Trellis.
+[{{ .Site.Name }}]
+user = web
+group = www-data
+listen = /run/php/{{ .Site.Name }}.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = {{ .FPM.PM }}
+pm.max_children = {{ .FPM.MaxChildren }}
+pm.start_servers = {{ .FPM.StartServers }}
+pm.min_spare_servers = {{ .FPM.MinSpareServers }}
+pm.max_spare_servers = {{ .FPM.MaxSpareServers }}
+pm.max_requests = {{ .FPM.MaxRequests }}
+
+chdir = /srv/www/{{ .Site.Name }}
+php_admin_value[open_basedir] = /srv/www/{{ .Site.Name }}:/tmp:/usr/share/php
+{{- range .INI }}
+php_admin_value[{{ .Key }}] = {{ .Value }}
+{{- end }}

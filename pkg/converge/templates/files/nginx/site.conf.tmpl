@@ -1,0 +1,119 @@
+# Managed by Trellis. Add server-level config in server/nginx/sites/{{ .Site.Name }}/.
+{{- $root := printf "/srv/www/%s" .Site.Name }}
+{{- if .SSL }}
+server {
+  listen 80;
+  listen [::]:80;
+  server_name {{ join .Site.Domains " " }}{{ if .Subdomains }} *.{{ .Site.Domain }}{{ end }};
+  location ^~ /.well-known/acme-challenge/ {
+    root /srv/www/acme;
+  }
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+{{- end }}
+{{- range .Site.Redirects }}
+
+server {
+  listen {{ if $.SSL }}443 ssl{{ else }}80{{ end }};
+  listen [::]:{{ if $.SSL }}443 ssl{{ else }}80{{ end }};
+  server_name {{ . }};
+{{- if $.SSL }}
+  ssl_certificate     {{ $.CertPath }};
+  ssl_certificate_key {{ $.KeyPath }};
+{{- end }}
+  location ^~ /.well-known/acme-challenge/ {
+    root /srv/www/acme;
+  }
+  location / {
+    return 301 {{ $.Scheme }}://{{ $.Site.Domain }}$request_uri;
+  }
+}
+{{- end }}
+
+server {
+  listen {{ if .SSL }}443 ssl{{ else }}80{{ end }};
+  listen [::]:{{ if .SSL }}443 ssl{{ else }}80{{ end }};
+  http2 on;
+  server_name {{ .Site.Domain }}{{ if .Subdomains }} *.{{ .Site.Domain }}{{ end }};
+
+  access_log {{ $root }}/logs/access.log main;
+  error_log  {{ $root }}/logs/error.log;
+
+  root  {{ $root }}/current/web;
+  index index.php index.htm index.html;
+  charset utf-8;
+  client_max_body_size {{ .ClientMaxBodySize }};
+  add_header Fastcgi-Cache $upstream_cache_status;
+  add_header X-Cache-Enabled $loopback_header_x_cache_enabled;
+{{- if .Development }}
+  sendfile off;
+{{- end }}
+{{- if .SSL }}
+
+  ssl_certificate     {{ .CertPath }};
+  ssl_certificate_key {{ .KeyPath }};
+{{- if not .SelfSigned }}
+  add_header Strict-Transport-Security "max-age=31536000" always;
+{{- end }}
+{{- end }}
+{{- if .FastCGICache }}
+
+  set $skip_cache 0;
+  if ($request_method !~ ^(GET|HEAD)$) { set $skip_cache 1; }
+  if ($query_string != "") { set $skip_cache 1; }
+  if ($request_uri ~* "/wp-admin/|/wp-json/|/xmlrpc.php|wp-.*.php|/feed/|index.php|sitemap(_index)?.xml") { set $skip_cache 1; }
+  if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_no_cache|wordpress_logged_in|woocommerce_items_in_cart") { set $skip_cache 1; }
+{{- end }}
+{{- if .Site.Multisite.Enabled }}
+
+{{- if .Subdomains }}
+  rewrite ^/(wp-.*.php)$ /wp/$1 last;
+  rewrite ^/(wp-(content|admin|includes).*) /wp/$1 last;
+{{- else }}
+  if (!-e $request_filename) {
+    rewrite /wp-admin$ $scheme://$host$request_uri/ permanent;
+    rewrite ^(/[^/]+)?(/wp-.*) /wp$2 last;
+    rewrite ^(/[^/]+)?(/.*\.php) /wp$2 last;
+  }
+{{- end }}
+{{- end }}
+
+  location ^~ /.well-known/acme-challenge/ {
+    root /srv/www/acme;
+  }
+
+  include includes.d/{{ .Site.Name }}/*.conf;
+
+  location ~* /app/uploads/.*\.php$ { deny all; }
+  location ~* /app/cache/.*\.php$ { deny all; }
+  location ~* \.(blade\.php|twig)$ { deny all; }
+  location ~* composer\.(json|lock)$ { deny all; }
+  location ~* package(-lock)?\.json$ { deny all; }
+  location ~* yarn\.lock$ { deny all; }
+  location ~ /\.(?!well-known) { deny all; }
+{{- if not .Site.XMLRPC }}
+  location = /xmlrpc.php { deny all; }
+{{- end }}
+
+  location / {
+    try_files $uri $uri/ /index.php?$args;
+  }
+
+  location ~ \.php$ {
+    try_files $uri =404;
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    fastcgi_param DOCUMENT_ROOT $realpath_root;
+    fastcgi_param HTTPS {{ if .SSL }}on{{ else }}off{{ end }};
+    fastcgi_pass unix:/run/php/{{ .Site.Name }}.sock;
+{{- if .FastCGICache }}
+    fastcgi_cache wordpress;
+    fastcgi_cache_valid 200 30s;
+    fastcgi_cache_bypass $skip_cache;
+    fastcgi_no_cache $skip_cache;
+{{- end }}
+  }
+}

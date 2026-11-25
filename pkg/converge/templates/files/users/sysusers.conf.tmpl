@@ -1,0 +1,7 @@
+# Managed by Trellis.
+u admin - "Trellis admin" /home/admin /bin/bash
+m admin sudo
+{{- if .Web }}
+u web - "Trellis web" /home/web /bin/bash
+m web www-data
+{{- end }}

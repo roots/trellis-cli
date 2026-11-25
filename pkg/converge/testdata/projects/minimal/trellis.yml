@@ -1,0 +1,22 @@
+version: 1
+
+sites:
+  example.com:
+    repo: git@github.com:example/example.com.git
+    path: site
+
+access:
+  admins: [github:example-admin]
+
+environments:
+  development:
+    sites:
+      example.com: { domain: example.test }
+
+  production:
+    nodes:
+      - host: 203.0.113.10
+    sites:
+      example.com:
+        domain: example.com
+        redirects: [www.example.com]

@@ -1,0 +1,461 @@
+# node 198.51.100.7 (roles: web)
+# hash b7dee6f9f168327159fc5ac27dfdfded5a32b3d704c2da4be0048bad2b1e2d73
+# warning: composer latest-2.x is not pinned by sha256 in trellis.lock
+# warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
+
+== repos
+download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signing.key
+              ↳ run apt-get update
+download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg
+              ↳ run apt-get update
+file          /etc/apt/sources.list.d/trellis-nginx.sources 0644 root:root
+              ↳ run apt-get update
+    │ # Managed by Trellis.
+    │ Types: deb
+    │ URIs: https://nginx.org/packages/mainline/ubuntu
+    │ Suites: noble
+    │ Components: nginx
+    │ Signed-By: /etc/apt/keyrings/nginx.asc
+file          /etc/apt/sources.list.d/trellis-sury-php.sources 0644 root:root
+              ↳ run apt-get update
+    │ # Managed by Trellis.
+    │ Types: deb
+    │ URIs: https://packages.sury.org/php/
+    │ Suites: noble
+    │ Components: main
+    │ Signed-By: /etc/apt/keyrings/sury-php.gpg
+
+== packages
+package       ca-certificates
+package       certbot
+package       curl
+package       fail2ban
+package       git
+package       gnupg
+package       mariadb-client
+package       nftables
+package       nginx
+package       openssl
+package       php8.4-bcmath
+package       php8.4-cli
+package       php8.4-curl
+package       php8.4-fpm
+package       php8.4-imagick
+package       php8.4-intl
+package       php8.4-mbstring
+package       php8.4-mysql
+package       php8.4-xml
+package       php8.4-zip
+package       python3-systemd
+package       unzip
+
+== identity
+file          /etc/sysusers.d/trellis.conf 0644 root:root
+              ↳ run systemd-sysusers
+    │ # Managed by Trellis.
+    │ u admin - "Trellis admin" /home/admin /bin/bash
+    │ m admin sudo
+    │ u web - "Trellis web" /home/web /bin/bash
+    │ m web www-data
+file          /etc/tmpfiles.d/trellis.conf 0644 root:root
+              ↳ run systemd-tmpfiles --create /etc/tmpfiles.d/trellis.conf
+    │ # Managed by Trellis.
+    │ d /home/admin 0750 admin admin -
+    │ d /home/admin/.ssh 0700 admin admin -
+    │ d /home/web 0750 web web -
+    │ d /home/web/.ssh 0700 web web -
+    │ d /srv/www 0755 root root -
+    │ d /srv/www/acme 0755 root root -
+    │ d /srv/www/example.com 0755 web www-data -
+    │ d /srv/www/example.com/releases 0755 web www-data -
+    │ d /srv/www/example.com/shared 0755 web www-data -
+    │ d /srv/www/example.com/logs 0755 web www-data -
+    │ d /srv/www/example.com/shared/uploads 0775 web www-data -
+
+== files
+download      /usr/local/bin/composer ← https://getcomposer.org/download/latest-2.x/composer.phar
+download      /usr/local/bin/wp ← https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar
+file          /etc/fail2ban/filter.d/wordpress-wp-login.conf 0644 root:root
+              ↳ reload fail2ban.service (check: fail2ban-client -t)
+    │ # Managed by Trellis.
+    │ [Definition]
+    │ failregex = ^<HOST> .* "POST [^"]*wp-login\.php[^"]*" 200
+file          /etc/fail2ban/filter.d/wordpress-xmlrpc.conf 0644 root:root
+              ↳ reload fail2ban.service (check: fail2ban-client -t)
+    │ # Managed by Trellis.
+    │ [Definition]
+    │ failregex = ^<HOST> .* "POST [^"]*xmlrpc\.php[^"]*" 200
+file          /etc/fail2ban/jail.d/trellis.local 0644 root:root
+              ↳ reload fail2ban.service (check: fail2ban-client -t)
+    │ # Managed by Trellis.
+    │ [DEFAULT]
+    │ banaction = nftables-multiport
+    │ banaction_allports = nftables-allports
+    │ backend = systemd
+    │ bantime = 1h
+    │ findtime = 10m
+    │ maxretry = 6
+    │ ignoreip = 127.0.0.1/8 ::1
+    │ 
+    │ [sshd]
+    │ enabled = true
+    │ 
+    │ [wordpress-wp-login]
+    │ enabled = false
+    │ backend = auto
+    │ filter = wordpress-wp-login
+    │ port = http,https
+    │ logpath = /srv/www/*/logs/access.log
+    │ 
+    │ [wordpress-xmlrpc]
+    │ enabled = false
+    │ backend = auto
+    │ filter = wordpress-xmlrpc
+    │ port = http,https
+    │ logpath = /srv/www/*/logs/access.log
+file          /etc/letsencrypt/renewal-hooks/deploy/trellis 0755 root:root
+    │ #!/bin/sh
+    │ # Managed by Trellis: copy renewed certificates into /etc/nginx/ssl.
+    │ set -eu
+    │ name=$(basename "$RENEWED_LINEAGE")
+    │ install -m 0644 "$RENEWED_LINEAGE/fullchain.pem" "/etc/nginx/ssl/$name.crt"
+    │ install -m 0600 "$RENEWED_LINEAGE/privkey.pem" "/etc/nginx/ssl/$name.key"
+    │ systemctl reload nginx.service
+file          /etc/nftables.conf 0755 root:root
+              ↳ reload nftables.service (check: nft -c -f /etc/nftables.conf)
+    │ #!/usr/sbin/nft -f
+    │ # Managed by Trellis. Only the `inet trellis` table is managed, so rules
+    │ # owned by other software (e.g. Podman networking) are left alone.
+    │ 
+    │ table inet trellis
+    │ delete table inet trellis
+    │ 
+    │ table inet trellis {
+    │   set ssh_meter4 { type ipv4_addr; flags dynamic; timeout 5m; }
+    │   set ssh_meter6 { type ipv6_addr; flags dynamic; timeout 5m; }
+    │ 
+    │   chain input {
+    │     type filter hook input priority filter; policy drop;
+    │ 
+    │     ct state established,related accept
+    │     ct state invalid drop
+    │     iif lo accept
+    │     meta l4proto { icmp, ipv6-icmp } accept
+    │ 
+    │     tcp dport 22 ct state new add @ssh_meter4 { ip saddr limit rate over 20/minute burst 20 packets } drop
+    │     tcp dport 22 ct state new add @ssh_meter6 { ip6 saddr limit rate over 20/minute burst 20 packets } drop
+    │     tcp dport 22 accept
+    │ 
+    │     tcp dport { 80, 443 } accept
+    │   }
+    │ 
+    │   chain output {
+    │     type filter hook output priority filter; policy accept;
+    │   }
+    │ }
+file          /etc/nginx/conf.d/default.conf (absent)
+              ↳ reload nginx.service (check: nginx -t)
+file          /etc/nginx/nginx.conf 0644 root:root
+              ↳ reload nginx.service (check: nginx -t)
+    │ # Managed by Trellis. Add http-level config in server/nginx/http.d/.
+    │ include modules-enabled/*.conf;
+    │ user www-data www-data;
+    │ worker_processes auto;
+    │ worker_rlimit_nofile 8192;
+    │ pid /run/nginx.pid;
+    │ error_log /var/log/nginx/error.log warn;
+    │ 
+    │ events {
+    │   worker_connections 8000;
+    │ }
+    │ 
+    │ http {
+    │   map $upstream_cache_status $header_x_cache_enabled {
+    │     default true;
+    │     BYPASS  "";
+    │   }
+    │   map $server_addr:$remote_addr $is_loopback_request {
+    │     "~^([^:]+):\1$" 1;
+    │     default         0;
+    │   }
+    │   map $is_loopback_request:$header_x_cache_enabled $loopback_header_x_cache_enabled {
+    │     default "";
+    │     1:true  true;
+    │   }
+    │ 
+    │   server_tokens off;
+    │ 
+    │   fastcgi_buffers 8 8k;
+    │   fastcgi_buffer_size 8k;
+    │   fastcgi_read_timeout 120s;
+    │ 
+    │   include      mime.types;
+    │   default_type application/octet-stream;
+    │   charset_types text/css text/plain text/vnd.wap.wml application/javascript application/json application/rss+xml application/xml;
+    │ 
+    │   log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+    │                   '$status $body_bytes_sent "$http_referer" '
+    │                   '"$http_user_agent" "$http_x_forwarded_for"';
+    │   access_log /var/log/nginx/access.log main;
+    │ 
+    │   keepalive_timeout 20s;
+    │   sendfile on;
+    │   tcp_nopush on;
+    │ 
+    │   gzip on;
+    │   gzip_comp_level 5;
+    │   gzip_min_length 256;
+    │   gzip_proxied any;
+    │   gzip_vary on;
+    │   gzip_types application/atom+xml application/javascript application/json application/ld+json
+    │     application/manifest+json application/rss+xml application/vnd.geo+json application/xml
+    │     font/opentype image/bmp image/svg+xml image/x-icon text/cache-manifest text/css text/plain
+    │     text/vcard text/vtt text/x-component text/xml;
+    │ 
+    │   ssl_protocols TLSv1.2 TLSv1.3;
+    │   ssl_prefer_server_ciphers off;
+    │   ssl_session_cache shared:SSL:10m;
+    │   ssl_session_timeout 1d;
+    │   ssl_session_tickets off;
+    │ 
+    │   include conf.d/*.conf;
+    │   include sites/*.conf;
+    │ }
+file          /etc/nginx/sites/00-no-default.conf 0644 root:root
+              ↳ reload nginx.service (check: nginx -t)
+    │ # Managed by Trellis. Drop requests for unknown hosts.
+    │ server {
+    │   listen 80 default_server;
+    │   listen [::]:80 default_server;
+    │   listen 443 ssl default_server;
+    │   listen [::]:443 ssl default_server;
+    │   ssl_reject_handshake on;
+    │   server_name _;
+    │   location ^~ /.well-known/acme-challenge/ {
+    │     root /srv/www/acme;
+    │   }
+    │   location / {
+    │     return 444;
+    │   }
+    │ }
+file          /etc/nginx/sites/example.com.conf 0644 root:root
+              ↳ reload nginx.service (check: nginx -t)
+    │ # Managed by Trellis. Add server-level config in server/nginx/sites/example.com/.
+    │ server {
+    │   listen 80;
+    │   listen [::]:80;
+    │   server_name staging.example.com;
+    │   location ^~ /.well-known/acme-challenge/ {
+    │     root /srv/www/acme;
+    │   }
+    │   location / {
+    │     return 301 https://$host$request_uri;
+    │   }
+    │ }
+    │ 
+    │ server {
+    │   listen 443 ssl;
+    │   listen [::]:443 ssl;
+    │   http2 on;
+    │   server_name staging.example.com;
+    │ 
+    │   access_log /srv/www/example.com/logs/access.log main;
+    │   error_log  /srv/www/example.com/logs/error.log;
+    │ 
+    │   root  /srv/www/example.com/current/web;
+    │   index index.php index.htm index.html;
+    │   charset utf-8;
+    │   client_max_body_size 25m;
+    │   add_header Fastcgi-Cache $upstream_cache_status;
+    │   add_header X-Cache-Enabled $loopback_header_x_cache_enabled;
+    │ 
+    │   ssl_certificate     /etc/nginx/ssl/example.com.crt;
+    │   ssl_certificate_key /etc/nginx/ssl/example.com.key;
+    │   add_header Strict-Transport-Security "max-age=31536000" always;
+    │ 
+    │   location ^~ /.well-known/acme-challenge/ {
+    │     root /srv/www/acme;
+    │   }
+    │ 
+    │   include includes.d/example.com/*.conf;
+    │ 
+    │   location ~* /app/uploads/.*\.php$ { deny all; }
+    │   location ~* /app/cache/.*\.php$ { deny all; }
+    │   location ~* \.(blade\.php|twig)$ { deny all; }
+    │   location ~* composer\.(json|lock)$ { deny all; }
+    │   location ~* package(-lock)?\.json$ { deny all; }
+    │   location ~* yarn\.lock$ { deny all; }
+    │   location ~ /\.(?!well-known) { deny all; }
+    │   location = /xmlrpc.php { deny all; }
+    │ 
+    │   location / {
+    │     try_files $uri $uri/ /index.php?$args;
+    │   }
+    │ 
+    │   location ~ \.php$ {
+    │     try_files $uri =404;
+    │     fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    │     include fastcgi_params;
+    │     fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    │     fastcgi_param DOCUMENT_ROOT $realpath_root;
+    │     fastcgi_param HTTPS on;
+    │     fastcgi_pass unix:/run/php/example.com.sock;
+    │   }
+    │ }
+file          /etc/php/8.4/cli/conf.d/90-trellis.ini 0644 root:root
+    │ ; Managed by Trellis. Add overrides in server/php/conf.d/ or php.ini in trellis.yml.
+    │ date.timezone = Etc/UTC
+    │ display_errors = Off
+    │ display_startup_errors = Off
+    │ error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+    │ expose_php = Off
+    │ max_execution_time = 120
+    │ max_input_time = 300
+    │ max_input_vars = 1000
+    │ memory_limit = -1
+    │ mysqlnd.collect_memory_statistics = Off
+    │ opcache.enable = 1
+    │ opcache.enable_cli = 1
+    │ opcache.enable_file_override = 0
+    │ opcache.huge_code_pages = 0
+    │ opcache.interned_strings_buffer = 8
+    │ opcache.jit = disable
+    │ opcache.jit_buffer_size = 0
+    │ opcache.max_accelerated_files = 4000
+    │ opcache.max_wasted_percentage = 5
+    │ opcache.memory_consumption = 128
+    │ opcache.revalidate_freq = 60
+    │ opcache.validate_timestamps = 1
+    │ output_buffering = Off
+    │ post_max_size = 25M
+    │ session.cookie_httponly = On
+    │ session.cookie_secure = Off
+    │ session.save_path = /tmp
+    │ session.upload_progress.enabled = Off
+    │ upload_max_filesize = 25M
+file          /etc/php/8.4/fpm/conf.d/90-trellis.ini 0644 root:root
+              ↳ reload php8.4-fpm.service (check: php-fpm8.4 -t)
+    │ ; Managed by Trellis. Add overrides in server/php/conf.d/ or php.ini in trellis.yml.
+    │ date.timezone = Etc/UTC
+    │ display_errors = Off
+    │ display_startup_errors = Off
+    │ error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+    │ expose_php = Off
+    │ max_execution_time = 120
+    │ max_input_time = 300
+    │ max_input_vars = 1000
+    │ memory_limit = 96M
+    │ mysqlnd.collect_memory_statistics = Off
+    │ opcache.enable = 1
+    │ opcache.enable_cli = 1
+    │ opcache.enable_file_override = 0
+    │ opcache.huge_code_pages = 0
+    │ opcache.interned_strings_buffer = 8
+    │ opcache.jit = disable
+    │ opcache.jit_buffer_size = 0
+    │ opcache.max_accelerated_files = 4000
+    │ opcache.max_wasted_percentage = 5
+    │ opcache.memory_consumption = 128
+    │ opcache.revalidate_freq = 60
+    │ opcache.validate_timestamps = 1
+    │ output_buffering = Off
+    │ post_max_size = 25M
+    │ session.cookie_httponly = On
+    │ session.cookie_secure = Off
+    │ session.save_path = /tmp
+    │ session.upload_progress.enabled = Off
+    │ upload_max_filesize = 25M
+file          /etc/php/8.4/fpm/pool.d/example.com.conf 0644 root:root
+              ↳ reload php8.4-fpm.service (check: php-fpm8.4 -t)
+    │ ; Managed by Trellis.
+    │ [example.com]
+    │ user = web
+    │ group = www-data
+    │ listen = /run/php/example.com.sock
+    │ listen.owner = www-data
+    │ listen.group = www-data
+    │ listen.mode = 0660
+    │ 
+    │ pm = dynamic
+    │ pm.max_children = 10
+    │ pm.start_servers = 1
+    │ pm.min_spare_servers = 1
+    │ pm.max_spare_servers = 3
+    │ pm.max_requests = 500
+    │ 
+    │ chdir = /srv/www/example.com
+    │ php_admin_value[open_basedir] = /srv/www/example.com:/tmp:/usr/share/php
+file          /etc/php/8.4/fpm/pool.d/www.conf (absent)
+              ↳ reload php8.4-fpm.service (check: php-fpm8.4 -t)
+file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
+              ↳ reload ssh.service (check: sshd -t)
+    │ # Managed by Trellis.
+    │ PermitRootLogin no
+    │ PasswordAuthentication no
+    │ KbdInteractiveAuthentication no
+    │ PubkeyAuthentication yes
+    │ X11Forwarding no
+    │ AllowAgentForwarding yes
+    │ ClientAliveInterval 300
+file          /etc/sudoers.d/90-trellis 0440 root:root
+    │ # Managed by Trellis.
+    │ admin ALL=(ALL) NOPASSWD:ALL
+    │ web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.4-fpm.service
+file          /etc/systemd/journald.conf.d/50-trellis.conf 0644 root:root
+              ↳ restart systemd-journald.service
+    │ # Managed by Trellis.
+    │ [Journal]
+    │ SystemMaxUse=512M
+file          /etc/systemd/system/wp-cron-example-com.service 0644 root:root
+              ↳ run systemctl daemon-reload
+    │ # Managed by Trellis.
+    │ [Unit]
+    │ Description=WP-Cron for example.com
+    │ ConditionPathExists=/srv/www/example.com/current
+    │ 
+    │ [Service]
+    │ Type=oneshot
+    │ User=web
+    │ Group=www-data
+    │ WorkingDirectory=/srv/www/example.com/current
+    │ ExecStart=/usr/local/bin/wp cron event run --due-now
+file          /etc/systemd/system/wp-cron-example-com.timer 0644 root:root
+              ↳ run systemctl daemon-reload
+              ↳ restart wp-cron-example-com.timer
+    │ # Managed by Trellis.
+    │ [Unit]
+    │ Description=WP-Cron for example.com
+    │ 
+    │ [Timer]
+    │ OnCalendar=*:0/5
+    │ RandomizedDelaySec=30
+    │ Persistent=true
+    │ 
+    │ [Install]
+    │ WantedBy=timers.target
+file          /home/admin/.ssh/authorized_keys 0600 admin:admin
+    │ # Managed by Trellis.
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+file          /home/web/.ssh/authorized_keys 0600 web:web
+    │ # Managed by Trellis.
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+file          /srv/www/example.com/shared/.env 0640 web:www-data
+    │ <sensitive: 411 bytes>
+
+== certs
+cert          example.com letsencrypt [staging.example.com]
+              ↳ reload nginx.service (check: nginx -t)
+
+== data
+database      staging-db.abc123.us-east-1.rds.amazonaws.com/example_com
+database_user staging-db.abc123.us-east-1.rds.amazonaws.com/example_com@% → example_com
+
+== services
+service       fail2ban.service enabled active
+service       nftables.service enabled active
+service       nginx.service enabled active
+service       php8.4-fpm.service enabled active
+service       wp-cron-example-com.timer enabled active
+
+== exec
+exec          timezone: timedatectl set-timezone Etc/UTC

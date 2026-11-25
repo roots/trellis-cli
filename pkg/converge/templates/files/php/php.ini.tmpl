@@ -1,0 +1,4 @@
+; Managed by Trellis. Add overrides in server/php/conf.d/ or php.ini in trellis.yml.
+{{- range .INI }}
+{{ .Key }} = {{ .Value }}
+{{- end }}

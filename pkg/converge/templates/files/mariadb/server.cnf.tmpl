@@ -1,0 +1,8 @@
+# Managed by Trellis. Add overrides in server/mariadb/conf.d/ or mariadb: in trellis.yml.
+[mysqld]
+bind-address = {{ .BindAddress }}
+skip-name-resolve
+skip-log-bin
+{{- range .Settings }}
+{{ .Key }} = {{ .Value }}
+{{- end }}

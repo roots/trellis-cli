@@ -1,0 +1,17 @@
+# Managed by Trellis. Drop requests for unknown hosts.
+server {
+  listen 80 default_server;
+  listen [::]:80 default_server;
+{{- if .AnySSL }}
+  listen 443 ssl default_server;
+  listen [::]:443 ssl default_server;
+  ssl_reject_handshake on;
+{{- end }}
+  server_name _;
+  location ^~ /.well-known/acme-challenge/ {
+    root /srv/www/acme;
+  }
+  location / {
+    return 444;
+  }
+}
