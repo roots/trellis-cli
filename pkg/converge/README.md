@@ -19,7 +19,7 @@ trellis-agent on the server: observe → plan → (approve) → apply → record
 `trellis` (the CLI) does everything that needs the project: config, secrets
 and compiling. `trellis-agent` (`cmd/trellis-agent`) runs on servers and
 links only `agent`, `engine`, `host`, `manifest` and `state`, which a test
-enforces. It is ~6.5MB (~2.7MB gzipped) and stdlib-only.
+enforces. It is ~7MB (~3MB gzipped) and stdlib-only.
 
 The CLI embeds gzipped linux/amd64 and linux/arm64 agents
 (`pkg/converge/agentbin`), so the agent on a server always matches the CLI that
@@ -47,7 +47,7 @@ development, `--agent-binary` or `$TRELLIS_AGENT_DIR` override the embedded agen
 | `remote`    | SSH transport, agent upload, plan/apply/deploy sessions (`remote.Exec` injected)         | – |
 | `project`   | Finds/loads a project and assembles a compile input                                       | – |
 
-The CLI commands in `cmd/converge.go` are a thin layer over these packages.
+The CLI commands in `cmd/converge*.go` are a thin layer over these packages.
 
 ## Secrets
 
@@ -77,13 +77,17 @@ plaintext `secrets/development.yml`.
 - **compile**: golden files (`compile/testdata/*.golden`) pin the full desired
   state of every example project. `go test ./pkg/converge/compile -update`, then
   review the diff, which is exactly what would change on servers.
-- **engine**: `hosttest.Fake` simulates files, dpkg/apt, systemctl, MariaDB,
-  gpg and certbot in memory. Tests run the full loop and assert:
-  convergence (a second plan is empty), constant-cost no-op runs,
-  drift repair, rollback when `nginx -t` fails, pre-write validation (`visudo`),
-  pruning, recovery from failed runs, download verification.
+- **engine**: `hosttest.Fake` simulates files, dpkg/apt (including
+  `policy-rc.d`), systemctl, MariaDB and certbot in memory. Tests run the full
+  loop and assert: convergence (a second plan is empty), constant-cost no-op
+  runs, drift repair, rollback when `nginx -t` fails, pre-write validation
+  (`visudo`), pruning, recovery from failed runs, download verification.
 - **remote**: a fake `ssh` dispatches to the real agent against fake hosts, so
   the client, protocol and agent upload are tested end to end.
+
+CI runs only these. The fake models what Trellis expects of the OS, not what
+the OS does: bugs in how packages, systemd and sudo actually behave have only
+been found on real VMs, and those runs are manual so far.
 
 ## Resource kinds
 
@@ -124,12 +128,16 @@ if the plan it computes differs.
 ## Operating systems
 
 `os:` (in `defaults` or per environment): `ubuntu-24.04` (default),
-`ubuntu-26.04`, `debian-12` or `debian-13`. Manifests record it and the agent
-refuses to run on a server whose `/etc/os-release` says otherwise, so
-upgrading a server's OS is a deliberate config change. All four are tested
-end to end on VMs (provision, no-op re-run, deploy, admin sudo with a
+`ubuntu-26.04` or `debian-13`, listed once in `config.OSes`. Manifests record
+it and the agent refuses to run on a server whose `/etc/os-release` says
+otherwise, so upgrading a server's OS is a deliberate config change. Each has
+been tested by hand on VMs (provision, no-op re-run, deploy, admin sudo with a
 password, including Ubuntu 26.04's sudo-rs). Signing keys are verified in Go
 (OpenPGP fingerprints), so nothing depends on `gpg` being installed.
+
+Adding an OS is one row in `config.OSes`, once nginx.org, packages.sury.org
+and the MariaDB mirror publish for its codename. Debian 12 isn't supported:
+it's past regular security support, and its Podman has no Quadlet.
 
 ## One server per environment
 
@@ -177,6 +185,12 @@ Trellis-side findings.
 - apt package versions aren't pinned: third-party repositories (Sury, nginx.org,
   MariaDB) drop old versions, so exact pins would break fresh installs. Ubuntu
   can pin the whole archive with `apt_snapshot` instead.
+- Updates: converge installs missing packages but never upgrades installed
+  ones, and unattended-upgrades only covers the distro's own archive. nginx,
+  PHP and MariaDB from the third-party repositories therefore get no security
+  updates after the first install (as in stock Trellis), and changing the
+  MariaDB series only affects new servers.
+- Automated tests on real OSes (a VM matrix in CI).
 - Not yet compared against Trellis: SSL/HSTS/HTTP2, the FastCGI cache,
   Redis/Memcached, multisite.
 - Development VMs (`trellis vm`; `--lima` works with any Lima VM) and

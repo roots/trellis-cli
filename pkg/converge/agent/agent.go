@@ -187,7 +187,7 @@ func checkOS(h host.Host, want string) error {
 	return nil
 }
 
-// OSRelease returns "<ID>-<VERSION_ID>" (e.g. ubuntu-24.04, debian-12)
+// OSRelease returns "<ID>-<VERSION_ID>" (e.g. ubuntu-24.04, debian-13)
 // from /etc/os-release.
 func OSRelease(b []byte) string {
 	var id, version string

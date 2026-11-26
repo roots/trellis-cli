@@ -125,6 +125,31 @@ func TestExternalDatabase(t *testing.T) {
 	}
 }
 
+// Every supported OS compiles, with its repositories for its release.
+func TestEverySupportedOS(t *testing.T) {
+	p, err := project.Open(filepath.Join("..", "testdata", "projects", "minimal"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range config.OSes {
+		e, err := p.Config.Resolve("production")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.Server.OS = o.Name
+		m, err := compile.Compile(compile.Input{Env: e, Lock: p.Lock, Secrets: loadSecrets(t, p, "production")})
+		if err != nil {
+			t.Fatalf("%s: %v", o.Name, err)
+		}
+		for _, repo := range []string{"nginx", "sury-php", "mariadb"} {
+			src := get(t, m, manifest.KindFile, "/etc/apt/sources.list.d/trellis-"+repo+".sources").File.Content
+			if !strings.Contains(src, "Suites: "+o.Codename+"\n") {
+				t.Errorf("%s: %s source:\n%s", o.Name, repo, src)
+			}
+		}
+	}
+}
+
 func TestFullProjectCustomizations(t *testing.T) {
 	m := compileProject(t, "full", "production")
 

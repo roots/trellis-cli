@@ -128,7 +128,7 @@ var schemaEnums = map[string][]any{
 	"Site.object_cache":    {ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached},
 	"FPM.pm":               {"dynamic", "static", "ondemand"},
 	"ExternalDatabase.tls": {"required"},
-	"Server.os":            {"ubuntu-24.04", "ubuntu-26.04", "debian-12", "debian-13"},
+	"Server.os":            anys(SupportedOS()),
 	"File.version":         {1},
 }
 
@@ -236,4 +236,12 @@ func (g *schemaGen) fields(t reflect.Type, owner string, props map[string]any) {
 		}
 		props[key] = s
 	}
+}
+
+func anys[T any](xs []T) []any {
+	out := make([]any, len(xs))
+	for i, x := range xs {
+		out[i] = x
+	}
+	return out
 }

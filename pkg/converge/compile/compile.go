@@ -43,11 +43,11 @@ func Compile(in Input) (*manifest.Manifest, error) {
 	if in.Secrets == nil {
 		in.Secrets = secrets.Map{}
 	}
-	plat, err := platformFor(in.Env.Server.OS)
-	if err != nil {
-		return nil, err
+	plat, ok := config.LookupOS(in.Env.Server.OS)
+	if !ok {
+		return nil, fmt.Errorf("unsupported os %q", in.Env.Server.OS)
 	}
-	if in.Lock.AptSnapshot != "" && plat.distro != "ubuntu" {
+	if in.Lock.AptSnapshot != "" && plat.Distro != "ubuntu" {
 		return nil, fmt.Errorf("trellis.lock: apt_snapshot uses snapshot.ubuntu.com, which doesn't serve %s", in.Env.Server.OS)
 	}
 
@@ -68,8 +68,8 @@ func Compile(in Input) (*manifest.Manifest, error) {
 		in:       in,
 		env:      in.Env,
 		tpl:      tpl,
-		codename: plat.codename,
-		distro:   plat.distro,
+		codename: plat.Codename,
+		distro:   plat.Distro,
 		m:        manifest.New(in.Env.ServerName(), roles),
 		pkgs:     map[string]bool{},
 	}
@@ -163,24 +163,6 @@ func (b *builder) pkg(names ...string) {
 		b.pkgs[n] = true
 		b.add(manifest.NewPackage(n, b.in.Lock.Packages[n]))
 	}
-}
-
-type platform struct{ distro, codename string }
-
-// platforms are the supported operating systems. Third-party repositories
-// (nginx.org, packages.sury.org, MariaDB) serve all of them.
-var platforms = map[string]platform{
-	"ubuntu-24.04": {"ubuntu", "noble"},
-	"ubuntu-26.04": {"ubuntu", "resolute"},
-	"debian-12":    {"debian", "bookworm"},
-	"debian-13":    {"debian", "trixie"},
-}
-
-func platformFor(os string) (platform, error) {
-	if p, ok := platforms[os]; ok {
-		return p, nil
-	}
-	return platform{}, fmt.Errorf("unsupported os %q", os)
 }
 
 // checkEjected warns when an ejected template's built-in base changed

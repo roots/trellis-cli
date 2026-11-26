@@ -74,28 +74,50 @@ func aptInstallCmd(pkgs []manifest.Package, extra ...string) host.Cmd {
 	return host.Cmd{Argv: argv, Env: aptEnv}
 }
 
-// upgradeRe matches a simulated install line for a package that's already
-// installed (its current version in brackets).
-var upgradeRe = regexp.MustCompile(`^Inst (\S+) \[`)
+// instRe matches a simulated install line: "Inst <name> (<new> …)" for a
+// new package, "Inst <name> [<old>] (<new> …)" for an upgrade.
+var instRe = regexp.MustCompile(`^Inst (\S+) (\[|\()`)
 
-// touchedInstalled returns the installed packages installing pkgs would
-// upgrade or remove.
-func (r *run) touchedInstalled(pkgs []manifest.Package) ([]string, error) {
-	out, err := r.h.Run(r.ctx, host.Cmd{Argv: slices.Concat([]string{"apt-get", "install", "-s", "-q"}, aptPackageArgs(pkgs)), Env: aptEnv})
-	if err != nil {
-		return nil, err
-	}
-	var names []string
+// parseSimulate returns the installed packages an `apt-get install -s`
+// would upgrade or remove. ok is false unless every Inst line, and at
+// least one, is in a known format: callers then assume the worst, so a
+// change in apt's output can't make an upgrade look safe.
+func parseSimulate(out []byte) (touched []string, ok bool) {
+	insts := 0
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	for sc.Scan() {
 		line := sc.Text()
-		if m := upgradeRe.FindStringSubmatch(line); m != nil {
-			names = append(names, m[1])
-		} else if f := strings.Fields(line); len(f) > 1 && f[0] == "Remv" {
-			names = append(names, f[1])
+		f := strings.Fields(line)
+		switch {
+		case len(f) == 0:
+		case f[0] == "Inst":
+			insts++
+			m := instRe.FindStringSubmatch(line)
+			if m == nil {
+				return nil, false
+			}
+			if m[2] == "[" {
+				touched = append(touched, m[1])
+			}
+		case f[0] == "Remv":
+			if len(f) < 2 {
+				return nil, false
+			}
+			touched = append(touched, f[1])
 		}
 	}
-	return names, nil
+	return touched, insts > 0
+}
+
+// touchedInstalled returns the installed packages installing pkgs would
+// upgrade or remove; ok as for parseSimulate.
+func (r *run) touchedInstalled(pkgs []manifest.Package) (touched []string, ok bool, err error) {
+	out, err := r.h.Run(r.ctx, host.Cmd{Argv: slices.Concat([]string{"apt-get", "install", "-s", "-q"}, aptPackageArgs(pkgs)), Env: aptEnv})
+	if err != nil {
+		return nil, false, err
+	}
+	touched, ok = parseSimulate(out)
+	return touched, ok, nil
 }
 
 // daemonFileRe matches the files that make a package's upgrade stop or
@@ -204,14 +226,14 @@ func (r *run) removeStalePolicy() error {
 }
 
 // canDeferStarts reports whether installing pkgs can defer daemon starts:
-// it upgrades or removes no installed package that ships a daemon, and no
-// one else's policy-rc.d is in place.
+// apt's simulation is understood, it upgrades or removes no installed
+// package that ships a daemon, and no one else's policy-rc.d is in place.
 func (r *run) canDeferStarts(pkgs []manifest.Package) (bool, error) {
 	if info, err := r.h.Stat(policyRCD, false); err != nil || info.Exists {
 		return false, err
 	}
-	touched, err := r.touchedInstalled(pkgs)
-	if err != nil {
+	touched, ok, err := r.touchedInstalled(pkgs)
+	if err != nil || !ok {
 		return false, err
 	}
 	daemons, err := r.shipDaemons(touched)

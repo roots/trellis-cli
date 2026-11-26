@@ -126,12 +126,12 @@ func TestRejectsProtocolMismatch(t *testing.T) {
 
 func TestRefusesADifferentOS(t *testing.T) {
 	h := hosttest.New()
-	h.Files["/etc/os-release"].Data = []byte("ID=debian\nVERSION_ID=\"12\"\n")
+	h.Files["/etc/os-release"].Data = []byte("ID=debian\nVERSION_ID=\"13\"\n")
 	m := testManifest()
 	m.OS = "ubuntu-24.04"
 	var out bytes.Buffer
 	err := agent.Serve(context.Background(), h, nil, request(t, agent.ModePlan, m, ""), &out)
-	if err == nil || !strings.Contains(err.Error(), "the server runs debian-12 but trellis.yml says os: ubuntu-24.04") {
+	if err == nil || !strings.Contains(err.Error(), "the server runs debian-13 but trellis.yml says os: ubuntu-24.04") {
 		t.Fatalf("err = %v", err)
 	}
 	if got := agent.OSRelease([]byte("NAME=\"Ubuntu\"\nID=ubuntu\nVERSION_ID=\"26.04\"\n")); got != "ubuntu-26.04" {

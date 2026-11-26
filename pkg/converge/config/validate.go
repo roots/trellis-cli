@@ -6,7 +6,6 @@ import (
 	"net"
 	"path"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	_ "time/tzdata" // validate time zones the same way on every OS
@@ -121,8 +120,8 @@ func validate(e *Environment) error {
 	if !phpVersionRe.MatchString(s.PHP.Version) {
 		add("%s: php.version %q must look like 8.4", p, s.PHP.Version)
 	}
-	if !slices.Contains(SupportedOS, s.OS) {
-		add("%s: os %q is not supported (supported: %s)", p, s.OS, strings.Join(SupportedOS, ", "))
+	if _, ok := LookupOS(s.OS); !ok {
+		add("%s: os %q is not supported (supported: %s)", p, s.OS, strings.Join(SupportedOS(), ", "))
 	}
 	if _, err := time.LoadLocation(s.Timezone); err != nil || s.Timezone == "Local" {
 		add("%s: timezone %q is not a known time zone (e.g. Etc/UTC, America/Toronto)", p, s.Timezone)

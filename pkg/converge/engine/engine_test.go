@@ -547,6 +547,34 @@ func TestParseDenied(t *testing.T) {
 	}
 }
 
+// Deferring starts is only safe when apt's simulation is understood: an
+// unknown format must not read as "no upgrades".
+func TestParseSimulateFailsSafe(t *testing.T) {
+	known := `NOTE: This is only a simulation!
+The following NEW packages will be installed:
+  nginx
+Inst libc6 [2.39-0ubuntu8.3] (2.39-0ubuntu8.4 Ubuntu:24.04/noble-updates [arm64])
+Inst nginx (1.29.3-1~noble nginx.org:noble [arm64])
+Remv mlocate [1.1.18-1]
+Conf libc6 (2.39-0ubuntu8.4 Ubuntu:24.04/noble-updates [arm64])
+Conf nginx (1.29.3-1~noble nginx.org:noble [arm64])
+`
+	got, ok := engine.ParseSimulate([]byte(known))
+	if !ok || strings.Join(got, " ") != "libc6 mlocate" {
+		t.Errorf("got %q (ok %v), want libc6 mlocate", got, ok)
+	}
+	for _, out := range []string{
+		"",
+		"Conf nginx (1.29.3-1~noble nginx.org:noble [arm64])\n",
+		"Inst nginx (1.29.3-1~noble [arm64])\nInst libc6 2.39-0ubuntu8.3 -> 2.39-0ubuntu8.4\n",
+		"Install libc6 [2.39-0ubuntu8.3] (2.39-0ubuntu8.4)\n",
+	} {
+		if _, ok := engine.ParseSimulate([]byte(out)); ok {
+			t.Errorf("%q: parsed as understood", out)
+		}
+	}
+}
+
 // A failed phase command must be retried by the next run, not forgotten
 // because the files that trigger it were already written.
 func TestFailedPhaseCommandIsRetried(t *testing.T) {

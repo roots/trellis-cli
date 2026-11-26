@@ -192,6 +192,19 @@ environments:
 `,
 			want: []string{"site name must be lowercase", `timezone "Mars/Olympus" is not a known time zone`},
 		},
+		"unsupported os": {
+			yaml: `
+version: 1
+access: { admins: [k] }
+sites: { a.com: { repo: r } }
+environments:
+  production:
+    host: 1.2.3.4
+    os: debian-12
+    sites: { a.com: { domain: a.com } }
+`,
+			want: []string{`os "debian-12" is not supported (supported: ubuntu-24.04, ubuntu-26.04, debian-13)`},
+		},
 		"duplicate domains and bad values": {
 			yaml: `
 version: 1

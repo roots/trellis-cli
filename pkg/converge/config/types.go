@@ -49,9 +49,8 @@ type Environment struct {
 
 // Server holds node-level settings shared by every site.
 type Server struct {
-	// OS is the server's operating system: ubuntu-24.04 (default),
-	// ubuntu-26.04, debian-12 or debian-13. Plans refuse to run on a server
-	// with a different OS.
+	// OS is the server's operating system, one of OSes (default
+	// ubuntu-24.04). Plans refuse to run on a server with a different OS.
 	OS       string `yaml:"os,omitempty"`
 	Timezone string `yaml:"timezone,omitempty"`
 	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
@@ -327,5 +326,35 @@ func SharedName(p string) string {
 	return p[strings.LastIndex(p, "/")+1:]
 }
 
-// SupportedOS are the operating systems converge provisions.
-var SupportedOS = []string{"ubuntu-24.04", "ubuntu-26.04", "debian-12", "debian-13"}
+// OS is a supported operating system. Name is what trellis.yml's os: says
+// and the server's /etc/os-release reports (<ID>-<VERSION_ID>); Distro and
+// Codename select the third-party apt repositories.
+type OS struct{ Name, Distro, Codename string }
+
+// OSes is the one list of supported operating systems. Adding one needs
+// nginx.org, packages.sury.org and the MariaDB mirror to publish for its
+// codename.
+var OSes = []OS{
+	{"ubuntu-24.04", "ubuntu", "noble"},
+	{"ubuntu-26.04", "ubuntu", "resolute"},
+	{"debian-13", "debian", "trixie"},
+}
+
+// LookupOS returns the supported OS called name.
+func LookupOS(name string) (OS, bool) {
+	for _, o := range OSes {
+		if o.Name == name {
+			return o, true
+		}
+	}
+	return OS{}, false
+}
+
+// SupportedOS returns the names of OSes.
+func SupportedOS() []string {
+	names := make([]string, len(OSes))
+	for i, o := range OSes {
+		names[i] = o.Name
+	}
+	return names
+}

@@ -115,7 +115,6 @@
           "enum": [
             "ubuntu-24.04",
             "ubuntu-26.04",
-            "debian-12",
             "debian-13"
           ],
           "type": "string"
@@ -355,7 +354,6 @@
           "enum": [
             "ubuntu-24.04",
             "ubuntu-26.04",
-            "debian-12",
             "debian-13"
           ],
           "type": "string"
