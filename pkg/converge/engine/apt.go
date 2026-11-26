@@ -120,6 +120,23 @@ func (r *run) touchedInstalled(pkgs []manifest.Package) (touched []string, ok bo
 	return touched, ok, nil
 }
 
+// upgradableCmd simulates upgrading everything (dist-upgrade, so updates
+// that need new dependencies count too).
+var upgradableCmd = host.Cmd{Argv: []string{"apt-get", "dist-upgrade", "-s", "-q"}, Env: aptEnv}
+
+// parseUpgradable returns the installed packages a simulated upgrade
+// would upgrade.
+func parseUpgradable(out []byte) []string {
+	var names []string
+	sc := bufio.NewScanner(bytes.NewReader(out))
+	for sc.Scan() {
+		if m := instRe.FindStringSubmatch(sc.Text()); m != nil && m[2] == "[" {
+			names = append(names, m[1])
+		}
+	}
+	return names
+}
+
 // daemonFileRe matches the files that make a package's upgrade stop or
 // restart something: systemd units and init scripts.
 var daemonFileRe = regexp.MustCompile(`^(/usr)?/lib/systemd/system/[^/]+\.(service|socket|timer|path)$|^/etc/init\.d/`)

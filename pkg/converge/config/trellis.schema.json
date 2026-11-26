@@ -80,6 +80,15 @@
           "$ref": "#/$defs/Access",
           "description": "Overrides top-level access for this environment."
         },
+        "auto_updates": {
+          "description": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or off.",
+          "enum": [
+            "all",
+            "distro",
+            "off"
+          ],
+          "type": "string"
+        },
         "commands": {
           "description": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
           "items": {
@@ -327,6 +336,15 @@
     "Server": {
       "additionalProperties": false,
       "properties": {
+        "auto_updates": {
+          "description": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or off.",
+          "enum": [
+            "all",
+            "distro",
+            "off"
+          ],
+          "type": "string"
+        },
         "commands": {
           "description": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
           "items": {

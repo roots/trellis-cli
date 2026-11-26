@@ -150,6 +150,59 @@ func TestEverySupportedOS(t *testing.T) {
 	}
 }
 
+// auto_updates decides what unattended-upgrades installs; trellis.lock
+// pins are never upgraded by it.
+func TestAutoUpdates(t *testing.T) {
+	p, err := project.Open(filepath.Join("..", "testdata", "projects", "minimal"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const conf = "/etc/apt/apt.conf.d/52trellis-unattended-upgrades"
+	build := func(mode string, pins map[string]string) *manifest.Manifest {
+		t.Helper()
+		e, err := p.Config.Resolve("production")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.Server.AutoUpdates = mode
+		l := *p.Lock
+		l.Packages = pins
+		m, err := compile.Compile(compile.Input{Env: e, Lock: &l, Secrets: loadSecrets(t, p, "production")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+
+	all := get(t, build(config.UpdatesAll, map[string]string{"nginx": "1.30.8-1~noble", "libc6": "2.39"}), manifest.KindFile, conf).File.Content
+	for _, want := range []string{
+		`"origin=Ubuntu,archive=${distro_codename}-updates";`,
+		`"origin=nginx,codename=${distro_codename}";`,
+		`"origin=deb.sury.org,codename=${distro_codename}";`,
+		`"origin=MariaDB,codename=${distro_codename}";`,
+		`Dpkg::Options { "--force-confdef"; "--force-confold"; };`,
+		`"^libc6$";`, `"^nginx$";`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("all: missing %s in:\n%s", want, all)
+		}
+	}
+
+	distro := get(t, build(config.UpdatesDistro, nil), manifest.KindFile, conf).File.Content
+	if strings.Contains(distro, "Origins-Pattern") || strings.Contains(distro, "Blacklist") {
+		t.Errorf("distro adds origins or a blacklist:\n%s", distro)
+	}
+
+	off := build(config.UpdatesOff, nil)
+	if off.Get(manifest.ID{Kind: manifest.KindFile, Name: conf}) != nil {
+		t.Error("off still configures unattended-upgrades")
+	}
+	periodic := get(t, off, manifest.KindFile, "/etc/apt/apt.conf.d/20auto-upgrades").File.Content
+	if !strings.Contains(periodic, `Update-Package-Lists "1"`) || !strings.Contains(periodic, `Unattended-Upgrade "0"`) {
+		t.Errorf("off: 20auto-upgrades:\n%s", periodic)
+	}
+}
+
 func TestFullProjectCustomizations(t *testing.T) {
 	m := compileProject(t, "full", "production")
 

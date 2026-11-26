@@ -97,6 +97,10 @@ func Observe(ctx context.Context, h host.Host, desired *manifest.Manifest) (*sta
 		// reports the rest, so the output is parsed regardless.
 		out, _ := h.Run(ctx, dpkgQueryCmd(slices.Sorted(maps.Keys(pkgs))))
 		obs.Packages = parseDpkg(out)
+		// Only reported, so a failure just means nothing to report.
+		if out, err := h.Run(ctx, upgradableCmd); err == nil {
+			obs.Upgradable = parseUpgradable(out)
+		}
 	}
 
 	if len(units) > 0 {

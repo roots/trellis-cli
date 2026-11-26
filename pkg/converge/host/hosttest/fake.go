@@ -272,6 +272,14 @@ func (f *Fake) apt(argv []string) ([]byte, error) {
 	}
 	i := slices.Index(argv, "--")
 	switch argv[1] {
+	case "dist-upgrade": // simulated only: Upgradable packages that are installed
+		var b strings.Builder
+		for _, name := range f.Upgradable {
+			if v, installed := f.Packages[name]; installed {
+				fmt.Fprintf(&b, "Inst %s [%s] (1.1-fake fake [amd64])\n", name, v)
+			}
+		}
+		return []byte(b.String()), nil
 	case "install":
 		if slices.Contains(argv, "-s") || slices.Contains(argv, "--print-uris") {
 			return f.aptPreview(argv[i+1:], slices.Contains(argv, "-s")), nil

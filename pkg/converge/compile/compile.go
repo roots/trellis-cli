@@ -97,6 +97,7 @@ type builder struct {
 	m        *manifest.Manifest
 	errs     []error
 	pkgs     map[string]bool
+	origins  []string // of the apt repositories added
 }
 
 func (b *builder) compile() {
@@ -106,6 +107,7 @@ func (b *builder) compile() {
 	if b.env.LocalDB() {
 		b.db()
 	}
+	b.autoUpdates()
 	// User files and commands come last: they may not take over a path
 	// Trellis manages, and commands watch files from either.
 	b.serverFiles()

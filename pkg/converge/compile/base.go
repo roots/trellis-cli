@@ -3,7 +3,10 @@ package compile
 import (
 	"fmt"
 	"io/fs"
+	"maps"
 	"net"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -45,9 +48,13 @@ type aptRepo struct {
 	keyURL       string
 	keyFile      string
 	fingerprints []string // every key in the file (see manifest.Download)
+	// origin is the Origin in the repository's Release file, which
+	// unattended-upgrades matches (auto_updates: all).
+	origin string
 }
 
 func (b *builder) repo(r aptRepo) {
+	b.origins = append(b.origins, r.origin)
 	keyring := keyringDir + "/" + r.keyFile
 	key := m.NewDownload(keyring, r.keyURL, 0o644).InPhase(m.PhaseRepos)
 	key.Download.Fingerprints = r.fingerprints
@@ -74,11 +81,6 @@ func (b *builder) base() {
 	b.fail2ban()
 	b.mail()
 	b.swap()
-
-	// Security updates shouldn't wait for someone to provision.
-	b.pkg("unattended-upgrades")
-	b.add(m.NewRootFile("/etc/apt/apt.conf.d/20auto-upgrades",
-		"// Managed by Trellis.\nAPT::Periodic::Update-Package-Lists \"1\";\nAPT::Periodic::Unattended-Upgrade \"1\";\n", 0o644))
 
 	b.add(
 		m.NewRootFile("/etc/systemd/journald.conf.d/50-trellis.conf", b.render("journald/journald.conf", nil), 0o644, journaldRestart),
@@ -308,4 +310,52 @@ func (b *builder) anySSL() bool {
 		}
 	}
 	return false
+}
+
+// autoUpdates configures unattended-upgrades (auto_updates), which runs
+// from apt-daily-upgrade.timer. It comes after every repository is added.
+//
+// Package lists stay current even when it's off, so plans can report
+// waiting updates. The distro's own config (50unattended-upgrades) covers
+// its security updates (and on Debian, point releases); Trellis's file adds
+// the distro's other bugfix updates (-updates) and the repositories
+// Trellis set up, and keeps Trellis's config files when a package ships new defaults (which
+// would otherwise hold the package back). Packages pinned in trellis.lock
+// are left alone.
+func (b *builder) autoUpdates() {
+	mode := b.env.Server.AutoUpdates
+	b.pkg("unattended-upgrades")
+	upgrade := "1"
+	if mode == config.UpdatesOff {
+		upgrade = "0"
+	}
+	b.add(m.NewRootFile("/etc/apt/apt.conf.d/20auto-upgrades",
+		"// Managed by Trellis.\nAPT::Periodic::Update-Package-Lists \"1\";\nAPT::Periodic::Unattended-Upgrade \""+upgrade+"\";\n", 0o644))
+	if mode == config.UpdatesOff {
+		return
+	}
+
+	var c strings.Builder
+	fmt.Fprintf(&c, "// Managed by Trellis (auto_updates: %s).\n", mode)
+	if mode == config.UpdatesAll {
+		c.WriteString("Unattended-Upgrade::Origins-Pattern {\n")
+		if b.distro == "ubuntu" {
+			c.WriteString("\t\"origin=Ubuntu,archive=${distro_codename}-updates\";\n")
+		} else {
+			c.WriteString("\t\"origin=Debian,codename=${distro_codename}-updates\";\n")
+		}
+		for _, o := range slices.Compact(slices.Sorted(slices.Values(b.origins))) {
+			fmt.Fprintf(&c, "\t\"origin=%s,codename=${distro_codename}\";\n", o)
+		}
+		c.WriteString("};\n")
+	}
+	c.WriteString("Dpkg::Options { \"--force-confdef\"; \"--force-confold\"; };\n")
+	if pins := slices.Sorted(maps.Keys(b.in.Lock.Packages)); len(pins) > 0 {
+		c.WriteString("// Pinned in trellis.lock.\nUnattended-Upgrade::Package-Blacklist {\n")
+		for _, p := range pins {
+			fmt.Fprintf(&c, "\t\"^%s$\";\n", regexp.QuoteMeta(p))
+		}
+		c.WriteString("};\n")
+	}
+	b.add(m.NewRootFile("/etc/apt/apt.conf.d/52trellis-unattended-upgrades", c.String(), 0o644))
 }

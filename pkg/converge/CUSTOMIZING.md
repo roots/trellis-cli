@@ -203,7 +203,27 @@ commands:
 ```
 
 The repository lands before packages install; the package starts its own
-service.
+service. To have unattended-upgrades update it too (`auto_updates: all` only
+covers Trellis's repositories), add its origin (the `Origin:` line of the
+repository's `Release` file):
+
+```
+# server/files/etc/apt/apt.conf.d/53-tailscale-upgrades
+Unattended-Upgrade::Origins-Pattern { "origin=Tailscale"; };
+```
+
+### Update schedule
+
+unattended-upgrades runs from `apt-daily-upgrade.timer`. Change when with a
+drop-in:
+
+```ini
+# server/files/etc/systemd/system/apt-daily-upgrade.timer.d/schedule.conf
+[Timer]
+OnCalendar=
+OnCalendar=Sun 04:00
+RandomizedDelaySec=0
+```
 
 ### Containerized service (Podman Quadlet)
 

@@ -78,12 +78,14 @@ func (b *builder) phpINI() map[string]string {
 func (b *builder) webStack() {
 	v := b.phpVersion()
 	b.repo(aptRepo{
-		name: "nginx", uri: "https://nginx.org/packages/mainline/" + b.distro, suite: b.codename, components: "nginx",
+		name: "nginx", uri: "https://nginx.org/packages/" + b.distro, suite: b.codename, components: "nginx",
 		keyURL: "https://nginx.org/keys/nginx_signing.key", keyFile: "nginx.asc", fingerprints: nginxFingerprints,
+		origin: "nginx",
 	})
 	b.repo(aptRepo{
 		name: "sury-php", uri: "https://packages.sury.org/php/", suite: b.codename, components: "main",
 		keyURL: "https://packages.sury.org/php/apt.gpg", keyFile: "sury-php.gpg", fingerprints: []string{suryFingerprint},
+		origin: "deb.sury.org",
 	})
 
 	b.pkg("nginx")

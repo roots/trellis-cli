@@ -55,13 +55,16 @@ type Server struct {
 	Timezone string `yaml:"timezone,omitempty"`
 	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
 	// swap), a size for /swapfile (e.g. "1G"), or "off".
-	Swap     string            `yaml:"swap,omitempty"`
-	PHP      PHP               `yaml:"php,omitempty"`
-	MariaDB  map[string]string `yaml:"mariadb,omitempty"`
-	Mail     *Mail             `yaml:"mail,omitempty"`
-	Security Security          `yaml:"security,omitempty"`
-	Packages []string          `yaml:"packages,omitempty"`
-	Commands []Command         `yaml:"commands,omitempty"`
+	Swap string `yaml:"swap,omitempty"`
+	// AutoUpdates is what unattended-upgrades installs daily: UpdatesAll
+	// (default), UpdatesDistro or UpdatesOff.
+	AutoUpdates string            `yaml:"auto_updates,omitempty"`
+	PHP         PHP               `yaml:"php,omitempty"`
+	MariaDB     map[string]string `yaml:"mariadb,omitempty"`
+	Mail        *Mail             `yaml:"mail,omitempty"`
+	Security    Security          `yaml:"security,omitempty"`
+	Packages    []string          `yaml:"packages,omitempty"`
+	Commands    []Command         `yaml:"commands,omitempty"`
 }
 
 type PHP struct {
@@ -325,6 +328,19 @@ func SharedName(p string) string {
 	p = strings.Trim(p, "/")
 	return p[strings.LastIndex(p, "/")+1:]
 }
+
+// AutoUpdates values.
+const (
+	// UpdatesAll installs the distro's security and bugfix updates, and
+	// bugfix and security releases from the repositories Trellis adds
+	// (nginx, PHP, MariaDB within its series).
+	UpdatesAll = "all"
+	// UpdatesDistro keeps the distro's default: its security updates only
+	// (and Debian's point releases).
+	UpdatesDistro = "distro"
+	// UpdatesOff installs nothing automatically.
+	UpdatesOff = "off"
+)
 
 // OS is a supported operating system. Name is what trellis.yml's os: says
 // and the server's /etc/os-release reports (<ID>-<VERSION_ID>); Distro and

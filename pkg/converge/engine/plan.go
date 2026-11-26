@@ -83,6 +83,13 @@ func Compute(desired *manifest.Manifest, obs *state.Observed) *Plan {
 	if obs.RebootRequired {
 		p.Warnings = append(p.Warnings, "the server needs a reboot to finish installing updates")
 	}
+	if n := len(obs.Upgradable); n > 0 {
+		names := obs.Upgradable
+		if n > 8 {
+			names = append(slices.Clip(names[:8]), fmt.Sprintf("and %d more", n-8))
+		}
+		p.Warnings = append(p.Warnings, fmt.Sprintf("updates are waiting for %d packages (%s): unattended-upgrades installs the ones auto_updates allows, or run `sudo apt upgrade` on the server", n, strings.Join(names, ", ")))
+	}
 	prev := obs.Previous
 	if prev != nil {
 		p.Generation = prev.Number + 1

@@ -139,6 +139,28 @@ Adding an OS is one row in `config.OSes`, once nginx.org, packages.sury.org
 and the MariaDB mirror publish for its codename. Debian 12 isn't supported:
 it's past regular security support, and its Podman has no Quadlet.
 
+## Updates
+
+Converge installs missing packages; it doesn't upgrade installed ones.
+unattended-upgrades does, daily (`apt-daily-upgrade.timer`, 6:00 to 7:00
+server time), and `auto_updates:` decides what it installs:
+
+- `all` (default): the distro's security and bugfix updates, and the
+  bugfix and security releases of nginx (nginx.org stable), PHP (Sury; only
+  the configured `php.version`, since the version is in the package names)
+  and MariaDB (within the series in the repository URL).
+- `distro`: the distro's default, its security updates only.
+- `off`: nothing automatic.
+
+Upgrades restart their services when the packages say to (PHP-FPM and
+MariaDB restart, nginx swaps its binary). Trellis's config files are kept
+(`--force-confold`), so a package that ships new defaults isn't held back.
+Packages pinned in `trellis.lock` are excluded. Plans report packages with
+updates waiting and a pending reboot; reboots are left to you.
+
+Major versions are always explicit: a new `php.version`, or a Trellis
+release that moves MariaDB's series.
+
 ## One server per environment
 
 An environment is one server (`host:`, optional `user:`/`port:`), running
@@ -185,11 +207,8 @@ Trellis-side findings.
 - apt package versions aren't pinned: third-party repositories (Sury, nginx.org,
   MariaDB) drop old versions, so exact pins would break fresh installs. Ubuntu
   can pin the whole archive with `apt_snapshot` instead.
-- Updates: converge installs missing packages but never upgrades installed
-  ones, and unattended-upgrades only covers the distro's own archive. nginx,
-  PHP and MariaDB from the third-party repositories therefore get no security
-  updates after the first install (as in stock Trellis), and changing the
-  MariaDB series only affects new servers.
+- Major upgrades: a new MariaDB series (the repository URL changes, the
+  package names don't) needs an upgrade path before `mariadbVersion` changes.
 - Automated tests on real OSes (a VM matrix in CI).
 - Not yet compared against Trellis: SSL/HSTS/HTTP2, the FastCGI cache,
   Redis/Memcached, multisite.

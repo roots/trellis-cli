@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 97597de6f0d22644b6824b990d32e340b18052316a8f4703d553bc420e0bbfb7
+# hash 95b8db746b8ea1de324b052b17437668e0b11cae855c5e3351df46d948164deb
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -28,7 +28,7 @@ file          /etc/apt/sources.list.d/trellis-nginx.sources 0644 root:root
               ↳ run apt-get update
     │ # Managed by Trellis.
     │ Types: deb
-    │ URIs: https://nginx.org/packages/mainline/ubuntu
+    │ URIs: https://nginx.org/packages/ubuntu
     │ Suites: noble
     │ Components: nginx
     │ Signed-By: /etc/apt/keyrings/nginx.asc
@@ -117,6 +117,20 @@ file          /etc/apt/apt.conf.d/20auto-upgrades 0644 root:root
     │ // Managed by Trellis.
     │ APT::Periodic::Update-Package-Lists "1";
     │ APT::Periodic::Unattended-Upgrade "1";
+file          /etc/apt/apt.conf.d/52trellis-unattended-upgrades 0644 root:root
+    │ // Managed by Trellis (auto_updates: all).
+    │ Unattended-Upgrade::Origins-Pattern {
+    │ 	"origin=Ubuntu,archive=${distro_codename}-updates";
+    │ 	"origin=MariaDB,codename=${distro_codename}";
+    │ 	"origin=deb.sury.org,codename=${distro_codename}";
+    │ 	"origin=nginx,codename=${distro_codename}";
+    │ };
+    │ Dpkg::Options { "--force-confdef"; "--force-confold"; };
+    │ // Pinned in trellis.lock.
+    │ Unattended-Upgrade::Package-Blacklist {
+    │ 	"^ghostscript$";
+    │ 	"^nginx$";
+    │ };
 file          /etc/containers/systemd/meilisearch.container 0644 root:root
               ↳ run systemctl daemon-reload
               ↳ restart meilisearch.service

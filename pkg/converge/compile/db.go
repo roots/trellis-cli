@@ -7,6 +7,10 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/templates"
 )
 
+// mariadbVersion is the MariaDB series. Its repository URL is per series
+// but the package names aren't, so changing it makes unattended-upgrades
+// (auto_updates: all) do a major upgrade on existing servers the next
+// morning. Don't change it without an upgrade path.
 const mariadbVersion = "11.8"
 
 // db compiles the MariaDB server and every site's database and user.
@@ -15,7 +19,7 @@ func (b *builder) db() {
 		name: "mariadb", uri: "https://mirror.rackspace.com/mariadb/repo/" + mariadbVersion + "/" + b.distro,
 		suite: b.codename, components: "main",
 		keyURL: "https://mariadb.org/mariadb_release_signing_key.asc", keyFile: "mariadb.asc",
-		fingerprints: []string{mariadbFingerprint},
+		fingerprints: []string{mariadbFingerprint}, origin: "MariaDB",
 	})
 	b.pkg("mariadb-server", "mariadb-client")
 

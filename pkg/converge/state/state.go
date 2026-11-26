@@ -56,6 +56,9 @@ type Observed struct {
 	// RebootRequired is set when updates are waiting for a reboot
 	// (/var/run/reboot-required).
 	RebootRequired bool `json:"reboot_required,omitempty"`
+	// Upgradable are installed packages with an update waiting, as of the
+	// server's last apt update.
+	Upgradable []string `json:"upgradable,omitempty"`
 }
 
 // NewObserved returns an empty snapshot.

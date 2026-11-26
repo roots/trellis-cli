@@ -6,6 +6,7 @@ import (
 	"net"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	_ "time/tzdata" // validate time zones the same way on every OS
@@ -20,6 +21,9 @@ func applyDefaults(e *Environment) {
 	}
 	if s.OS == "" {
 		s.OS = "ubuntu-24.04"
+	}
+	if s.AutoUpdates == "" {
+		s.AutoUpdates = UpdatesAll
 	}
 	if s.Timezone == "" {
 		s.Timezone = "Etc/UTC"
@@ -125,6 +129,9 @@ func validate(e *Environment) error {
 	}
 	if _, err := time.LoadLocation(s.Timezone); err != nil || s.Timezone == "Local" {
 		add("%s: timezone %q is not a known time zone (e.g. Etc/UTC, America/Toronto)", p, s.Timezone)
+	}
+	if !slices.Contains([]string{UpdatesAll, UpdatesDistro, UpdatesOff}, s.AutoUpdates) {
+		add("%s: auto_updates must be %s, %s or %s", p, UpdatesAll, UpdatesDistro, UpdatesOff)
 	}
 	if s.Swap != "auto" && s.Swap != "off" && !swapSizeRe.MatchString(s.Swap) {
 		add("%s: swap must be auto, off or a size like 1G or 512M", p)

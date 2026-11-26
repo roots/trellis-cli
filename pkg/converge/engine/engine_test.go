@@ -158,10 +158,26 @@ func TestNoopRunIsConstantCost(t *testing.T) {
 	if !p.Empty() {
 		t.Fatalf("not empty:\n%s", describe(p))
 	}
-	// One dpkg-query, one systemctl show, two DB queries: regardless of
-	// how many resources the manifest has.
-	if len(h.Log) != 4 {
+	// One dpkg-query, one simulated upgrade, one systemctl show, two DB
+	// queries: regardless of how many resources the manifest has.
+	if len(h.Log) != 5 {
 		t.Errorf("observe ran %d commands:\n%s", len(h.Log), strings.Join(h.Log, "\n"))
+	}
+}
+
+// Waiting updates are reported, without making the plan non-empty.
+func TestWaitingUpdatesAreReported(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)
+	h := newFake()
+	converge(t, h, m)
+	h.Upgradable = []string{"nginx", "php8.4-fpm", "not-installed"}
+	p, _ := plan(t, h, m)
+	if !p.Empty() {
+		t.Fatalf("not empty:\n%s", describe(p))
+	}
+	want := "updates are waiting for 2 packages (nginx, php8.4-fpm)"
+	if !slices.ContainsFunc(p.Warnings, func(w string) bool { return strings.HasPrefix(w, want) }) {
+		t.Errorf("warnings = %q, want one starting %q", p.Warnings, want)
 	}
 }
 
