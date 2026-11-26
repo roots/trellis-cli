@@ -1,4 +1,4 @@
-# node development (roles: web, db)
+# server development (web + db)
 # hash 409a30f7a817dab1a8b41d6ffd665922633e525fd78add7c3a8d782372526835
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock

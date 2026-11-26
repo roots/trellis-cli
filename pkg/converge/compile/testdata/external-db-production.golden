@@ -1,4 +1,4 @@
-# node 198.51.100.7 (roles: web)
+# server 198.51.100.7 (web)
 # hash 05c851065356d5007aaf7ce969c54d796fef5515fec0406d9d9b197eadc5b015
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
