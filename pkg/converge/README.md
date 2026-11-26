@@ -124,6 +124,22 @@ nginx, PHP and MariaDB, or nginx and PHP with an external database
 (`database:`, e.g. RDS), whose databases and users converge creates over the
 network. Separate web and database servers aren't supported.
 
+## Editors, CI and agents
+
+- `trellis converge schema` prints the JSON Schema for `trellis.yml`
+  (generated from the config types; `config/trellis.schema.json` is the
+  committed copy). With yaml-language-server (e.g. VS Code's YAML
+  extension), the first line of `trellis.yml` enables completion,
+  descriptions and inline errors:
+
+  ```yaml
+  # yaml-language-server: $schema=https://raw.githubusercontent.com/roots/trellis-cli/converge-engine/pkg/converge/config/trellis.schema.json
+  ```
+- `trellis converge validate [--json] [--config-only] [env...]` checks every
+  environment offline (config, secrets, keys, `server/` files, templates) and
+  exits non-zero on errors. `--json` gives one result per environment with
+  errors as `path: message` strings, for CI and agents editing the config.
+
 ## Deploys
 
 `trellis converge deploy <env> <site>` builds the release locally from an

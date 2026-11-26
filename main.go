@@ -89,6 +89,9 @@ func main() {
 		"converge rollback": func() (cli.Command, error) {
 			return cmd.NewConvergeRollbackCommand(ui, version), nil
 		},
+		"converge schema": func() (cli.Command, error) {
+			return &cmd.ConvergeSchemaCommand{UI: ui}, nil
+		},
 		"converge secrets": func() (cli.Command, error) {
 			return cmd.NewConvergeSecretsNamespace(), nil
 		},
@@ -109,6 +112,9 @@ func main() {
 		},
 		"converge secrets show": func() (cli.Command, error) {
 			return cmd.NewConvergeSecretsShowCommand(ui), nil
+		},
+		"converge validate": func() (cli.Command, error) {
+			return cmd.NewConvergeValidateCommand(ui, version), nil
 		},
 		"db": func() (cli.Command, error) {
 			return &cmd.NamespaceCommand{

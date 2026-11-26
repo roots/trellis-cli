@@ -1,0 +1,635 @@
+{
+  "$defs": {
+    "Access": {
+      "additionalProperties": false,
+      "properties": {
+        "admins": {
+          "description": "Admins: sudo (with admin_password) and can decrypt secrets. github:\u003cuser\u003e, file:\u003cpath\u003e or a public key.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "deploy": {
+          "description": "Keys that can log in as the web user (default: admins).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "recipients": {
+          "description": "Extra age public keys (age1…) that can decrypt secrets, e.g. CI.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "DBAdmin": {
+      "additionalProperties": false,
+      "properties": {
+        "password": {
+          "description": "Admin password (use secret:\u003cpath\u003e).",
+          "type": "string"
+        },
+        "user": {
+          "description": "Admin user on the external database.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Environment": {
+      "additionalProperties": false,
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/Access",
+          "description": "Overrides top-level access for this environment."
+        },
+        "database": {
+          "$ref": "#/$defs/ExternalDatabase",
+          "description": "An external database (e.g. RDS). Without it, MariaDB runs on the server."
+        },
+        "exec": {
+          "description": "Escape hatch: commands that re-run when `run` or their inputs change. Run as root, last.",
+          "items": {
+            "$ref": "#/$defs/Exec"
+          },
+          "type": "array"
+        },
+        "host": {
+          "description": "The server's address (one server per environment). Optional in development (use --lima or --host).",
+          "type": "string"
+        },
+        "mail": {
+          "$ref": "#/$defs/Mail",
+          "description": "SMTP relay for outgoing mail (msmtp)."
+        },
+        "mariadb": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
+          "type": "object"
+        },
+        "packages": {
+          "description": "Extra apt packages to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "php": {
+          "$ref": "#/$defs/PHP",
+          "description": "PHP version, php.ini settings and PHP-FPM pool settings."
+        },
+        "port": {
+          "description": "SSH port (default 22).",
+          "type": "integer"
+        },
+        "security": {
+          "$ref": "#/$defs/Security",
+          "description": "SSH and fail2ban settings."
+        },
+        "services": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Service"
+          },
+          "description": "Containerized services (Podman Quadlet). Deprecated: write a .container file instead.",
+          "type": "object"
+        },
+        "sites": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Site"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Per-environment site overrides, keyed by site name. null excludes a site from this environment.",
+          "propertyNames": {
+            "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+          },
+          "type": "object"
+        },
+        "swap": {
+          "description": "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
+          "pattern": "^(auto|off|[1-9][0-9]*[MG])$",
+          "type": "string"
+        },
+        "timezone": {
+          "description": "IANA time zone, e.g. Etc/UTC or America/Toronto.",
+          "type": "string"
+        },
+        "user": {
+          "description": "SSH user (default: admin, falling back to root on fresh servers).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Exec": {
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "description": "Project files whose contents trigger a re-run when they change.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Unique name (letters, digits, - and _).",
+          "type": "string"
+        },
+        "run": {
+          "description": "Shell command, run as root with /bin/sh -c.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ExternalDatabase": {
+      "additionalProperties": false,
+      "properties": {
+        "admin": {
+          "$ref": "#/$defs/DBAdmin",
+          "description": "Admin credentials used to create databases and users."
+        },
+        "host": {
+          "description": "Database server hostname.",
+          "type": "string"
+        },
+        "port": {
+          "description": "Database port (default 3306).",
+          "type": "integer"
+        },
+        "tls": {
+          "description": "\"required\" to connect over TLS.",
+          "enum": [
+            "required"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "FPM": {
+      "additionalProperties": false,
+      "properties": {
+        "max_children": {
+          "description": "Maximum PHP-FPM workers per site (default 10).",
+          "type": "integer"
+        },
+        "max_requests": {
+          "description": "Requests a worker serves before being recycled (default 500).",
+          "type": "integer"
+        },
+        "max_spare_servers": {
+          "description": "Maximum idle workers (dynamic).",
+          "type": "integer"
+        },
+        "min_spare_servers": {
+          "description": "Minimum idle workers (dynamic).",
+          "type": "integer"
+        },
+        "pm": {
+          "description": "Process manager: dynamic (default), static or ondemand.",
+          "enum": [
+            "dynamic",
+            "static",
+            "ondemand"
+          ],
+          "type": "string"
+        },
+        "start_servers": {
+          "description": "Workers started with the pool (dynamic).",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "Fail2ban": {
+      "additionalProperties": false,
+      "properties": {
+        "wp_login": {
+          "description": "Ban IPs that repeatedly fail WordPress logins.",
+          "type": "boolean"
+        },
+        "xmlrpc": {
+          "description": "Ban IPs that hammer xmlrpc.php.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "Health": {
+      "additionalProperties": false,
+      "properties": {
+        "http": {
+          "description": "URL that must return 2xx for the service to be healthy.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Mail": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "description": "From address for all mail sent by the server.",
+          "type": "string"
+        },
+        "password": {
+          "description": "SMTP password (use secret:\u003cpath\u003e).",
+          "type": "string"
+        },
+        "smtp": {
+          "description": "SMTP server as host:port, e.g. smtp.postmarkapp.com:587.",
+          "type": "string"
+        },
+        "user": {
+          "description": "SMTP user (may be secret:\u003cpath\u003e).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PHP": {
+      "additionalProperties": false,
+      "properties": {
+        "fpm": {
+          "$ref": "#/$defs/FPM",
+          "description": "PHP-FPM process manager settings (per site pool)."
+        },
+        "ini": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "php.ini settings for PHP-FPM and the CLI.",
+          "type": "object"
+        },
+        "version": {
+          "description": "PHP version from packages.sury.org, e.g. \"8.4\".",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SSH": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_from": {
+          "description": "IPs or CIDRs allowed to SSH, or [any].",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rate_limit": {
+          "description": "Rate-limit new SSH connections per source IP (default true).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "Security": {
+      "additionalProperties": false,
+      "properties": {
+        "fail2ban": {
+          "$ref": "#/$defs/Fail2ban",
+          "description": "Extra fail2ban jails for WordPress."
+        },
+        "ssh": {
+          "$ref": "#/$defs/SSH",
+          "description": "SSH access rules."
+        }
+      },
+      "type": "object"
+    },
+    "Server": {
+      "additionalProperties": false,
+      "properties": {
+        "exec": {
+          "description": "Escape hatch: commands that re-run when `run` or their inputs change. Run as root, last.",
+          "items": {
+            "$ref": "#/$defs/Exec"
+          },
+          "type": "array"
+        },
+        "mail": {
+          "$ref": "#/$defs/Mail",
+          "description": "SMTP relay for outgoing mail (msmtp)."
+        },
+        "mariadb": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
+          "type": "object"
+        },
+        "packages": {
+          "description": "Extra apt packages to install.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "php": {
+          "$ref": "#/$defs/PHP",
+          "description": "PHP version, php.ini settings and PHP-FPM pool settings."
+        },
+        "security": {
+          "$ref": "#/$defs/Security",
+          "description": "SSH and fail2ban settings."
+        },
+        "services": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Service"
+          },
+          "description": "Containerized services (Podman Quadlet). Deprecated: write a .container file instead.",
+          "type": "object"
+        },
+        "swap": {
+          "description": "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
+          "pattern": "^(auto|off|[1-9][0-9]*[MG])$",
+          "type": "string"
+        },
+        "timezone": {
+          "description": "IANA time zone, e.g. Etc/UTC or America/Toronto.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Service": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "Environment variables (values may be secret:\u003cpath\u003e).",
+          "type": "object"
+        },
+        "health": {
+          "$ref": "#/$defs/Health",
+          "description": "Health check."
+        },
+        "image": {
+          "description": "Container image (pin a digest: image@sha256:…).",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Memory limit, e.g. 512M.",
+          "type": "string"
+        },
+        "publish": {
+          "description": "Published ports, e.g. 127.0.0.1:7700:7700.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "volumes": {
+          "description": "Named volumes or bind mounts, e.g. data:/data.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Site": {
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "description": "Branch deployed by default (default main).",
+          "type": "string"
+        },
+        "cache": {
+          "description": "off (default) or fastcgi (nginx full-page cache).",
+          "enum": [
+            "off",
+            "fastcgi"
+          ],
+          "type": "string"
+        },
+        "db": {
+          "$ref": "#/$defs/SiteDB",
+          "description": "Database name and user (default \u003csite\u003e_\u003cenv\u003e and \u003csite\u003e)."
+        },
+        "deploy": {
+          "$ref": "#/$defs/SiteDeploy",
+          "description": "Deploy settings."
+        },
+        "domain": {
+          "description": "Canonical domain.",
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "Extra .env variables (values may be secret:\u003cpath\u003e).",
+          "type": "object"
+        },
+        "local_path": {
+          "description": "Local clone of the site, relative to trellis.yml. Deploys build from it.",
+          "type": "string"
+        },
+        "multisite": {
+          "description": "false, true (subdirectories) or {mode: subdomains|subdirectories}.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "subdomains",
+                    "subdirectories"
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          ]
+        },
+        "object_cache": {
+          "description": "none (default), redis or memcached.",
+          "enum": [
+            "none",
+            "redis",
+            "memcached"
+          ],
+          "type": "string"
+        },
+        "path": {
+          "description": "Subdirectory of the repo containing the Bedrock site (repo subtree).",
+          "type": "string"
+        },
+        "php": {
+          "$ref": "#/$defs/SitePHP",
+          "description": "Per-site php.ini settings (PHP-FPM pool)."
+        },
+        "redirects": {
+          "description": "Domains redirected to the canonical domain.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repo": {
+          "description": "Git repository (used for the site's identity; deploys build from local_path).",
+          "type": "string"
+        },
+        "ssl": {
+          "description": "letsencrypt (default), self-signed (default in development) or none.",
+          "enum": [
+            "letsencrypt",
+            "self-signed",
+            "none"
+          ],
+          "type": "string"
+        },
+        "writable": {
+          "description": "Release paths shared between releases (default [web/app/uploads]).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "xmlrpc": {
+          "description": "Allow xmlrpc.php (default false: blocked).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SiteDB": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Database name (default \u003csite\u003e_\u003cenv\u003e).",
+          "type": "string"
+        },
+        "user": {
+          "description": "Database user (default \u003csite\u003e).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SiteDeploy": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "Paths kept out of the release: a pattern without a slash matches names (*.map), one with a slash matches from the release root.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "keep": {
+          "description": "Releases kept on the server (default 5).",
+          "type": "integer"
+        },
+        "update_db": {
+          "description": "Run wp core update-db after the switch (default true).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SitePHP": {
+      "additionalProperties": false,
+      "properties": {
+        "ini": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "php.ini settings for this site's PHP-FPM pool.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/roots/trellis-cli/converge-engine/pkg/converge/config/trellis.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Trellis project config: server settings (defaults), access, sites and environments. Merge rule: defaults → environments.\u003cenv\u003e, sites.\u003cname\u003e → environments.\u003cenv\u003e.sites.\u003cname\u003e; maps merge, lists replace, null removes. Values like `secret:\u003cpath\u003e` come from secrets/\u003cenv\u003e.yml(.age).",
+  "properties": {
+    "access": {
+      "$ref": "#/$defs/Access",
+      "description": "Who can log in and decrypt secrets, for every environment."
+    },
+    "defaults": {
+      "$ref": "#/$defs/Server",
+      "description": "Server settings shared by every environment (each environment can override them)."
+    },
+    "environments": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Environment"
+      },
+      "description": "Environments, e.g. development, staging, production. One server each.",
+      "type": "object"
+    },
+    "sites": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Site"
+      },
+      "description": "Sites, keyed by name (usually the domain). Environments override per site.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+      },
+      "type": "object"
+    },
+    "version": {
+      "description": "Config format version. Must be 1.",
+      "enum": [
+        1
+      ],
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "trellis.yml",
+  "type": "object"
+}
