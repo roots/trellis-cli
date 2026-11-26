@@ -101,6 +101,9 @@ func TestBuildPacksTheCommitNotTheWorkingTree(t *testing.T) {
 			t.Errorf("%s missing; have %v", name, keys(got))
 		}
 	}
+	if len(art.Warnings) != 1 || !strings.Contains(art.Warnings[0], "no composer.lock") {
+		t.Errorf("warnings = %q, want one about the missing composer.lock", art.Warnings)
+	}
 	if len(art.Commit) != 40 || len(art.SHA256) != 64 {
 		t.Errorf("artifact = %s %s", art.Commit, art.SHA256)
 	}

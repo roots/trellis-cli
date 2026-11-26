@@ -42,6 +42,8 @@ type Artifact struct {
 	SHA256 string
 	Commit string
 	Files  int
+	// Warnings are problems with the build that didn't stop it.
+	Warnings []string
 }
 
 // RemotePath is where the artifact is uploaded.
@@ -101,6 +103,11 @@ func Build(ctx context.Context, o BuildOptions) (Artifact, error) {
 	if _, err := os.Stat(filepath.Join(dir, "composer.json")); err != nil {
 		return Artifact{}, fmt.Errorf("no composer.json in %s at %s (set the site's path to the Bedrock directory)", o.Repo, short(commit))
 	}
+	var warnings []string
+	if _, err := os.Stat(filepath.Join(dir, "composer.lock")); err != nil {
+		warnings = append(warnings, fmt.Sprintf("%s has no composer.lock: Composer resolved the newest allowed versions for this build, so releases "+
+			"aren't reproducible (and builds are slower). Commit composer.lock.", short(commit)))
+	}
 	// Trellis's flags. Platform checks are skipped here (this machine's PHP
 	// isn't the server's); the server runs Composer's platform check before
 	// switching.
@@ -120,7 +127,7 @@ func Build(ctx context.Context, o BuildOptions) (Artifact, error) {
 		return Artifact{}, err
 	}
 	sum := sha256.Sum256(data)
-	return Artifact{Data: data, SHA256: hex.EncodeToString(sum[:]), Commit: commit, Files: files}, nil
+	return Artifact{Data: data, SHA256: hex.EncodeToString(sum[:]), Commit: commit, Files: files, Warnings: warnings}, nil
 }
 
 func short(commit string) string {

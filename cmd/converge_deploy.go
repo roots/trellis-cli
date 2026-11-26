@@ -110,7 +110,11 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 		}
 		return err
 	}
-	c.UI.Info(fmt.Sprintf("Built %s: %d files, %.1f MB (%s)\n", art.Commit[:7], art.Files, float64(len(art.Data))/1e6, time.Since(start).Round(100*time.Millisecond)))
+	c.UI.Info(fmt.Sprintf("Built %s: %d files, %.1f MB (%s)", art.Commit[:7], art.Files, float64(len(art.Data))/1e6, time.Since(start).Round(100*time.Millisecond)))
+	for _, w := range art.Warnings {
+		c.UI.Warn("Warning: " + w)
+	}
+	c.UI.Info("")
 
 	spec := deploy.Spec(compiled.Env, site, art, hooks, time.Now())
 	s, srv, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
