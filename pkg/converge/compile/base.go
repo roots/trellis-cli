@@ -38,19 +38,19 @@ const (
 )
 
 type aptRepo struct {
-	name        string
-	uri         string
-	suite       string
-	components  string
-	keyURL      string
-	keyFile     string
-	fingerprint string
+	name         string
+	uri          string
+	suite        string
+	components   string
+	keyURL       string
+	keyFile      string
+	fingerprints []string // every key in the file (see manifest.Download)
 }
 
 func (b *builder) repo(r aptRepo) {
 	keyring := keyringDir + "/" + r.keyFile
 	key := m.NewDownload(keyring, r.keyURL, 0o644).InPhase(m.PhaseRepos)
-	key.Download.GPGFingerprint = r.fingerprint
+	key.Download.Fingerprints = r.fingerprints
 	key.Notify = []m.Notify{aptUpdate}
 	sources := b.render("apt/source.sources", map[string]string{
 		"URI": r.uri, "Suite": r.suite, "Components": r.components, "Keyring": keyring,

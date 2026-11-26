@@ -16,7 +16,6 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/state"
 )
 
-const suryFingerprint = "15058500A0235D97F5D10063B188E2B695BD4743"
 
 func newFake() *hosttest.Fake { return hosttest.New() }
 
@@ -352,20 +351,30 @@ func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 }
 
 func TestDownloadVerification(t *testing.T) {
-	h := newFake()
-	// A different (valid) key than the pinned one: the Sury key with one
-	// byte of the key material changed.
-	key := slices.Clone(h.URLs["https://packages.sury.org/php/apt.gpg"])
-	key[20] ^= 0xff
-	h.URLs["https://packages.sury.org/php/apt.gpg"] = key
 	m := compileEnv(t, "minimal", "production", nil)
-	p, obs := plan(t, h, m)
-	_, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{})
-	if err == nil || !strings.Contains(err.Error(), "does not contain key "+suryFingerprint) {
-		t.Fatalf("expected fingerprint error, got %v", err)
-	}
-	if _, ok := h.Files["/etc/apt/keyrings/sury-php.gpg"]; ok {
-		t.Error("unverified key was installed")
+	sury := "https://packages.sury.org/php/apt.gpg"
+	for name, tamper := range map[string]func([]byte) []byte{
+		// A different key than the pinned one (key material changed).
+		"different key": func(k []byte) []byte { k = slices.Clone(k); k[20] ^= 0xff; return k },
+		// The genuine key plus an extra one: apt would trust both.
+		"extra key appended": func(k []byte) []byte {
+			extra := slices.Clone(k)
+			extra[20] ^= 0xff
+			return append(slices.Clone(k), extra...)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newFake()
+			h.URLs[sury] = tamper(h.URLs[sury])
+			p, obs := plan(t, h, m)
+			_, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{})
+			if err == nil || !strings.Contains(err.Error(), "which is not pinned") {
+				t.Fatalf("expected fingerprint error, got %v", err)
+			}
+			if _, ok := h.Files["/etc/apt/keyrings/sury-php.gpg"]; ok {
+				t.Error("unverified key was installed")
+			}
+		})
 	}
 }
 

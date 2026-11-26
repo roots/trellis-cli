@@ -12,10 +12,19 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/templates"
 )
 
+// nginxFingerprints are the keys in https://nginx.org/keys/nginx_signing.key
+// (as published on nginx.org/en/linux_packages.html).
+var nginxFingerprints = []string{
+	"8540A6F18833A80E9C1653A42FD21310B49F6B46",
+	"573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62",
+	"9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3",
+}
+
 const (
 	defaultWPCLIVersion    = "2.12.0"
 	defaultComposerVersion = "latest-2.x"
 	suryFingerprint        = "15058500A0235D97F5D10063B188E2B695BD4743"
+	mariadbFingerprint     = "177F4010FE56CA3336300305F1656F24C74CD1D8"
 )
 
 // phpINIDefaults mirrors Trellis's php role defaults.
@@ -70,11 +79,11 @@ func (b *builder) webStack() {
 	v := b.phpVersion()
 	b.repo(aptRepo{
 		name: "nginx", uri: "https://nginx.org/packages/mainline/" + b.distro, suite: b.codename, components: "nginx",
-		keyURL: "https://nginx.org/keys/nginx_signing.key", keyFile: "nginx.asc",
+		keyURL: "https://nginx.org/keys/nginx_signing.key", keyFile: "nginx.asc", fingerprints: nginxFingerprints,
 	})
 	b.repo(aptRepo{
 		name: "sury-php", uri: "https://packages.sury.org/php/", suite: b.codename, components: "main",
-		keyURL: "https://packages.sury.org/php/apt.gpg", keyFile: "sury-php.gpg", fingerprint: suryFingerprint,
+		keyURL: "https://packages.sury.org/php/apt.gpg", keyFile: "sury-php.gpg", fingerprints: []string{suryFingerprint},
 	})
 
 	b.pkg("nginx")

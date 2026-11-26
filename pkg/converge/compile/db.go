@@ -15,6 +15,7 @@ func (b *builder) db() {
 		name: "mariadb", uri: "https://mirror.rackspace.com/mariadb/repo/" + mariadbVersion + "/" + b.distro,
 		suite: b.codename, components: "main",
 		keyURL: "https://mariadb.org/mariadb_release_signing_key.asc", keyFile: "mariadb.asc",
+		fingerprints: []string{mariadbFingerprint},
 	})
 	b.pkg("mariadb-server", "mariadb-client")
 

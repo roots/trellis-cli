@@ -445,13 +445,16 @@ func (r *run) download(d *manifest.Download) error {
 			return fmt.Errorf("sha256 mismatch for %s: got %s, want %s", d.URL, got, d.SHA256)
 		}
 	}
-	if d.GPGFingerprint != "" {
+	if len(d.Fingerprints) > 0 {
 		fprs, err := keyFingerprints(data)
 		if err != nil {
 			return fmt.Errorf("%s: %w", d.URL, err)
 		}
-		if !slices.ContainsFunc(fprs, func(f string) bool { return strings.EqualFold(f, d.GPGFingerprint) }) {
-			return fmt.Errorf("%s does not contain key %s (has %s)", d.URL, d.GPGFingerprint, strings.Join(fprs, ", "))
+		// apt trusts every key in a keyring: each one must be pinned.
+		for _, f := range fprs {
+			if !slices.ContainsFunc(d.Fingerprints, func(p string) bool { return strings.EqualFold(p, f) }) {
+				return fmt.Errorf("%s contains key %s, which is not pinned (pinned: %s)", d.URL, f, strings.Join(d.Fingerprints, ", "))
+			}
 		}
 	}
 	return r.h.WriteFile(d.Path, data, d.Mode, "root", "root", nil)

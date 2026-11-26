@@ -263,14 +263,14 @@ func (f *File) SHA256() string {
 }
 
 // Download fetches a file once. If SHA256 is set the content must match;
-// if GPGFingerprint is set the file must be an OpenPGP key with that
-// fingerprint (used for apt signing keys, which upstreams rotate).
+// if Fingerprints is set the file must be OpenPGP keys, every one of them
+// pinned (apt trusts every key in a keyring, so an extra key is refused).
 type Download struct {
-	Path           string      `json:"path"`
-	URL            string      `json:"url"`
-	SHA256         string      `json:"sha256,omitempty"`
-	GPGFingerprint string      `json:"gpg_fingerprint,omitempty"`
-	Mode           fs.FileMode `json:"mode"`
+	Path         string      `json:"path"`
+	URL          string      `json:"url"`
+	SHA256       string      `json:"sha256,omitempty"`
+	Fingerprints []string    `json:"fingerprints,omitempty"`
+	Mode         fs.FileMode `json:"mode"`
 }
 
 // Service is the desired state of a systemd unit. Enabled is nil for units

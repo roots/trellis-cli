@@ -73,8 +73,12 @@ func New() *Fake {
 		Units:     map[string]*Unit{},
 		Databases: map[string]bool{"information_schema": true, "mysql": true},
 		DBUsers:   map[string]string{"root@localhost": ""},
-		// The real Sury signing key, so downloads are verified for real.
-		URLs: map[string][]byte{"https://packages.sury.org/php/apt.gpg": suryKey},
+		// The real signing keys, so downloads are verified for real.
+		URLs: map[string][]byte{
+			"https://packages.sury.org/php/apt.gpg":               suryKey,
+			"https://nginx.org/keys/nginx_signing.key":            nginxKey,
+			"https://mariadb.org/mariadb_release_signing_key.asc": mariadbKey,
+		},
 		PackageFiles: map[string][]string{
 			"nginx":      {"/etc/nginx/conf.d/default.conf"},
 			"php8.4-fpm": {"/etc/php/8.4/fpm/pool.d/www.conf"},
@@ -94,6 +98,12 @@ func New() *Fake {
 
 //go:embed testdata/sury-php.gpg
 var suryKey []byte
+
+//go:embed testdata/nginx.asc
+var nginxKey []byte
+
+//go:embed testdata/mariadb.asc
+var mariadbKey []byte
 
 var _ host.Host = (*Fake)(nil)
 

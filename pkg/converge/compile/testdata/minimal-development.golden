@@ -1,14 +1,14 @@
 # server development (web + db, ubuntu-24.04)
-# hash 409a30f7a817dab1a8b41d6ffd665922633e525fd78add7c3a8d782372526835
+# hash d8a5c8887b1598b4fe4614ff3ac172eb8a344246ede2059149e2756c31c6d0aa
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
 == repos
-download      /etc/apt/keyrings/mariadb.asc ← https://mariadb.org/mariadb_release_signing_key.asc
+download      /etc/apt/keyrings/mariadb.asc ← https://mariadb.org/mariadb_release_signing_key.asc (1 pinned key)
               ↳ run apt-get update
-download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signing.key
+download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signing.key (3 pinned keys)
               ↳ run apt-get update
-download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg
+download      /etc/apt/keyrings/sury-php.gpg ← https://packages.sury.org/php/apt.gpg (1 pinned key)
               ↳ run apt-get update
 exec          timezone: timedatectl set-timezone Etc/UTC
 file          /etc/apt/sources.list.d/trellis-mariadb.sources 0644 root:root
@@ -88,8 +88,8 @@ file          /etc/tmpfiles.d/trellis.conf 0644 root:root
     │ d /srv/www/example.com/shared/uploads 0755 web www-data -
 
 == files
-download      /usr/local/bin/composer ← https://getcomposer.org/download/latest-2.x/composer.phar
-download      /usr/local/bin/wp ← https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar
+download      /usr/local/bin/composer ← https://getcomposer.org/download/latest-2.x/composer.phar (unpinned)
+download      /usr/local/bin/wp ← https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar (unpinned)
 exec          skel:admin: runuser -u admin -- /bin/sh -c for f in .bashrc .profile .bash_logout; do [ -e "/home/admin/$f" ] || cp "/etc/skel/$f" "/home/admin/$f"; done
 exec          skel:web: runuser -u web -- /bin/sh -c for f in .bashrc .profile .bash_logout; do [ -e "/home/web/$f" ] || cp "/etc/skel/$f" "/home/web/$f"; done
 file          /etc/apt/apt.conf.d/20auto-upgrades 0644 root:root

@@ -20,7 +20,20 @@ func (r *Resource) Describe() string {
 		}
 		return fmt.Sprintf("%s %04o %s:%s", r.File.Path, r.File.Mode, r.File.Owner, r.File.Group)
 	case KindDownload:
-		return r.Download.Path + " ← " + r.Download.URL
+		d := r.Download.Path + " ← " + r.Download.URL
+		switch {
+		case len(r.Download.Fingerprints) > 0:
+			d += fmt.Sprintf(" (%d pinned key", len(r.Download.Fingerprints))
+			if len(r.Download.Fingerprints) > 1 {
+				d += "s"
+			}
+			d += ")"
+		case r.Download.SHA256 != "":
+			d += " (sha256 pinned)"
+		default:
+			d += " (unpinned)"
+		}
+		return d
 	case KindService:
 		s := r.Service.Unit
 		if r.Service.Enabled != nil && *r.Service.Enabled {

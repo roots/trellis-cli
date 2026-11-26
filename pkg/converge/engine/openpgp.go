@@ -116,17 +116,28 @@ func nextPacket(data []byte) (tag int, body, rest []byte, err error) {
 	return tag, data[hdr : hdr+n], data[hdr+n:], nil
 }
 
-// dearmor decodes an ASCII-armored block (RFC 9580 §6.2).
+// dearmor decodes ASCII-armored blocks (RFC 9580 §6.2). Key files may
+// hold several blocks (nginx.org's has one per key); their packets are
+// concatenated.
 func dearmor(data []byte) ([]byte, error) {
 	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	var out []byte
 	var b64 strings.Builder
 	in, body := false, false
 	for _, l := range lines {
 		l = strings.TrimSpace(l)
 		switch {
 		case strings.HasPrefix(l, "-----BEGIN PGP PUBLIC KEY BLOCK"):
-			in = true
+			in, body = true, false
+			b64.Reset()
 		case strings.HasPrefix(l, "-----END PGP"):
+			if in {
+				dec, err := base64.StdEncoding.DecodeString(b64.String())
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, dec...)
+			}
 			in = false
 		case !in:
 		case !body:
@@ -142,5 +153,8 @@ func dearmor(data []byte) ([]byte, error) {
 			b64.WriteString(l)
 		}
 	}
-	return base64.StdEncoding.DecodeString(b64.String())
+	if len(out) == 0 {
+		return nil, errors.New("no armored key block")
+	}
+	return out, nil
 }
