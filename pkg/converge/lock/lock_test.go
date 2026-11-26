@@ -2,9 +2,13 @@ package lock
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -88,4 +92,65 @@ func TestHTTPKeyFetcher(t *testing.T) {
 	if _, err := (HTTPKeyFetcher{BaseURL: srv.URL}).GitHubKeys(context.Background(), "nobody"); err == nil {
 		t.Error("expected error for 404")
 	}
+}
+
+type fakeTools map[string]Tool
+
+func (f fakeTools) Resolve(_ context.Context, name string) (Tool, error) { return f[name], nil }
+
+func TestUpdatePinsTools(t *testing.T) {
+	l := New()
+	l.Tools = map[string]Tool{"wp-cli": {Version: "2.11.0", SHA256: "old"}}
+	r := fakeTools{"wp-cli": {Version: "2.12.0", SHA256: "new"}, "composer": {Version: "2.11.3", SHA256: "c"}}
+	got, err := Update(context.Background(), l, nil, fakeFetcher{}, UpdateOptions{Tools: r})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Tools["wp-cli"].SHA256 != "old" || got.Tools["composer"].Version != "2.11.3" {
+		t.Errorf("existing pins must be kept, missing ones resolved: %+v", got.Tools)
+	}
+	got, _ = Update(context.Background(), l, nil, fakeFetcher{}, UpdateOptions{Tools: r, Refresh: true})
+	if got.Tools["wp-cli"].Version != "2.12.0" {
+		t.Errorf("--refresh must re-resolve: %+v", got.Tools)
+	}
+}
+
+func TestHTTPToolResolverChecksChecksums(t *testing.T) {
+	bin := []byte("composer phar")
+	sum := sha256.Sum256(bin)
+	published := hex.EncodeToString(sum[:])
+	mux := http.NewServeMux()
+	mux.HandleFunc("/versions", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"stable":[{"version":"2.11.3"},{"version":"2.2.33"}]}`))
+	})
+	mux.HandleFunc("/download/2.11.3/composer.phar", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(bin) })
+	mux.HandleFunc("/download/2.11.3/composer.phar.sha256sum", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(published + "  composer.phar\n"))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	r := HTTPToolResolver{Client: rewrite(srv.URL)}
+	tool, err := r.Resolve(context.Background(), "composer")
+	if err != nil || tool.Version != "2.11.3" || tool.SHA256 != published {
+		t.Fatalf("resolve = %+v, %v", tool, err)
+	}
+
+	published = strings.Repeat("0", 64)
+	if _, err := r.Resolve(context.Background(), "composer"); err == nil || !strings.Contains(err.Error(), "doesn't match") {
+		t.Errorf("a checksum mismatch must fail, got %v", err)
+	}
+}
+
+// rewrite sends every request to base (a test server), keeping the path.
+func rewrite(base string) *http.Client {
+	return &http.Client{Transport: rewriteTransport(base)}
+}
+
+type rewriteTransport string
+
+func (b rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	u, _ := url.Parse(string(b))
+	req = req.Clone(req.Context())
+	req.URL.Scheme, req.URL.Host = u.Scheme, u.Host
+	return http.DefaultTransport.RoundTrip(req)
 }

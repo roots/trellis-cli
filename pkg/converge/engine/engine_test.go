@@ -16,7 +16,6 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/state"
 )
 
-
 func newFake() *hosttest.Fake { return hosttest.New() }
 
 // compileEnv compiles a test project environment, letting mutate edit the

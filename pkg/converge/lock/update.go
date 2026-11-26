@@ -21,6 +21,8 @@ type KeyFetcher interface {
 type UpdateOptions struct {
 	// Refresh re-resolves entries that are already locked.
 	Refresh bool
+	// Tools resolves tool versions and checksums (nil: tools unchanged).
+	Tools ToolResolver
 }
 
 // Update resolves every network-dependent reference in refs and returns a
@@ -46,6 +48,11 @@ func Update(ctx context.Context, l *Lock, keyRefs []string, f KeyFetcher, opts U
 			return nil, fmt.Errorf("resolve %s: user has no public SSH keys", ref)
 		}
 		out.SSHKeys[ref] = keys
+	}
+	if opts.Tools != nil {
+		if err := updateTools(ctx, l, &out, opts.Tools, opts.Refresh); err != nil {
+			return nil, err
+		}
 	}
 	return &out, nil
 }

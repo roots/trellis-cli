@@ -1,12 +1,12 @@
 package compile
 
 import (
-	"fmt"
 	"maps"
 	"strconv"
 	"strings"
 
 	"github.com/roots/trellis-cli/pkg/converge/config"
+	"github.com/roots/trellis-cli/pkg/converge/lock"
 	m "github.com/roots/trellis-cli/pkg/converge/manifest"
 	"github.com/roots/trellis-cli/pkg/converge/secrets"
 	"github.com/roots/trellis-cli/pkg/converge/templates"
@@ -146,12 +146,8 @@ systemctl reload nginx.service
 `
 
 func (b *builder) tools() {
-	wp := b.tool("wp-cli", defaultWPCLIVersion, func(v string) string {
-		return fmt.Sprintf("https://github.com/wp-cli/wp-cli/releases/download/v%s/wp-cli-%s.phar", v, v)
-	})
-	composer := b.tool("composer", defaultComposerVersion, func(v string) string {
-		return fmt.Sprintf("https://getcomposer.org/download/%s/composer.phar", v)
-	})
+	wp := b.tool("wp-cli", defaultWPCLIVersion)
+	composer := b.tool("composer", defaultComposerVersion)
 	b.add(
 		m.NewDownload("/usr/local/bin/wp", wp.url, 0o755).WithSHA256(wp.sha),
 		m.NewDownload("/usr/local/bin/composer", composer.url, 0o755).WithSHA256(composer.sha),
@@ -160,15 +156,15 @@ func (b *builder) tools() {
 
 type toolRef struct{ url, sha string }
 
-func (b *builder) tool(name, def string, url func(string) string) toolRef {
+func (b *builder) tool(name, def string) toolRef {
 	t, ok := b.in.Lock.Tools[name]
 	if !ok {
 		t.Version = def
 	}
 	if t.SHA256 == "" {
-		b.warnf("%s %s is not pinned by sha256 in trellis.lock", name, t.Version)
+		b.warnf("%s %s is not pinned in trellis.lock (run `trellis converge lock`)", name, t.Version)
 	}
-	return toolRef{url: url(t.Version), sha: t.SHA256}
+	return toolRef{url: lock.ToolURL(name, t.Version), sha: t.SHA256}
 }
 
 func (b *builder) objectCaches() {

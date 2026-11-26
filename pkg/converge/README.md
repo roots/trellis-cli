@@ -170,11 +170,9 @@ Trellis-side findings.
 
 - `/etc/hosts` entries for site hostnames (needs the server's hostname at
   apply time, and coordination with cloud-init).
-- `trellis converge lock` resolves GitHub keys only; package versions, image
-  digests and tool checksums still need resolvers (compile warns when
-  unpinned). When versions are pinned, an installed version newer than the
-  lock (a security update) must not count as drift.
-- nginx and MariaDB apt signing keys aren't fingerprint-pinned yet (Sury is).
+- apt package versions aren't pinned: third-party repositories (Sury, nginx.org,
+  MariaDB) drop old versions, so exact pins would break fresh installs. Ubuntu
+  can pin the whole archive with `apt_snapshot` instead.
 - Not yet compared against Trellis: SSL/HSTS/HTTP2, the FastCGI cache,
   Redis/Memcached, multisite.
 - Development VMs (`trellis vm`; `--lima` works with any Lima VM) and

@@ -378,7 +378,7 @@ func (c *ConvergeLockCommand) Run(args []string) int {
 	}
 	ctx, cancel := signalContext()
 	defer cancel()
-	l, err := lock.Update(ctx, p.Lock, refs, lock.HTTPKeyFetcher{}, lock.UpdateOptions{Refresh: c.refresh})
+	l, err := lock.Update(ctx, p.Lock, refs, lock.HTTPKeyFetcher{}, lock.UpdateOptions{Refresh: c.refresh, Tools: lock.HTTPToolResolver{}})
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -387,7 +387,11 @@ func (c *ConvergeLockCommand) Run(args []string) int {
 		c.UI.Error(err.Error())
 		return 1
 	}
-	c.UI.Info(fmt.Sprintf("Updated %s (%d SSH key references).", p.LockPath(), len(l.SSHKeys)))
+	var tools []string
+	for _, name := range lock.ToolNames {
+		tools = append(tools, name+" "+l.Tools[name].Version)
+	}
+	c.UI.Info(fmt.Sprintf("Updated %s: %s; %d SSH key references.", p.LockPath(), strings.Join(tools, ", "), len(l.SSHKeys)))
 	return 0
 }
 
@@ -399,7 +403,13 @@ func (c *ConvergeLockCommand) Help() string {
 	return `Usage: trellis converge lock [--refresh]
 
 Resolves everything compilation would otherwise fetch from the network and
-pins it in trellis.lock, so compiling is deterministic and offline.
+pins it in trellis.lock, so compiling is deterministic and offline:
+
+  - GitHub SSH keys (github:<user> in access)
+  - wp-cli and Composer: exact versions and sha256 (each binary is
+    downloaded and checked against its published checksum)
+
+Existing pins are kept; --refresh re-resolves them (e.g. to upgrade tools).
 `
 }
 

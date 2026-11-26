@@ -1,7 +1,7 @@
 # server 198.51.100.7 (web, debian-13)
 # hash 811cb0a9cb22572afb8a63467cf0e4393dbcd6ab2471f857cbef0b01e02aa45d
-# warning: composer latest-2.x is not pinned by sha256 in trellis.lock
-# warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
+# warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
+# warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
 
 == repos
 download      /etc/apt/keyrings/nginx.asc ← https://nginx.org/keys/nginx_signing.key (3 pinned keys)
