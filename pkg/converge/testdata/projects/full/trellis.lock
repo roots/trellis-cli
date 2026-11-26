@@ -1,5 +1,4 @@
 version: 1
-os: ubuntu-24.04
 apt_snapshot: 20261120T000000Z
 packages:
   nginx: 1.29.3-1~noble

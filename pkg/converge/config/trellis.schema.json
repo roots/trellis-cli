@@ -78,6 +78,16 @@
           "description": "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
           "type": "object"
         },
+        "os": {
+          "description": "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
+          "enum": [
+            "ubuntu-24.04",
+            "ubuntu-26.04",
+            "debian-12",
+            "debian-13"
+          ],
+          "type": "string"
+        },
         "packages": {
           "description": "Extra apt packages to install.",
           "items": {
@@ -345,6 +355,16 @@
           },
           "description": "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
           "type": "object"
+        },
+        "os": {
+          "description": "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
+          "enum": [
+            "ubuntu-24.04",
+            "ubuntu-26.04",
+            "debian-12",
+            "debian-13"
+          ],
+          "type": "string"
         },
         "packages": {
           "description": "Extra apt packages to install.",

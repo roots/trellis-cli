@@ -69,7 +69,7 @@ func (b *builder) phpINI() map[string]string {
 func (b *builder) webStack() {
 	v := b.phpVersion()
 	b.repo(aptRepo{
-		name: "nginx", uri: "https://nginx.org/packages/mainline/ubuntu", suite: b.codename, components: "nginx",
+		name: "nginx", uri: "https://nginx.org/packages/mainline/" + b.distro, suite: b.codename, components: "nginx",
 		keyURL: "https://nginx.org/keys/nginx_signing.key", keyFile: "nginx.asc",
 	})
 	b.repo(aptRepo{

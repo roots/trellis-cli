@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/roots/trellis-cli/pkg/converge/engine"
 	"github.com/roots/trellis-cli/pkg/converge/host"
@@ -102,6 +103,9 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 		}
 		defer unlock()
 	}
+	if err := checkOS(h, req.Manifest.OS); err != nil {
+		return err
+	}
 
 	obs, err := engine.Observe(ctx, h, req.Manifest)
 	if err != nil {
@@ -163,4 +167,42 @@ func serveRelease(ctx context.Context, h host.Host, lock Locker, req Request, se
 		send(Message{Type: "result", Release: &ReleaseResult{From: from, To: to}})
 	}
 	return nil
+}
+
+// checkOS refuses to plan for a different operating system than the
+// manifest was compiled for: repositories and packages are OS-specific, and
+// an in-place OS upgrade should be a deliberate config change.
+func checkOS(h host.Host, want string) error {
+	if want == "" {
+		return nil
+	}
+	b, err := h.ReadFile("/etc/os-release")
+	if err != nil {
+		return fmt.Errorf("read /etc/os-release: %w", err)
+	}
+	have := OSRelease(b)
+	if have != want {
+		return fmt.Errorf("the server runs %s but trellis.yml says os: %s", have, want)
+	}
+	return nil
+}
+
+// OSRelease returns "<ID>-<VERSION_ID>" (e.g. ubuntu-24.04, debian-12)
+// from /etc/os-release.
+func OSRelease(b []byte) string {
+	var id, version string
+	for _, line := range strings.Split(string(b), "\n") {
+		k, v, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if !ok {
+			continue
+		}
+		v = strings.Trim(v, `"'`)
+		switch k {
+		case "ID":
+			id = v
+		case "VERSION_ID":
+			version = v
+		}
+	}
+	return id + "-" + version
 }

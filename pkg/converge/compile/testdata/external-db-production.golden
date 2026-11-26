@@ -1,5 +1,5 @@
-# server 198.51.100.7 (web)
-# hash 05c851065356d5007aaf7ce969c54d796fef5515fec0406d9d9b197eadc5b015
+# server 198.51.100.7 (web, debian-13)
+# hash 595f806d522694214054bd2867a02c2dd8cf64fbbed511e070a38a5b30cb35cc
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
@@ -13,8 +13,8 @@ file          /etc/apt/sources.list.d/trellis-nginx.sources 0644 root:root
               ↳ run apt-get update
     │ # Managed by Trellis.
     │ Types: deb
-    │ URIs: https://nginx.org/packages/mainline/ubuntu
-    │ Suites: noble
+    │ URIs: https://nginx.org/packages/mainline/debian
+    │ Suites: trixie
     │ Components: nginx
     │ Signed-By: /etc/apt/keyrings/nginx.asc
 file          /etc/apt/sources.list.d/trellis-sury-php.sources 0644 root:root
@@ -22,7 +22,7 @@ file          /etc/apt/sources.list.d/trellis-sury-php.sources 0644 root:root
     │ # Managed by Trellis.
     │ Types: deb
     │ URIs: https://packages.sury.org/php/
-    │ Suites: noble
+    │ Suites: trixie
     │ Components: main
     │ Signed-By: /etc/apt/keyrings/sury-php.gpg
 

@@ -61,7 +61,7 @@ func TestPlanThenApplyWithApproval(t *testing.T) {
 		t.Fatalf("plan messages = %+v", msgs)
 	}
 	approved := msgs[0].Plan.Hash()
-	if len(h.Files) != 0 {
+	if len(h.Files) != 1 /* /etc/os-release */ {
 		t.Fatal("plan mode must not change the host")
 	}
 
@@ -108,7 +108,7 @@ func TestApplyRefusesChangedPlan(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "changed since the plan was reviewed") {
 		t.Fatalf("expected approval mismatch, got %v", err)
 	}
-	if len(h.Files) != 0 {
+	if len(h.Files) != 1 /* /etc/os-release */ {
 		t.Error("nothing should be applied")
 	}
 	if msgs := messages(t, &out); msgs[len(msgs)-1].Type != "error" {
@@ -121,5 +121,20 @@ func TestRejectsProtocolMismatch(t *testing.T) {
 	_ = json.NewEncoder(&buf).Encode(agent.Request{Protocol: 999, Mode: agent.ModePlan, Manifest: testManifest()})
 	if err := agent.Serve(context.Background(), hosttest.New(), nil, &buf, &bytes.Buffer{}); err == nil {
 		t.Fatal("expected protocol error")
+	}
+}
+
+func TestRefusesADifferentOS(t *testing.T) {
+	h := hosttest.New()
+	h.Files["/etc/os-release"].Data = []byte("ID=debian\nVERSION_ID=\"12\"\n")
+	m := testManifest()
+	m.OS = "ubuntu-24.04"
+	var out bytes.Buffer
+	err := agent.Serve(context.Background(), h, nil, request(t, agent.ModePlan, m, ""), &out)
+	if err == nil || !strings.Contains(err.Error(), "the server runs debian-12 but trellis.yml says os: ubuntu-24.04") {
+		t.Fatalf("err = %v", err)
+	}
+	if got := agent.OSRelease([]byte("NAME=\"Ubuntu\"\nID=ubuntu\nVERSION_ID=\"26.04\"\n")); got != "ubuntu-26.04" {
+		t.Errorf("OSRelease = %q", got)
 	}
 }

@@ -49,6 +49,10 @@ type Environment struct {
 
 // Server holds node-level settings shared by every site.
 type Server struct {
+	// OS is the server's operating system: ubuntu-24.04 (default),
+	// ubuntu-26.04, debian-12 or debian-13. Plans refuse to run on a server
+	// with a different OS.
+	OS       string `yaml:"os,omitempty"`
 	Timezone string `yaml:"timezone,omitempty"`
 	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
 	// swap), a size for /swapfile (e.g. "1G"), or "off".
@@ -302,3 +306,6 @@ func SharedName(p string) string {
 	p = strings.Trim(p, "/")
 	return p[strings.LastIndex(p, "/")+1:]
 }
+
+// SupportedOS are the operating systems converge provisions.
+var SupportedOS = []string{"ubuntu-24.04", "ubuntu-26.04", "debian-12", "debian-13"}

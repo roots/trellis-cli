@@ -67,7 +67,9 @@ type Fake struct {
 
 func New() *Fake {
 	return &Fake{
-		Files:     map[string]*File{},
+		Files: map[string]*File{
+			"/etc/os-release": {Data: []byte("PRETTY_NAME=\"Ubuntu 24.04.3 LTS\"\nID=ubuntu\nVERSION_ID=\"24.04\"\nVERSION_CODENAME=noble\n"), Mode: 0o644, Owner: "root", Group: "root"},
+		},
 		Packages:  map[string]string{},
 		Units:     map[string]*Unit{},
 		Databases: map[string]bool{"information_schema": true, "mysql": true},

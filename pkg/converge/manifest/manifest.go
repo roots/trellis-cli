@@ -340,6 +340,7 @@ type Exec struct {
 type Manifest struct {
 	Node      string     `json:"node"`
 	Roles     []string   `json:"roles"`
+	OS        string     `json:"os,omitempty"` // e.g. ubuntu-24.04; checked against the server
 	Resources []Resource `json:"resources"`
 	Warnings  []string   `json:"warnings,omitempty"`
 

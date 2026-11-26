@@ -46,7 +46,7 @@ func (r *Resource) Describe() string {
 // contents are included unless sensitive. It is used for golden tests and
 // `trellis converge compile`.
 func (m *Manifest) Render(w io.Writer, withContent bool) {
-	fmt.Fprintf(w, "# server %s (%s)\n# hash %s\n", m.Node, strings.Join(m.Roles, " + "), m.Hash())
+	fmt.Fprintf(w, "# server %s (%s, %s)\n# hash %s\n", m.Node, strings.Join(m.Roles, " + "), m.OS, m.Hash())
 	for _, warn := range m.Warnings {
 		fmt.Fprintf(w, "# warning: %s\n", warn)
 	}

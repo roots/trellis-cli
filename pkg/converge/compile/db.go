@@ -12,7 +12,7 @@ const mariadbVersion = "11.8"
 // db compiles the MariaDB server and every site's database and user.
 func (b *builder) db() {
 	b.repo(aptRepo{
-		name: "mariadb", uri: "https://mirror.rackspace.com/mariadb/repo/" + mariadbVersion + "/ubuntu",
+		name: "mariadb", uri: "https://mirror.rackspace.com/mariadb/repo/" + mariadbVersion + "/" + b.distro,
 		suite: b.codename, components: "main",
 		keyURL: "https://mariadb.org/mariadb_release_signing_key.asc", keyFile: "mariadb.asc",
 	})

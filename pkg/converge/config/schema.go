@@ -43,6 +43,7 @@ var schemaDescriptions = map[string]string{
 	"Environment.access":   "Overrides top-level access for this environment.",
 	"Environment.sites":    "Per-environment site overrides, keyed by site name. null excludes a site from this environment.",
 
+	"Server.os":       "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
 	"Server.timezone": "IANA time zone, e.g. Etc/UTC or America/Toronto.",
 	"Server.swap":     "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
 	"Server.php":      "PHP version, php.ini settings and PHP-FPM pool settings.",
@@ -135,6 +136,7 @@ var schemaEnums = map[string][]any{
 	"Site.object_cache":    {ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached},
 	"FPM.pm":               {"dynamic", "static", "ondemand"},
 	"ExternalDatabase.tls": {"required"},
+	"Server.os":            {"ubuntu-24.04", "ubuntu-26.04", "debian-12", "debian-13"},
 	"File.version":         {1},
 }
 

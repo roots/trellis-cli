@@ -37,6 +37,7 @@ func session(t *testing.T, name, env string, s *remote.Session, f *fakeSSH) (*pr
 func TestSessionPlanApplyWithExternalDatabase(t *testing.T) {
 	ctx := context.Background()
 	h := hosttest.New()
+	h.Files["/etc/os-release"].Data = []byte("ID=debian\nVERSION_ID=\"13\"\n") // the fixture says os: debian-13
 	h.GPG["content of https://packages.sury.org/php/apt.gpg"] = "15058500A0235D97F5D10063B188E2B695BD4743"
 	f := &fakeSSH{host: h, users: map[string]bool{"root": true}, installed: map[string]bool{}}
 	var out bytes.Buffer

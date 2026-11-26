@@ -6,6 +6,7 @@ import (
 	"net"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	_ "time/tzdata" // validate time zones the same way on every OS
@@ -17,6 +18,9 @@ func applyDefaults(e *Environment) {
 	s := &e.Server
 	if s.Swap == "" {
 		s.Swap = "auto"
+	}
+	if s.OS == "" {
+		s.OS = "ubuntu-24.04"
 	}
 	if s.Timezone == "" {
 		s.Timezone = "Etc/UTC"
@@ -116,6 +120,9 @@ func validate(e *Environment) error {
 	s := e.Server
 	if !phpVersionRe.MatchString(s.PHP.Version) {
 		add("%s: php.version %q must look like 8.4", p, s.PHP.Version)
+	}
+	if !slices.Contains(SupportedOS, s.OS) {
+		add("%s: os %q is not supported (supported: %s)", p, s.OS, strings.Join(SupportedOS, ", "))
 	}
 	if _, err := time.LoadLocation(s.Timezone); err != nil || s.Timezone == "Local" {
 		add("%s: timezone %q is not a known time zone (e.g. Etc/UTC, America/Toronto)", p, s.Timezone)

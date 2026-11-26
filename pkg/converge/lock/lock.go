@@ -17,8 +17,9 @@ import (
 const FileName = "trellis.lock"
 
 type Lock struct {
-	Version int    `yaml:"version"`
-	OS      string `yaml:"os,omitempty"`
+	Version int `yaml:"version"`
+	// MovedOS rejects the old `os:` key, which moved to trellis.yml.
+	MovedOS string `yaml:"os,omitempty"`
 	// AptSnapshot pins the Ubuntu archive to snapshot.ubuntu.com at this
 	// timestamp (e.g. 20261120T000000Z).
 	AptSnapshot string `yaml:"apt_snapshot,omitempty"`
@@ -69,6 +70,9 @@ func Parse(b []byte) (*Lock, error) {
 	}
 	if l.Version != 1 {
 		return nil, fmt.Errorf("trellis.lock: unsupported version %d", l.Version)
+	}
+	if l.MovedOS != "" {
+		return nil, fmt.Errorf("trellis.lock: os moved to trellis.yml: remove it here and set `os: %s` in defaults (or per environment)", l.MovedOS)
 	}
 	return l, nil
 }

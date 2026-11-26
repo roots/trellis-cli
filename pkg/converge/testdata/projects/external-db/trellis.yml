@@ -11,6 +11,7 @@ access:
 environments:
   production:
     host: 198.51.100.7
+    os: debian-13
     database:
       host: staging-db.abc123.us-east-1.rds.amazonaws.com
       tls: required

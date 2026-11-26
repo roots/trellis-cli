@@ -42,9 +42,12 @@ func Compile(in Input) (*manifest.Manifest, error) {
 	if in.Secrets == nil {
 		in.Secrets = secrets.Map{}
 	}
-	codename, err := ubuntuCodename(in.Lock.OS)
+	plat, err := platformFor(in.Env.Server.OS)
 	if err != nil {
 		return nil, err
+	}
+	if in.Lock.AptSnapshot != "" && plat.distro != "ubuntu" {
+		return nil, fmt.Errorf("trellis.lock: apt_snapshot uses snapshot.ubuntu.com, which doesn't serve %s", in.Env.Server.OS)
 	}
 
 	var overrides fs.FS
@@ -64,10 +67,12 @@ func Compile(in Input) (*manifest.Manifest, error) {
 		in:       in,
 		env:      in.Env,
 		tpl:      tpl,
-		codename: codename,
+		codename: plat.codename,
+		distro:   plat.distro,
 		m:        manifest.New(in.Env.ServerName(), roles),
 		pkgs:     map[string]bool{},
 	}
+	b.m.OS = in.Env.Server.OS
 	b.m.Warnings = append(b.m.Warnings, ejectWarnings...)
 	b.compile()
 	if len(b.errs) > 0 {
@@ -86,7 +91,8 @@ type builder struct {
 	in       Input
 	env      *config.Environment
 	tpl      *templates.Set
-	codename string
+	codename string // e.g. noble, trixie
+	distro   string // ubuntu or debian: the path in nginx.org and MariaDB repos
 	m        *manifest.Manifest
 	errs     []error
 	pkgs     map[string]bool
@@ -156,14 +162,22 @@ func (b *builder) pkg(names ...string) {
 	}
 }
 
-func ubuntuCodename(os string) (string, error) {
-	switch os {
-	case "", "ubuntu-24.04":
-		return "noble", nil
-	case "ubuntu-22.04":
-		return "jammy", nil
+type platform struct{ distro, codename string }
+
+// platforms are the supported operating systems. Third-party repositories
+// (nginx.org, packages.sury.org, MariaDB) serve all of them.
+var platforms = map[string]platform{
+	"ubuntu-24.04": {"ubuntu", "noble"},
+	"ubuntu-26.04": {"ubuntu", "resolute"},
+	"debian-12":    {"debian", "bookworm"},
+	"debian-13":    {"debian", "trixie"},
+}
+
+func platformFor(os string) (platform, error) {
+	if p, ok := platforms[os]; ok {
+		return p, nil
 	}
-	return "", fmt.Errorf("trellis.lock: unsupported os %q (supported: ubuntu-22.04, ubuntu-24.04)", os)
+	return platform{}, fmt.Errorf("unsupported os %q", os)
 }
 
 // checkEjected warns when an ejected template's built-in base changed
