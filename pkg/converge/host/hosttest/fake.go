@@ -58,6 +58,9 @@ type Fake struct {
 	// with whatever config exists at that moment.
 	PackageUnits map[string]string
 
+	// Outputs are canned stdout for commands with these prefixes.
+	Outputs map[string]string
+
 	// Log is every command run, joined by spaces.
 	Log []string
 }
@@ -190,6 +193,11 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 	for prefix, msg := range f.Fail {
 		if strings.HasPrefix(line, prefix) {
 			return nil, fmt.Errorf("%s: %s", line, msg)
+		}
+	}
+	for prefix, out := range f.Outputs {
+		if strings.HasPrefix(line, prefix) {
+			return []byte(out), nil
 		}
 	}
 	argv := c.Argv

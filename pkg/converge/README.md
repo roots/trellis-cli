@@ -117,6 +117,15 @@ Users and directories are not resource kinds: the compiler writes
 `apply` sends the hash of the plan you reviewed. The agent refuses to apply
 if the plan it computes differs.
 
+## Deploys
+
+`trellis converge deploy <env> <site>` builds the release locally from an
+exact commit (Composer, then `deploy-hooks/build.sh`), uploads it, and the
+agent activates it: link shared paths, check the PHP platform, run
+`deploy-hooks/release.sh`, switch `current` atomically, update the
+database, reload PHP-FPM, run `deploy-hooks/after.sh`, and keep 5 releases.
+`rollback` switches back. See DEPLOY.md.
+
 ## Comparing with stock Trellis
 
 `pkg/converge/fingerprint` compares the effective configuration of a stock
@@ -135,5 +144,5 @@ Trellis-side findings.
 - nginx and MariaDB apt signing keys aren't fingerprint-pinned yet (Sury is).
 - Not yet compared against Trellis: SSL/HSTS/HTTP2, the FastCGI cache,
   Redis/Memcached, multisite.
-- Deploys, the development VM integration (`--host` works with any VM), and
+- Development VMs (`trellis vm`; `--lima` works with any Lima VM) and
   importing existing `group_vars`.

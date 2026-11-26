@@ -74,6 +74,9 @@ func main() {
 		"converge compile": func() (cli.Command, error) {
 			return cmd.NewConvergeCompileCommand(ui, version), nil
 		},
+		"converge deploy": func() (cli.Command, error) {
+			return cmd.NewConvergeDeployCommand(ui, version), nil
+		},
 		"converge eject": func() (cli.Command, error) {
 			return cmd.NewConvergeEjectCommand(ui, version), nil
 		},
@@ -82,6 +85,9 @@ func main() {
 		},
 		"converge plan": func() (cli.Command, error) {
 			return cmd.NewConvergeRunCommand(ui, version, false), nil
+		},
+		"converge rollback": func() (cli.Command, error) {
+			return cmd.NewConvergeRollbackCommand(ui, version), nil
 		},
 		"converge secrets": func() (cli.Command, error) {
 			return cmd.NewConvergeSecretsNamespace(), nil

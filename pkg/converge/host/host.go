@@ -15,6 +15,7 @@ type Cmd struct {
 	Argv  []string
 	Stdin []byte
 	Env   []string
+	Dir   string // working directory (default: the agent's)
 }
 
 // Host is everything the engine needs from a machine.

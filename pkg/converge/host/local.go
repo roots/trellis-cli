@@ -143,6 +143,7 @@ func (l *Local) Run(ctx context.Context, c Cmd) ([]byte, error) {
 		return nil, errors.New("empty command")
 	}
 	cmd := exec.CommandContext(ctx, c.Argv[0], c.Argv[1:]...)
+	cmd.Dir = c.Dir
 	if c.Stdin != nil {
 		cmd.Stdin = bytes.NewReader(c.Stdin)
 	}

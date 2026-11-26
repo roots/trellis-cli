@@ -33,7 +33,10 @@ type fakeSSH struct {
 	passwords    int // password lines consumed by sudo -S
 }
 
-var agentPathRe = regexp.MustCompile(`/usr/local/lib/trellis/agent-[0-9a-f]+`)
+var (
+	agentPathRe    = regexp.MustCompile(`/usr/local/lib/trellis/agent-[0-9a-f]+`)
+	artifactPathRe = regexp.MustCompile(`/var/cache/trellis/[0-9a-f]+\.tar\.gz`)
+)
 
 // readLine reads one line byte by byte, leaving the rest of r unread (as
 // sudo -S does).
@@ -87,6 +90,23 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		return nil
 	case cmd == "uname -m":
 		_, _ = io.WriteString(stdout, "x86_64\n")
+		return nil
+	case strings.HasPrefix(cmd, "test -f "):
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.installed[addr+strings.Trim(strings.TrimPrefix(cmd, "test -f "), "'")] {
+			return nil
+		}
+		return errors.New("exit status 1")
+	case strings.Contains(cmd, ".upload-XXXXXX"):
+		if !root {
+			return errors.New("upload needs root")
+		}
+		_, _ = io.Copy(io.Discard, stdin)
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.uploads++
+		f.installed[addr+artifactPathRe.FindString(cmd)] = true
 		return nil
 	case strings.HasPrefix(cmd, "test -x "):
 		f.mu.Lock()

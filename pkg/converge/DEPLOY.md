@@ -1,4 +1,17 @@
-# Deploys: design (draft)
+# Deploys
+
+```sh
+trellis converge deploy production example.com [--ref v1.2]
+trellis converge rollback production example.com
+```
+
+Status: implemented with local builds and shell-script hooks (the two
+decisions below). Tested end to end on a VM with Bedrock: about 7s per
+deploy (36MB artifact). Package `deploy` builds; package `release` runs on
+the server inside the agent.
+
+Not done yet: uploading only what changed against the current release; a
+`build` command for CI; deploying to several web nodes in parallel.
 
 ## What Trellis does today
 
@@ -19,18 +32,28 @@
    Typical use is building theme assets (`build-before`, often locally,
    then copying them up).
 
-## Decision: where to build
+## History
 
-**A. Build locally, ship an artifact (recommended).** `trellis converge
+Trellis builds on the server because it inherited Capistrano's model
+(roots/trellis#95). Theme assets were the exception from the start: built
+locally and copied up (#155, later the `build-before` hook). That hybrid
+builds assets from the local working tree but code from the git ref, so
+they can disagree. Building the whole release locally from one commit
+removes that mismatch.
+
+## Decision: where to build (local)
+
+**A. Build locally, ship an artifact (chosen).** `trellis converge
 deploy` builds the release on the machine running it:
 
 - `git archive <ref>` from the repo (a clean commit, never the dirty
   working tree), then `composer install --no-dev -o` with the user's own
   Composer, credentials and cache. Build hooks (e.g. `npm run build`) run
   in the same directory.
-- Composer's `config.platform` is set to the server's PHP version, so the
-  lock resolves for the server, not the laptop.
-- The result is packed (`tar.zst`), hashed, and uploaded once to a
+- Composer runs with `--ignore-platform-reqs` (the laptop's PHP isn't
+  the server's); the server runs Composer's `platform_check.php` with its
+  own PHP before switching.
+- The result is packed (`tar.gz`, without `.git` and `node_modules`), hashed, and uploaded once to a
   content-addressed path. The agent unpacks it into `releases/<id>`, links
   `shared/`, runs server hooks and switches `current`.
 
@@ -61,19 +84,22 @@ credentials, Composer on servers, and non-reproducible builds.
   rename). Keep 5. `trellis converge rollback <env> <site>` switches back.
 - **Shared paths:** `.env` (already provisioned in `shared/`), `uploads`,
   and `writable` paths from `trellis.yml`.
-- **Built-in steps after the switch** (each can be turned off per site):
-  `wp core update-db` (or the network version for multisite), delete the
-  theme-roots transient, `wp rewrite flush`, and a graceful PHP-FPM reload.
+- **Built-in steps after the switch:** `wp core update-db` (the network
+  version for multisite, skipped if WordPress isn't installed) and deleting
+  the theme-roots transient (warnings only), then a graceful PHP-FPM
+  reload. Not yet: per-site switches for these, and `wp rewrite flush`.
 - **Hooks:** shell scripts, no Ansible. Each runs from the release directory
   and gets `TRELLIS_ENV`, `TRELLIS_SITE`, `TRELLIS_RELEASE`, `TRELLIS_CURRENT`.
-  - `deploy/build.sh` runs locally, after Composer and before packing
-    (assets).
-  - `deploy/release.sh` runs on the server as `web`, after `shared/` is
-    linked and before the switch (cache warmup, checks; failing aborts
+  - `deploy-hooks/build.sh` runs locally in the build directory, after
+    Composer and before packing (assets).
+  - `deploy-hooks/release.sh` runs on the server as `web`, after `shared/`
+    is linked and before the switch (cache warmup, checks; failing aborts
     the deploy).
-  - `deploy/after.sh` runs on the server as `web`, after the switch.
-- **Safety:** one deploy per site at a time (lock). A failed hook or
-  `update-db` before the switch leaves `current` untouched.
+  - `deploy-hooks/after.sh` runs on the server as `web`, after the switch.
+- **Safety:** one deploy or provision at a time per server (the agent's
+  lock). Any failure before the switch (unpacking, the PHP platform check,
+  `release.sh`) removes the new release and leaves `current` untouched; an
+  existing release directory is never reused or removed.
 - **Agent protocol:** a `deploy` request referencing an uploaded artifact
   by hash. Progress streams like apply events.
 - **Migration:** existing Trellis releases and `current` are compatible

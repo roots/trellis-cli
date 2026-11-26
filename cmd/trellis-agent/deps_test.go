@@ -18,6 +18,7 @@ func TestAgentDependencies(t *testing.T) {
 		"github.com/roots/trellis-cli/pkg/converge/engine":   true,
 		"github.com/roots/trellis-cli/pkg/converge/host":     true,
 		"github.com/roots/trellis-cli/pkg/converge/manifest": true,
+		"github.com/roots/trellis-cli/pkg/converge/release":  true,
 		"github.com/roots/trellis-cli/pkg/converge/state":    true,
 	}
 	cmd := exec.Command("go", "list", "-deps", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", ".")

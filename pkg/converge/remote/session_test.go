@@ -9,6 +9,7 @@ import (
 
 	"github.com/roots/trellis-cli/pkg/converge/host/hosttest"
 	"github.com/roots/trellis-cli/pkg/converge/project"
+	"github.com/roots/trellis-cli/pkg/converge/release"
 	"github.com/roots/trellis-cli/pkg/converge/remote"
 )
 
@@ -90,5 +91,67 @@ func TestHostOverrideOnlyForSingleNode(t *testing.T) {
 	s := &remote.Session{SSH: &remote.SSH{}, Host: "10.0.0.9"}
 	if _, err := s.Prepare(context.Background(), c.Env, c.Manifests); err == nil {
 		t.Fatal("expected error for --host with two nodes")
+	}
+}
+
+func TestSessionDeploysToWebNodesOnly(t *testing.T) {
+	ctx := context.Background()
+	p, err := project.Open(filepath.Join("..", "testdata", "projects", "split"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := p.Compile("production", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	web, db := hosttest.New(), hosttest.New()
+	f := &fakeSSH{
+		hosts:     map[string]*hosttest.Fake{"203.0.113.10": web, "203.0.113.11": db},
+		users:     map[string]bool{"root": true},
+		installed: map[string]bool{},
+	}
+	bin := binary(t)
+	var out bytes.Buffer
+	s := &remote.Session{SSH: &remote.SSH{Exec: f}, FindBinary: func(string) (remote.Binary, error) { return bin, nil }, Out: &out, Users: []string{"root"}}
+	runs, err := s.Prepare(ctx, c.Env, c.Manifests)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uploadsBefore := f.uploads // the agent binaries
+
+	art := remote.Artifact{Data: []byte("tarball"), SHA256: "abc123", Path: "/var/cache/trellis/abc123.tar.gz"}
+	spec := release.Spec{Site: "example.com", ID: "20261125120000-0123456", Artifact: art.Path, PHPUnit: "php8.4-fpm.service",
+		Shared: []release.Link{{Path: ".env", Target: "shared/.env"}}}
+	if err := s.Deploy(ctx, runs, art, spec); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if f.uploads != uploadsBefore+1 {
+		t.Errorf("artifact uploads = %d, want 1 (web node only)", f.uploads-uploadsBefore)
+	}
+	if len(web.Commands("runuser -u web -- tar -xzf /var/cache/trellis/abc123.tar.gz")) != 1 || len(db.Commands("runuser")) != 0 {
+		t.Error("release must be activated on the web node only")
+	}
+	if !strings.Contains(out.String(), "✓ 20261125120000-0123456 is live") {
+		t.Errorf("output:\n%s", out.String())
+	}
+
+	// Same artifact again: not re-uploaded.
+	if err := s.Deploy(ctx, runs, art, spec); err != nil {
+		t.Fatal(err)
+	}
+	if f.uploads != uploadsBefore+1 {
+		t.Error("an existing artifact was uploaded again")
+	}
+
+	web.Outputs = map[string]string{
+		"readlink /srv/www/example.com/current": "releases/20261125120000-0123456\n",
+		"ls -1 /srv/www/example.com/releases":   "20261120000000-aaaaaaa\n20261125120000-0123456\n",
+	}
+	out.Reset()
+	if err := s.Rollback(ctx, runs, "example.com", "php8.4-fpm.service"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "rolled back 20261125120000-0123456 → 20261120000000-aaaaaaa") {
+		t.Errorf("output:\n%s", out.String())
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/config"
 	"github.com/roots/trellis-cli/pkg/converge/engine"
 	"github.com/roots/trellis-cli/pkg/converge/manifest"
+	"github.com/roots/trellis-cli/pkg/converge/release"
 )
 
 // NodeRun is one node's manifest, connection and plan.
@@ -178,4 +179,69 @@ func parallel(runs []*NodeRun, f func(*NodeRun) error) error {
 	}
 	wg.Wait()
 	return errors.Join(errs...)
+}
+
+// Artifact is a built release to upload.
+type Artifact struct {
+	Data   []byte
+	SHA256 string
+	Path   string // content-addressed path on the server
+}
+
+// webRuns returns the nodes that serve sites.
+func webRuns(runs []*NodeRun) []*NodeRun {
+	var out []*NodeRun
+	for _, r := range runs {
+		if r.Node.HasRole(config.RoleWeb) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func (s *Session) releaseCall(ctx context.Context, r *NodeRun, req agent.Request, done func(*agent.ReleaseResult)) error {
+	return s.SSH.Call(ctx, r.Target, r.Binary, req, func(m agent.Message) {
+		switch m.Type {
+		case "event":
+			_, _ = fmt.Fprintln(s.Out, m.Event.String())
+		case "result":
+			if m.Release != nil {
+				done(m.Release)
+			}
+		}
+	})
+}
+
+// Deploy uploads art to each web node and activates spec there, one node
+// at a time, stopping at the first failure.
+func (s *Session) Deploy(ctx context.Context, runs []*NodeRun, art Artifact, spec release.Spec) error {
+	for _, r := range webRuns(runs) {
+		fmt.Fprintf(s.Out, "%s\n", r.Title())
+		fmt.Fprintf(s.Out, "  upload   %s (%.1f MB)\n", art.Path, float64(len(art.Data))/1e6)
+		if err := s.SSH.Upload(ctx, r.Target, art.Data, art.SHA256, art.Path); err != nil {
+			return fmt.Errorf("%s: upload: %w", r.Title(), err)
+		}
+		err := s.releaseCall(ctx, r, agent.Request{Mode: agent.ModeDeploy, Deploy: &spec}, func(res *agent.ReleaseResult) {
+			fmt.Fprintf(s.Out, "  ✓ %s is live\n\n", res.To)
+		})
+		if err != nil {
+			return fmt.Errorf("%s: %w", r.Title(), err)
+		}
+	}
+	return nil
+}
+
+// Rollback switches site back to its previous release on each web node.
+func (s *Session) Rollback(ctx context.Context, runs []*NodeRun, site, phpUnit string) error {
+	for _, r := range webRuns(runs) {
+		fmt.Fprintf(s.Out, "%s\n", r.Title())
+		err := s.releaseCall(ctx, r, agent.Request{Mode: agent.ModeRollback, Rollback: &agent.RollbackRequest{Site: site, PHPUnit: phpUnit}},
+			func(res *agent.ReleaseResult) {
+				fmt.Fprintf(s.Out, "  ✓ rolled back %s → %s\n\n", res.From, res.To)
+			})
+		if err != nil {
+			return fmt.Errorf("%s: %w", r.Title(), err)
+		}
+	}
+	return nil
 }

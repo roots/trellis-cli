@@ -12,6 +12,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -295,4 +296,11 @@ func identifier(s string) string {
 		}
 	}
 	return string(b)
+}
+
+// SharedName is the directory under shared/ that a writable release path
+// (e.g. web/app/uploads) is linked to: its last path element.
+func SharedName(p string) string {
+	p = strings.Trim(p, "/")
+	return p[strings.LastIndex(p, "/")+1:]
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/signal"
@@ -175,24 +176,72 @@ type ConvergeRunCommand struct {
 	Version string
 	Apply   bool
 
-	flags       *flag.FlagSet
+	flags *flag.FlagSet
+	conn  connection
+	yes   bool
+}
+
+// connection holds the flags of commands that talk to servers.
+type connection struct {
 	host        string
 	lima        string
 	user        string
 	sshOptions  flags.StringSliceVar
 	agentBinary string
-	yes         bool
+}
+
+func (c *connection) register(fs *flag.FlagSet) {
+	fs.StringVar(&c.host, "host", "", "Override the address of a single-node environment (e.g. a development VM)")
+	fs.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name (single-node environments)")
+	fs.StringVar(&c.user, "user", "", "SSH user (default: admin, falling back to root)")
+	fs.Var(&c.sshOptions, "ssh-option", "Extra ssh -o option (repeatable), e.g. ProxyJump=bastion")
+	fs.StringVar(&c.agentBinary, "agent-binary", "", "Path to a linux trellis-agent binary (default: the one embedded in trellis-cli)")
+}
+
+const connectionHelp = `  --host          Address for a single-node environment (e.g. the dev VM)
+  --lima          Target a local Lima VM by name (single-node environments)
+  --user          SSH user (default: admin, falling back to root)
+  --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
+  --agent-binary  Linux trellis-agent binary (default: embedded)
+`
+
+// session connects to compiled's nodes and makes sure the agent is there.
+func (c *connection) session(ctx context.Context, out io.Writer, compiled *project.Compiled) (*remote.Session, []*remote.NodeRun, error) {
+	ssh := remote.NewSSH()
+	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
+	users := []string{"admin", "root"}
+	host, port := c.host, 0
+	if c.lima != "" {
+		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)
+		if err != nil {
+			return nil, nil, err
+		}
+		host, port, users = "127.0.0.1", vm.Port, []string{vm.User}
+		ssh.Options = append(vm.Options(), c.sshOptions...)
+	}
+	if c.user != "" {
+		users = []string{c.user}
+	}
+	s := &remote.Session{
+		SSH:          ssh,
+		Out:          out,
+		Host:         host,
+		Port:         port,
+		Users:        users,
+		SudoPassword: compiled.SudoPassword,
+		FindBinary: func(arch string) (remote.Binary, error) {
+			return remote.FindBinary(c.agentBinary, arch)
+		},
+	}
+	runs, err := s.Prepare(ctx, compiled.Env, compiled.Manifests)
+	return s, runs, err
 }
 
 func NewConvergeRunCommand(ui cli.Ui, version string, apply bool) *ConvergeRunCommand {
 	c := &ConvergeRunCommand{UI: ui, Version: version, Apply: apply}
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.host, "host", "", "Override the address of a single-node environment (e.g. a development VM)")
-	c.flags.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name (single-node environments)")
-	c.flags.StringVar(&c.user, "user", "", "SSH user (default: admin, falling back to root)")
-	c.flags.Var(&c.sshOptions, "ssh-option", "Extra ssh -o option (repeatable), e.g. ProxyJump=bastion")
-	c.flags.StringVar(&c.agentBinary, "agent-binary", "", "Path to a linux trellis-agent binary (default: the one embedded in trellis-cli)")
+	c.conn.register(c.flags)
 	if apply {
 		c.flags.BoolVar(&c.yes, "yes", false, "Apply without asking for confirmation")
 	}
@@ -221,34 +270,7 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 		return 1
 	}
 	out := &uiWriter{ui: c.UI}
-	ssh := remote.NewSSH()
-	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
-	users := []string{"admin", "root"}
-	host, port := c.host, 0
-	if c.lima != "" {
-		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)
-		if err != nil {
-			c.UI.Error(err.Error())
-			return 1
-		}
-		host, port, users = "127.0.0.1", vm.Port, []string{vm.User}
-		ssh.Options = append(vm.Options(), c.sshOptions...)
-	}
-	if c.user != "" {
-		users = []string{c.user}
-	}
-	s := &remote.Session{
-		SSH:          ssh,
-		Out:          out,
-		Host:         host,
-		Port:         port,
-		Users:        users,
-		SudoPassword: compiled.SudoPassword,
-		FindBinary: func(arch string) (remote.Binary, error) {
-			return remote.FindBinary(c.agentBinary, arch)
-		},
-	}
-	runs, err := s.Prepare(ctx, compiled.Env, compiled.Manifests)
+	s, runs, err := c.conn.session(ctx, out, compiled)
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -307,12 +329,7 @@ a plan. Apply only runs the exact plan you reviewed: if the server changed in
 between, it refuses.
 
 Options:
-  --host          Address for a single-node environment (e.g. the dev VM)
-  --lima          Target a local Lima VM by name (single-node environments)
-  --user          SSH user (default: admin, falling back to root)
-  --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
-  --agent-binary  Linux trellis-agent binary (default: embedded)
-%s`, c.verb(), extra)
+`+connectionHelp+`%s`, c.verb(), extra)
 }
 
 // uiWriter adapts cli.Ui to io.Writer, line by line.

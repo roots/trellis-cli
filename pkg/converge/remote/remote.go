@@ -253,3 +253,15 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 	}
 	return errors.Join(runErr, scanErr)
 }
+
+// Upload copies data to path on t unless a file is already there. Paths are
+// content-addressed (they contain data's sha256), so an existing file is
+// the same file. The upload is verified and moved into place atomically.
+func (s *SSH) Upload(ctx context.Context, t Target, data []byte, sha256hex, path string) error {
+	if _, err := s.output(ctx, t, "test -f "+shellQuote(path)); err == nil {
+		return nil
+	}
+	script := fmt.Sprintf(`set -e; d=$(dirname %[1]s); mkdir -p "$d"; f=$(mktemp "$d/.upload-XXXXXX"); trap 'rm -f "$f"' EXIT; cat > "$f"; echo "%[2]s  $f" | sha256sum -c --quiet; chmod 0644 "$f"; mv "$f" %[1]s`,
+		shellQuote(path), sha256hex)
+	return s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(data)), io.Discard)
+}

@@ -150,10 +150,7 @@ func (b *builder) users() {
 }
 
 // sharedName maps a writable release path to its directory under shared/.
-func sharedName(p string) string {
-	p = strings.Trim(p, "/")
-	return p[strings.LastIndex(p, "/")+1:]
-}
+func sharedName(p string) string { return config.SharedName(p) }
 
 // keys resolves key references to authorized_keys content.
 func (b *builder) keys(refs []string, where string) string {

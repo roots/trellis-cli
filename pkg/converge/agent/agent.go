@@ -14,16 +14,19 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/engine"
 	"github.com/roots/trellis-cli/pkg/converge/host"
 	"github.com/roots/trellis-cli/pkg/converge/manifest"
+	"github.com/roots/trellis-cli/pkg/converge/release"
 )
 
 // Protocol version; bump on incompatible changes.
-const Protocol = 1
+const Protocol = 2 // 2: deploy and rollback
 
 type Mode string
 
 const (
-	ModePlan  Mode = "plan"
-	ModeApply Mode = "apply"
+	ModePlan     Mode = "plan"
+	ModeApply    Mode = "apply"
+	ModeDeploy   Mode = "deploy"
+	ModeRollback Mode = "rollback"
 )
 
 type Request struct {
@@ -33,14 +36,30 @@ type Request struct {
 	// Expect is the plan hash the user approved. Apply refuses to run a
 	// different plan (the host changed between plan and apply).
 	Expect string `json:"expect,omitempty"`
+
+	Deploy   *release.Spec    `json:"deploy,omitempty"`
+	Rollback *RollbackRequest `json:"rollback,omitempty"`
+}
+
+// RollbackRequest switches a site back to its previous release.
+type RollbackRequest struct {
+	Site    string `json:"site"`
+	PHPUnit string `json:"php_unit"`
+}
+
+// ReleaseResult reports a deploy or rollback.
+type ReleaseResult struct {
+	From string `json:"from,omitempty"`
+	To   string `json:"to"`
 }
 
 type Message struct {
-	Type   string         `json:"type"` // plan | event | result | error
-	Plan   *engine.Plan   `json:"plan,omitempty"`
-	Event  *engine.Event  `json:"event,omitempty"`
-	Result *engine.Result `json:"result,omitempty"`
-	Error  string         `json:"error,omitempty"`
+	Type    string         `json:"type"` // plan | event | result | error
+	Plan    *engine.Plan   `json:"plan,omitempty"`
+	Event   *engine.Event  `json:"event,omitempty"`
+	Result  *engine.Result `json:"result,omitempty"`
+	Release *ReleaseResult `json:"release,omitempty"`
+	Error   string         `json:"error,omitempty"`
 }
 
 // Locker serialises concurrent runs on a host.
@@ -64,6 +83,9 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 	}
 	if req.Protocol != Protocol {
 		return fmt.Errorf("protocol mismatch: client %d, agent %d (re-upload the agent)", req.Protocol, Protocol)
+	}
+	if req.Mode == ModeDeploy || req.Mode == ModeRollback {
+		return serveRelease(ctx, h, lock, req, send)
 	}
 	if req.Manifest == nil {
 		return fmt.Errorf("request has no manifest")
@@ -105,5 +127,40 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 		return err
 	}
 	send(Message{Type: "result", Result: res})
+	return nil
+}
+
+// serveRelease handles deploy and rollback. They take the same lock as
+// apply, so a deploy never runs during provisioning.
+func serveRelease(ctx context.Context, h host.Host, lock Locker, req Request, send func(Message)) error {
+	if lock != nil {
+		unlock, err := lock()
+		if err != nil {
+			return err
+		}
+		defer unlock()
+	}
+	log := func(step, detail string) {
+		send(Message{Type: "event", Event: &engine.Event{Op: string(req.Mode), Target: step, Message: detail}})
+	}
+	switch req.Mode {
+	case ModeDeploy:
+		if req.Deploy == nil {
+			return fmt.Errorf("deploy request has no spec")
+		}
+		if err := release.Activate(ctx, h, *req.Deploy, log); err != nil {
+			return err
+		}
+		send(Message{Type: "result", Release: &ReleaseResult{To: req.Deploy.ID}})
+	case ModeRollback:
+		if req.Rollback == nil {
+			return fmt.Errorf("rollback request has no site")
+		}
+		from, to, err := release.Rollback(ctx, h, req.Rollback.Site, req.Rollback.PHPUnit, log)
+		if err != nil {
+			return err
+		}
+		send(Message{Type: "result", Release: &ReleaseResult{From: from, To: to}})
+	}
 	return nil
 }
