@@ -32,8 +32,7 @@ func TestSchemaIsCurrent(t *testing.T) {
 // Every property is described: editors show it, and agents rely on it.
 func TestSchemaDescribesEveryProperty(t *testing.T) {
 	var missing []string
-	var walk func(path string, s map[string]any)
-	walk = func(path string, s map[string]any) {
+	walk := func(path string, s map[string]any) {
 		props, _ := s["properties"].(map[string]any)
 		for k, v := range props {
 			p, _ := v.(map[string]any)
