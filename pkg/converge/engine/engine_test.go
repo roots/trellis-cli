@@ -181,6 +181,40 @@ func TestWaitingUpdatesAreReported(t *testing.T) {
 	}
 }
 
+// Upgrade installs what unattended-upgrades is allowed to now, and reports
+// what it wasn't allowed to.
+func TestUpgrade(t *testing.T) {
+	ctx := context.Background()
+	h := newFake()
+	if _, err := engine.Upgrade(ctx, h, nil); err == nil || !strings.Contains(err.Error(), "converge apply") {
+		t.Fatalf("upgrading an unconverged server: err = %v", err)
+	}
+	m := compileEnv(t, "minimal", "production", nil)
+	converge(t, h, m)
+
+	h.ResetLog()
+	res, err := engine.Upgrade(ctx, h, nil)
+	if err != nil || len(res.Upgraded) > 0 || len(h.Commands("unattended-upgrade")) > 0 {
+		t.Fatalf("nothing waiting: res = %+v, err = %v, ran %v", res, err, h.Commands("unattended-upgrade"))
+	}
+
+	h.Upgradable = []string{"nginx", "php8.4-fpm", "mariadb-server"}
+	h.Held = []string{"mariadb-server"}
+	res, err = engine.Upgrade(ctx, h, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(res.Upgraded, " "); got != "nginx php8.4-fpm" {
+		t.Errorf("upgraded %q", got)
+	}
+	if got := strings.Join(res.Waiting, " "); got != "mariadb-server" {
+		t.Errorf("waiting %q", got)
+	}
+	if p, _ := plan(t, h, m); !p.Empty() {
+		t.Errorf("not converged after upgrading:\n%s", describe(p))
+	}
+}
+
 func TestDriftIsRepairedAndNotifies(t *testing.T) {
 	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()

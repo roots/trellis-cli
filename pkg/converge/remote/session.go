@@ -120,6 +120,27 @@ func (s *Session) Apply(ctx context.Context, srv *Server) error {
 	return nil
 }
 
+// Upgrade runs unattended-upgrades on the server now.
+func (s *Session) Upgrade(ctx context.Context, srv *Server) (*engine.UpgradeResult, error) {
+	fmt.Fprintf(s.Out, "%s\n", srv.Name)
+	var res *engine.UpgradeResult
+	err := s.SSH.Call(ctx, srv.Target, srv.Binary, agent.Request{Mode: agent.ModeUpgrade, Manifest: srv.Manifest}, func(m agent.Message) {
+		switch m.Type {
+		case "event":
+			_, _ = fmt.Fprintln(s.Out, m.Event.String())
+		case "result":
+			res = m.Upgrade
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", srv.Name, err)
+	}
+	if res == nil {
+		return nil, fmt.Errorf("%s: agent returned no result", srv.Name)
+	}
+	return res, nil
+}
+
 // Artifact is a built release to upload.
 type Artifact struct {
 	Data   []byte

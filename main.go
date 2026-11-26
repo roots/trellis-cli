@@ -89,6 +89,9 @@ func main() {
 		"converge rollback": func() (cli.Command, error) {
 			return cmd.NewConvergeRollbackCommand(ui, version), nil
 		},
+		"converge upgrade": func() (cli.Command, error) {
+			return cmd.NewConvergeUpgradeCommand(ui, version), nil
+		},
 		"converge schema": func() (cli.Command, error) {
 			return &cmd.ConvergeSchemaCommand{UI: ui}, nil
 		},

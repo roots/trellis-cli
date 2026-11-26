@@ -315,8 +315,9 @@ func (b *builder) anySSL() bool {
 // autoUpdates configures unattended-upgrades (auto_updates), which runs
 // from apt-daily-upgrade.timer. It comes after every repository is added.
 //
-// Package lists stay current even when it's off, so plans can report
-// waiting updates. The distro's own config (50unattended-upgrades) covers
+// Off only stops the nightly run: package lists stay current, so plans
+// can report waiting updates, and `trellis converge upgrade` installs what
+// "all" would. The distro's own config (50unattended-upgrades) covers
 // its security updates (and on Debian, point releases); Trellis's file adds
 // the distro's other bugfix updates (-updates) and the repositories
 // Trellis set up, and keeps Trellis's config files when a package ships new defaults (which
@@ -331,13 +332,10 @@ func (b *builder) autoUpdates() {
 	}
 	b.add(m.NewRootFile("/etc/apt/apt.conf.d/20auto-upgrades",
 		"// Managed by Trellis.\nAPT::Periodic::Update-Package-Lists \"1\";\nAPT::Periodic::Unattended-Upgrade \""+upgrade+"\";\n", 0o644))
-	if mode == config.UpdatesOff {
-		return
-	}
 
 	var c strings.Builder
 	fmt.Fprintf(&c, "// Managed by Trellis (auto_updates: %s).\n", mode)
-	if mode == config.UpdatesAll {
+	if mode != config.UpdatesDistro {
 		c.WriteString("Unattended-Upgrade::Origins-Pattern {\n")
 		if b.distro == "ubuntu" {
 			c.WriteString("\t\"origin=Ubuntu,archive=${distro_codename}-updates\";\n")

@@ -35,6 +35,7 @@ Experimental: provision servers from trellis.yml without Ansible.
   trellis converge compile production      # show what would be on each node
   trellis converge plan production         # diff against the live servers
   trellis converge apply production        # review, confirm, apply
+  trellis converge upgrade production      # install waiting updates now
 `
 
 func NewConvergeNamespace() *NamespaceCommand {
@@ -295,6 +296,11 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 		return 1
 	}
 	c.UI.Info("Done.")
+	// A fresh image is usually behind, and the nightly run would take
+	// until tomorrow morning (one package at a time).
+	if srv.Plan.Generation == 1 && len(srv.Plan.Upgradable) > 0 {
+		c.UI.Info(fmt.Sprintf("\n%d packages have updates waiting. Install them now with `trellis converge upgrade %s` (otherwise unattended-upgrades starts on them around 6:00 server time).", len(srv.Plan.Upgradable), env))
+	}
 	return 0
 }
 

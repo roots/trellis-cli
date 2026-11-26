@@ -61,6 +61,8 @@ type Fake struct {
 	// Upgradable are installed packages apt would upgrade along with any
 	// install (a newer dependency).
 	Upgradable []string
+	// Held are Upgradable packages unattended-upgrade won't upgrade.
+	Held []string
 
 	// Outputs are canned stdout for commands with these prefixes.
 	Outputs map[string]string
@@ -228,6 +230,17 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 	}
 	argv := c.Argv
 	switch argv[0] {
+	case "unattended-upgrade": // upgrades Upgradable packages, except Held ones
+		var left []string
+		for _, name := range f.Upgradable {
+			if _, installed := f.Packages[name]; installed && !slices.Contains(f.Held, name) {
+				f.Packages[name] = "1.1-fake"
+			} else {
+				left = append(left, name)
+			}
+		}
+		f.Upgradable = left
+		return nil, nil
 	case "dpkg-query":
 		return f.dpkgQuery(argv), nil
 	case "apt-get":

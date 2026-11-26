@@ -46,7 +46,7 @@ var schemaDescriptions = map[string]string{
 	"Server.os":           "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
 	"Server.timezone":     "IANA time zone, e.g. Etc/UTC or America/Toronto.",
 	"Server.swap":         "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
-	"Server.auto_updates": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or off.",
+	"Server.auto_updates": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or off (nothing automatic; `trellis converge upgrade` installs what all would).",
 	"Server.php":          "PHP version, php.ini settings and PHP-FPM pool settings.",
 	"Server.mariadb":      "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
 	"Server.mail":         "SMTP relay for outgoing mail (msmtp).",

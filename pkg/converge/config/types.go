@@ -338,7 +338,8 @@ const (
 	// UpdatesDistro keeps the distro's default: its security updates only
 	// (and Debian's point releases).
 	UpdatesDistro = "distro"
-	// UpdatesOff installs nothing automatically.
+	// UpdatesOff installs nothing automatically; `trellis converge
+	// upgrade` installs what UpdatesAll would.
 	UpdatesOff = "off"
 )
 

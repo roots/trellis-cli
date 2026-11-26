@@ -193,9 +193,10 @@ func TestAutoUpdates(t *testing.T) {
 		t.Errorf("distro adds origins or a blacklist:\n%s", distro)
 	}
 
+	// off stops the nightly run; `upgrade` still installs what all would.
 	off := build(config.UpdatesOff, nil)
-	if off.Get(manifest.ID{Kind: manifest.KindFile, Name: conf}) != nil {
-		t.Error("off still configures unattended-upgrades")
+	if c := get(t, off, manifest.KindFile, conf).File.Content; !strings.Contains(c, `"origin=nginx,codename=${distro_codename}";`) {
+		t.Errorf("off: missing origins:\n%s", c)
 	}
 	periodic := get(t, off, manifest.KindFile, "/etc/apt/apt.conf.d/20auto-upgrades").File.Content
 	if !strings.Contains(periodic, `Update-Package-Lists "1"`) || !strings.Contains(periodic, `Unattended-Upgrade "0"`) {

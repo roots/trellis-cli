@@ -152,6 +152,12 @@ server time), and `auto_updates:` decides what it installs:
 - `distro`: the distro's default, its security updates only.
 - `off`: nothing automatic.
 
+`trellis converge upgrade <env>` runs unattended-upgrades now, in one
+transaction, installing exactly what `auto_updates` allows (with `off`, what
+`all` would). Run it after a server's first apply: fresh images are usually
+far behind, and the nightly run installs one package at a time, so its first
+batch would take minutes and only start the next morning. `apply` suggests it.
+
 Upgrades restart their services when the packages say to (PHP-FPM and
 MariaDB restart, nginx swaps its binary). Trellis's config files are kept
 (`--force-confold`), so a package that ships new defaults isn't held back.

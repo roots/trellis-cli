@@ -40,6 +40,9 @@ type Plan struct {
 	Actions      []Action `json:"actions"`
 	Unchanged    int      `json:"unchanged"`
 	Warnings     []string `json:"warnings,omitempty"`
+	// Upgradable are installed packages with updates waiting (reported,
+	// not part of the plan).
+	Upgradable []string `json:"upgradable,omitempty"`
 }
 
 // Empty reports whether applying the plan would change nothing.
@@ -79,6 +82,7 @@ func Compute(desired *manifest.Manifest, obs *state.Observed) *Plan {
 		ManifestHash: desired.Hash(),
 		Generation:   1,
 		Warnings:     slices.Clone(desired.Warnings),
+		Upgradable:   obs.Upgradable,
 	}
 	if obs.RebootRequired {
 		p.Warnings = append(p.Warnings, "the server needs a reboot to finish installing updates")
@@ -88,7 +92,7 @@ func Compute(desired *manifest.Manifest, obs *state.Observed) *Plan {
 		if n > 8 {
 			names = append(slices.Clip(names[:8]), fmt.Sprintf("and %d more", n-8))
 		}
-		p.Warnings = append(p.Warnings, fmt.Sprintf("updates are waiting for %d packages (%s): unattended-upgrades installs the ones auto_updates allows, or run `sudo apt upgrade` on the server", n, strings.Join(names, ", ")))
+		p.Warnings = append(p.Warnings, fmt.Sprintf("updates are waiting for %d packages (%s): unattended-upgrades installs the ones auto_updates allows nightly, `trellis converge upgrade` now", n, strings.Join(names, ", ")))
 	}
 	prev := obs.Previous
 	if prev != nil {

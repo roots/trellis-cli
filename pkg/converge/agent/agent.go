@@ -19,7 +19,7 @@ import (
 )
 
 // Protocol version; bump on incompatible changes.
-const Protocol = 2 // 2: deploy and rollback
+const Protocol = 3 // 2: deploy and rollback; 3: upgrade
 
 type Mode string
 
@@ -28,6 +28,7 @@ const (
 	ModeApply    Mode = "apply"
 	ModeDeploy   Mode = "deploy"
 	ModeRollback Mode = "rollback"
+	ModeUpgrade  Mode = "upgrade"
 )
 
 type Request struct {
@@ -55,12 +56,13 @@ type ReleaseResult struct {
 }
 
 type Message struct {
-	Type    string         `json:"type"` // plan | event | result | error
-	Plan    *engine.Plan   `json:"plan,omitempty"`
-	Event   *engine.Event  `json:"event,omitempty"`
-	Result  *engine.Result `json:"result,omitempty"`
-	Release *ReleaseResult `json:"release,omitempty"`
-	Error   string         `json:"error,omitempty"`
+	Type    string                `json:"type"` // plan | event | result | error
+	Plan    *engine.Plan          `json:"plan,omitempty"`
+	Event   *engine.Event         `json:"event,omitempty"`
+	Result  *engine.Result        `json:"result,omitempty"`
+	Release *ReleaseResult        `json:"release,omitempty"`
+	Upgrade *engine.UpgradeResult `json:"upgrade,omitempty"`
+	Error   string                `json:"error,omitempty"`
 }
 
 // Locker serialises concurrent runs on a host.
@@ -105,6 +107,14 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 	}
 	if err := checkOS(h, req.Manifest.OS); err != nil {
 		return err
+	}
+	if req.Mode == ModeUpgrade {
+		res, err := engine.Upgrade(ctx, h, func(e engine.Event) { send(Message{Type: "event", Event: &e}) })
+		if err != nil {
+			return err
+		}
+		send(Message{Type: "result", Upgrade: res})
+		return nil
 	}
 
 	obs, err := engine.Observe(ctx, h, req.Manifest)
