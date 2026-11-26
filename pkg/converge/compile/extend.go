@@ -135,26 +135,17 @@ func (b *builder) dropIn(full, rel string) {
 	var notify []m.Notify
 	switch {
 	case len(parts) == 3 && parts[0] == "nginx" && parts[1] == "http.d":
-		if !b.isWeb() {
-			return
-		}
 		dest, notify = "/etc/nginx/conf.d/"+name, []m.Notify{nginxReload}
 	case len(parts) == 4 && parts[0] == "nginx" && parts[1] == "sites":
-		if !b.isWeb() {
-			return
-		}
 		site = b.findSite(parts[2])
 		if site == nil {
 			return // site isn't deployed to this environment
 		}
 		dest, notify = "/etc/nginx/includes.d/"+parts[2]+"/"+name, []m.Notify{nginxReload}
 	case len(parts) == 3 && parts[0] == "php" && parts[1] == "conf.d":
-		if !b.isWeb() {
-			return
-		}
 		dest, notify = "/etc/php/"+b.phpVersion()+"/fpm/conf.d/"+name, []m.Notify{b.phpReload()}
 	case len(parts) == 3 && parts[0] == "mariadb" && parts[1] == "conf.d":
-		if !b.isDB() {
+		if !b.env.LocalDB() {
 			return
 		}
 		dest, notify = "/etc/mysql/mariadb.conf.d/"+name, []m.Notify{mariadbRestart}
@@ -179,7 +170,7 @@ func (b *builder) dropIn(full, rel string) {
 			return
 		}
 		content, err = templates.Execute(t, map[string]any{
-			"Env": b.env.Name, "Node": b.node, "Server": b.env.Server, "Site": site,
+			"Env": b.env.Name, "Host": b.env.Host, "Server": b.env.Server, "Site": site,
 		})
 		if err != nil {
 			b.errs = append(b.errs, err)

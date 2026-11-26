@@ -1,0 +1,21 @@
+version: 1
+
+sites:
+  example.com:
+    repo: git@github.com:example/example.com.git
+    path: site
+
+access:
+  admins: [github:example-admin]
+
+environments:
+  production:
+    host: 198.51.100.7
+    database:
+      host: staging-db.abc123.us-east-1.rds.amazonaws.com
+      tls: required
+      admin:
+        user: admin
+        password: secret:rds_admin_password
+    sites:
+      example.com: { domain: example.com }

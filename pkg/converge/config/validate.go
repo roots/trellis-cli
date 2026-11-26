@@ -49,26 +49,8 @@ func applyDefaults(e *Environment) {
 		s.Security.SSH.RateLimit = &t
 	}
 
-	if len(e.Nodes) == 0 && e.Name == DevelopmentEnv {
-		e.Nodes = []Node{{Name: DevelopmentEnv}}
-	}
-	for i := range e.Nodes {
-		n := &e.Nodes[i]
-		if n.Name == "" {
-			n.Name = n.Host
-			if n.Name == "" {
-				n.Name = e.Name
-			}
-		}
-		if len(n.Roles) == 0 {
-			n.Roles = []string{RoleWeb, RoleDB}
-			if e.Database != nil {
-				n.Roles = []string{RoleWeb}
-			}
-		}
-		if n.Port == 0 {
-			n.Port = 22
-		}
+	if e.Port == 0 {
+		e.Port = 22
 	}
 	if e.Database != nil && e.Database.Port == 0 {
 		e.Database.Port = 3306
@@ -193,65 +175,22 @@ func validate(e *Environment) error {
 		add("%s: access.admins must list at least one key (you would be locked out)", p)
 	}
 
-	validateNodes(e, add)
+	validateServer(e, add)
 	validateSites(e, add)
 	return errors.Join(errs...)
 }
 
-func validateNodes(e *Environment, add func(string, ...any)) {
+func validateServer(e *Environment, add func(string, ...any)) {
 	p := "environments." + e.Name
-	if len(e.Nodes) == 0 {
-		add("%s: at least one node is required", p)
-		return
-	}
-	names := map[string]bool{}
-	var web, db []Node
-	for _, n := range e.Nodes {
-		if names[n.Name] {
-			add("%s: node name %q is used twice", p, n.Name)
-		}
-		names[n.Name] = true
-		if n.Host == "" && e.Name != DevelopmentEnv {
-			add("%s: node %q: host is required", p, n.Name)
-		}
-		for _, r := range n.Roles {
-			if !oneOf(r, RoleWeb, RoleDB) {
-				add("%s: node %q: unknown role %q (allowed: web, db)", p, n.Name, r)
-			}
-		}
-		if n.PrivateIP != "" && net.ParseIP(n.PrivateIP) == nil {
-			add("%s: node %q: private_ip %q is not an IP", p, n.Name, n.PrivateIP)
-		}
-		if n.HasRole(RoleWeb) {
-			web = append(web, n)
-		}
-		if n.HasRole(RoleDB) {
-			db = append(db, n)
-		}
-	}
-	// The supported topologies: one all-in-one node, or one web + one db
-	// node, or one web node + an external database. Nothing else.
-	if len(web) != 1 {
-		add("%s: exactly one node must have the web role (found %d)", p, len(web))
+	if e.Host == "" && e.Name != DevelopmentEnv {
+		add("%s: host is required", p)
 	}
 	if e.Database != nil {
-		if len(db) > 0 {
-			add("%s: database is external, so no node may have the db role", p)
-		}
 		if e.Database.Host == "" {
 			add("%s: database.host is required", p)
 		}
 		if e.Database.TLS != "" && e.Database.TLS != "required" {
 			add("%s: database.tls must be \"required\" or omitted", p)
-		}
-	} else if len(db) != 1 {
-		add("%s: exactly one node must have the db role, or set an external database (found %d)", p, len(db))
-	}
-	if len(web) == 1 && len(db) == 1 && web[0].Name != db[0].Name {
-		for _, n := range []Node{web[0], db[0]} {
-			if n.PrivateIP == "" {
-				add("%s: node %q: private_ip is required when web and db are on separate nodes", p, n.Name)
-			}
 		}
 	}
 }

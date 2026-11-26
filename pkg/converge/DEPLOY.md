@@ -11,7 +11,7 @@ deploy (36MB artifact). Package `deploy` builds; package `release` runs on
 the server inside the agent.
 
 Not done yet: uploading only what changed against the current release; a
-`build` command for CI; deploying to several web nodes in parallel.
+`build` command for CI.
 
 ## Customizing
 

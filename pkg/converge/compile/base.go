@@ -97,21 +97,16 @@ type siteDirs struct {
 
 func (b *builder) users() {
 	var sites []siteDirs
-	if b.isWeb() {
-		for _, s := range b.env.Sites {
-			sd := siteDirs{Name: s.Name}
-			for _, w := range s.Writable {
-				sd.Shared = append(sd.Shared, sharedName(w))
-			}
-			sites = append(sites, sd)
+	for _, s := range b.env.Sites {
+		sd := siteDirs{Name: s.Name}
+		for _, w := range s.Writable {
+			sd.Shared = append(sd.Shared, sharedName(w))
 		}
+		sites = append(sites, sd)
 	}
 	type user struct{ Name, Group string }
-	users := []user{{"admin", "admin"}}
-	if b.isWeb() {
-		users = append(users, user{"web", "www-data"})
-	}
-	data := map[string]any{"Web": b.isWeb(), "Sites": sites, "Users": users}
+	users := []user{{"admin", "admin"}, {"web", "www-data"}}
+	data := map[string]any{"Sites": sites, "Users": users}
 	b.add(
 		m.NewRootFile(sysusersPath, b.render("users/sysusers.conf", data), 0o644, sysusersApply).InPhase(m.PhaseIdentity),
 		m.NewRootFile(tmpfilesPath, b.render("users/tmpfiles.conf", data), 0o644, tmpfilesApply).InPhase(m.PhaseIdentity),
@@ -136,16 +131,14 @@ func (b *builder) users() {
 	} else if pw := b.required("admin_password"); pw != "" {
 		b.add(m.NewExec("admin-password", []string{"chpasswd"}, "").WithStdin("admin:" + pw + "\n").InPhase(m.PhaseFiles))
 	}
-	if b.isWeb() {
-		deploy := b.env.Access.Deploy
-		if len(deploy) == 0 {
-			deploy = b.env.Access.Admins
-		}
-		b.add(m.NewFile("/home/web/.ssh/authorized_keys", b.keys(deploy, "access.deploy"), 0o600, "web", "www-data"))
-		// Exactly the reload deploys need; `service` for existing deploy hooks.
-		v := b.env.Server.PHP.Version
-		sudoers += "web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php" + v + "-fpm.service, /usr/sbin/service php" + v + "-fpm reload\n"
+	deploy := b.env.Access.Deploy
+	if len(deploy) == 0 {
+		deploy = b.env.Access.Admins
 	}
+	b.add(m.NewFile("/home/web/.ssh/authorized_keys", b.keys(deploy, "access.deploy"), 0o600, "web", "www-data"))
+	// Exactly the reload deploys need; `service` for existing deploy hooks.
+	v := b.env.Server.PHP.Version
+	sudoers += "web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php" + v + "-fpm.service, /usr/sbin/service php" + v + "-fpm reload\n"
 	b.add(m.NewRootFile("/etc/sudoers.d/90-trellis", sudoers, 0o440).WithValidate("visudo", "-cf", "%s"))
 }
 
@@ -219,8 +212,7 @@ func (b *builder) firewall() {
 	data := map[string]any{
 		"SSHRateLimit": ssh.RateLimit != nil && *ssh.RateLimit,
 		"SSHAny":       false,
-		"Web":          b.isWeb(),
-		"HTTP3":        b.isWeb() && b.anySSL(),
+		"HTTP3":        b.anySSL(),
 	}
 	var v4, v6 []string
 	for _, a := range ssh.AllowFrom {
@@ -240,27 +232,16 @@ func (b *builder) firewall() {
 	}
 	data["SSHAllow4"], data["SSHAllow6"] = v4, v6
 
-	var clients []string
-	if b.isDB() && !b.isWeb() {
-		for _, n := range b.env.Nodes {
-			if n.HasRole(config.RoleWeb) {
-				clients = append(clients, n.Address())
-			}
-		}
-	}
-	data["DBClients"] = clients
 	b.add(m.NewRootFile("/etc/nftables.conf", b.render("nftables/nftables.conf", data), 0o755, nftReload))
 }
 
 func (b *builder) fail2ban() {
 	f := b.env.Server.Security.Fail2ban
 	b.add(m.NewRootFile("/etc/fail2ban/jail.d/trellis.local",
-		b.render("fail2ban/jail.local", map[string]any{"Web": b.isWeb(), "WPLogin": f.WPLogin, "XMLRPC": f.XMLRPC}),
+		b.render("fail2ban/jail.local", map[string]any{"WPLogin": f.WPLogin, "XMLRPC": f.XMLRPC}),
 		0o644, fail2banReload))
-	if b.isWeb() {
-		for _, name := range []string{"wordpress-wp-login", "wordpress-xmlrpc"} {
-			b.add(m.NewRootFile("/etc/fail2ban/filter.d/"+name+".conf", b.render("fail2ban/"+name+".conf", nil), 0o644, fail2banReload))
-		}
+	for _, name := range []string{"wordpress-wp-login", "wordpress-xmlrpc"} {
+		b.add(m.NewRootFile("/etc/fail2ban/filter.d/"+name+".conf", b.render("fail2ban/"+name+".conf", nil), 0o644, fail2banReload))
 	}
 }
 
@@ -278,7 +259,7 @@ func (b *builder) mail() {
 	}
 	from := mail.From
 	if from == "" {
-		from = "admin@" + b.node.Name
+		from = "admin@" + b.env.ServerName()
 	}
 	// msmtp-mta provides /usr/sbin/sendmail for cron, unattended-upgrades
 	// and anything else that expects it.

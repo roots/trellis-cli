@@ -3,7 +3,6 @@
 d /home/{{ .Name }} 0750 {{ .Name }} {{ .Group }} -
 d /home/{{ .Name }}/.ssh 0700 {{ .Name }} {{ .Group }} -
 {{- end }}
-{{- if .Web }}
 d /srv/www 0755 root root -
 d /srv/www/acme 0755 root root -
 {{- range .Sites }}
@@ -16,6 +15,5 @@ f /srv/www/{{ $site }}/logs/access.log 0640 web www-data -
 f /srv/www/{{ $site }}/logs/error.log 0640 web www-data -
 {{- range .Shared }}
 d /srv/www/{{ $site }}/shared/{{ . }} 0755 web www-data -
-{{- end }}
 {{- end }}
 {{- end }}

@@ -26,7 +26,7 @@ func newFake() *hosttest.Fake {
 
 // compileEnv compiles a test project environment, letting mutate edit the
 // resolved environment first (to simulate trellis.yml changes).
-func compileEnv(t testing.TB, proj, env string, mutate func(*config.Environment)) []*manifest.Manifest {
+func compileEnv(t testing.TB, proj, env string, mutate func(*config.Environment)) *manifest.Manifest {
 	t.Helper()
 	p, err := project.Open(filepath.Join("..", "testdata", "projects", proj))
 	if err != nil {
@@ -85,11 +85,11 @@ func TestConvergesAndSecondPlanIsEmpty(t *testing.T) {
 		{"minimal", "production"},
 		{"minimal", "development"},
 		{"full", "production"},
-		{"split", "production"},
-		{"split", "staging"},
+		{"external-db", "production"},
 	} {
 		t.Run(tc.project+"/"+tc.env, func(t *testing.T) {
-			for _, m := range compileEnv(t, tc.project, tc.env, nil) {
+			{
+				m := compileEnv(t, tc.project, tc.env, nil)
 				h := newFake()
 				first := converge(t, h, m)
 				if first.Empty() {
@@ -108,7 +108,7 @@ func TestConvergesAndSecondPlanIsEmpty(t *testing.T) {
 }
 
 func TestFirstRunOrdering(t *testing.T) {
-	m := compileEnv(t, "full", "production", nil)[0]
+	m := compileEnv(t, "full", "production", nil)
 	h := newFake()
 	p, obs := plan(t, h, m)
 	h.ResetLog() // only look at what apply runs
@@ -155,7 +155,7 @@ func TestFirstRunOrdering(t *testing.T) {
 }
 
 func TestNoopRunIsConstantCost(t *testing.T) {
-	m := compileEnv(t, "full", "production", nil)[0]
+	m := compileEnv(t, "full", "production", nil)
 	h := newFake()
 	converge(t, h, m)
 	h.ResetLog()
@@ -172,7 +172,7 @@ func TestNoopRunIsConstantCost(t *testing.T) {
 }
 
 func TestDriftIsRepairedAndNotifies(t *testing.T) {
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
 	converge(t, h, m)
 
@@ -206,12 +206,12 @@ func TestDriftIsRepairedAndNotifies(t *testing.T) {
 func TestFailedCheckRollsBackFiles(t *testing.T) {
 	ms := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
-	converge(t, h, ms[0])
+	converge(t, h, ms)
 	good := string(h.Files["/etc/nginx/sites/example.com.conf"].Data)
 
 	changed := compileEnv(t, "minimal", "production", func(e *config.Environment) {
 		e.Sites[0].Cache = config.CacheFastCGI
-	})[0]
+	})
 	h.Fail["nginx -t"] = "nginx: [emerg] bad config"
 	h.ResetLog()
 	p, obs := plan(t, h, changed)
@@ -244,7 +244,7 @@ func TestFailedCheckRollsBackFiles(t *testing.T) {
 }
 
 func TestValidateFailureNeverTouchesLiveFile(t *testing.T) {
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
 	h.Files["/etc/sudoers.d/90-trellis"] = &hosttest.File{Data: []byte("old"), Mode: 0o440, Owner: "root", Group: "root"}
 	h.Fail["visudo"] = "parse error"
@@ -259,11 +259,11 @@ func TestValidateFailureNeverTouchesLiveFile(t *testing.T) {
 
 func TestRemovingASitePrunesItsResources(t *testing.T) {
 	h := newFake()
-	converge(t, h, compileEnv(t, "full", "production", nil)[0])
+	converge(t, h, compileEnv(t, "full", "production", nil))
 
 	without := compileEnv(t, "full", "production", func(e *config.Environment) {
 		e.Sites = e.Sites[:1] // drop shop.example.com
-	})[0]
+	})
 	p, _ := plan(t, h, without)
 	got := describe(p)
 	for _, want := range []string{
@@ -306,7 +306,7 @@ func TestRemovingASitePrunesItsResources(t *testing.T) {
 
 func TestFailedRunKeepsOwnershipForPruning(t *testing.T) {
 	h := newFake()
-	m := compileEnv(t, "full", "production", nil)[0]
+	m := compileEnv(t, "full", "production", nil)
 	h.Fail["/bin/sh -c fc-cache"] = "boom" // the user exec runs last, after files
 	p, obs := plan(t, h, m)
 	if _, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{}); err == nil {
@@ -328,7 +328,7 @@ func TestFailedRunKeepsOwnershipForPruning(t *testing.T) {
 	// service from config must still prune them.
 	without := compileEnv(t, "full", "production", func(e *config.Environment) {
 		e.Server.Services = nil
-	})[0]
+	})
 	p3, _ := plan(t, h, without)
 	if !strings.Contains(describe(p3), "prune file:/etc/containers/systemd/meilisearch.container") {
 		t.Errorf("resources from a failed run were not pruned:\n%s", describe(p3))
@@ -337,7 +337,7 @@ func TestFailedRunKeepsOwnershipForPruning(t *testing.T) {
 
 func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 	h := newFake()
-	m := compileEnv(t, "full", "production", nil)[0]
+	m := compileEnv(t, "full", "production", nil)
 	converge(t, h, m)
 	if n := len(h.Commands("/bin/sh -c fc-cache")); n != 1 {
 		t.Fatalf("exec ran %d times", n)
@@ -348,7 +348,7 @@ func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 	}
 	changed := compileEnv(t, "full", "production", func(e *config.Environment) {
 		e.Server.Exec[0].Run = "fc-cache -fv"
-	})[0]
+	})
 	converge(t, h, changed)
 	if n := len(h.Commands("/bin/sh -c fc-cache -fv")); n != 1 {
 		t.Errorf("exec did not re-run after its command changed")
@@ -358,7 +358,7 @@ func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 func TestDownloadVerification(t *testing.T) {
 	h := newFake()
 	h.GPG["content of https://packages.sury.org/php/apt.gpg"] = "DEADBEEF"
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	p, obs := plan(t, h, m)
 	_, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{})
 	if err == nil || !strings.Contains(err.Error(), "does not contain key "+suryFingerprint) {
@@ -371,9 +371,9 @@ func TestDownloadVerification(t *testing.T) {
 
 func TestPasswordChangeUpdatesDBUser(t *testing.T) {
 	h := newFake()
-	converge(t, h, compileEnv(t, "minimal", "production", nil)[0])
+	converge(t, h, compileEnv(t, "minimal", "production", nil))
 
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	for i := range m.Resources {
 		if r := &m.Resources[i]; r.Kind == manifest.KindDatabaseUser {
 			u := *r.DatabaseUser
@@ -393,7 +393,7 @@ func TestPasswordChangeUpdatesDBUser(t *testing.T) {
 
 func TestPlanHashBindsApproval(t *testing.T) {
 	h := newFake()
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	a, _ := plan(t, h, m)
 	b, _ := plan(t, h, m)
 	if a.Hash() != b.Hash() {
@@ -409,7 +409,7 @@ func TestPlanHashBindsApproval(t *testing.T) {
 // Debian packages start their services on install, before Trellis writes
 // their config. Those must still be reloaded, not treated as fresh starts.
 func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
 	converge(t, h, m)
 	if got := h.Commands("systemctl start php8.4-fpm.service"); len(got) != 0 {
@@ -426,7 +426,7 @@ func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
 // A failed phase command must be retried by the next run, not forgotten
 // because the files that trigger it were already written.
 func TestFailedPhaseCommandIsRetried(t *testing.T) {
-	m := compileEnv(t, "minimal", "production", nil)[0]
+	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
 	h.Fail["systemd-tmpfiles"] = "unsafe path transition"
 	p, obs := plan(t, h, m)

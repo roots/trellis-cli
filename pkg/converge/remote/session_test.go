@@ -13,142 +13,127 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/remote"
 )
 
-func TestSessionSplitEnvironment(t *testing.T) {
-	ctx := context.Background()
-	p, err := project.Open(filepath.Join("..", "testdata", "projects", "split"))
+// session compiles project/env and connects a session to a fake server.
+func session(t *testing.T, name, env string, s *remote.Session, f *fakeSSH) (*project.Compiled, *remote.Server) {
+	t.Helper()
+	p, err := project.Open(filepath.Join("..", "testdata", "projects", name))
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := p.Compile("production", "test", nil)
+	c, err := p.Compile(env, "test", nil)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	web, db := hosttest.New(), hosttest.New()
-	for _, h := range []*hosttest.Fake{web, db} {
-		h.GPG["content of https://packages.sury.org/php/apt.gpg"] = "15058500A0235D97F5D10063B188E2B695BD4743"
-	}
-	f := &fakeSSH{
-		hosts:     map[string]*hosttest.Fake{"203.0.113.10": web, "203.0.113.11": db},
-		users:     map[string]bool{"root": true},
-		installed: map[string]bool{},
 	}
 	bin := binary(t)
-	var out bytes.Buffer
-	s := &remote.Session{
-		SSH:        &remote.SSH{Exec: f},
-		FindBinary: func(string) (remote.Binary, error) { return bin, nil },
-		Out:        &out,
-		Users:      []string{"admin", "root"},
-	}
-
-	runs, err := s.Prepare(ctx, c.Env, c.Manifests)
+	s.SSH = &remote.SSH{Exec: f}
+	s.FindBinary = func(string) (remote.Binary, error) { return bin, nil }
+	srv, err := s.Connect(context.Background(), c.Env, c.Manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if runs[0].Node.Name != "db1" || runs[1].Node.Name != "web1" {
-		t.Fatalf("db node must come first, got %s, %s", runs[0].Node.Name, runs[1].Node.Name)
-	}
-	if err := s.Plan(ctx, runs); err != nil {
-		t.Fatal(err)
-	}
-	if remote.Empty(runs) {
-		t.Fatal("expected changes")
-	}
-	if !strings.Contains(out.String(), "db1 203.0.113.11") || !strings.Contains(out.String(), "+ package       mariadb-server") {
-		t.Errorf("plan output:\n%s", out.String())
+	return c, srv
+}
+
+func TestSessionPlanApplyWithExternalDatabase(t *testing.T) {
+	ctx := context.Background()
+	h := hosttest.New()
+	h.GPG["content of https://packages.sury.org/php/apt.gpg"] = "15058500A0235D97F5D10063B188E2B695BD4743"
+	f := &fakeSSH{host: h, users: map[string]bool{"root": true}, installed: map[string]bool{}}
+	var out bytes.Buffer
+	s := &remote.Session{Out: &out, Users: []string{"admin", "root"}}
+	_, srv := session(t, "external-db", "production", s, f)
+	if srv.Target.User != "root" || srv.Target.Host != "198.51.100.7" {
+		t.Fatalf("target = %+v", srv.Target)
 	}
 
-	out.Reset()
-	if err := s.Apply(ctx, runs); err != nil {
+	if err := s.Plan(ctx, srv); err != nil {
 		t.Fatal(err)
 	}
-	if !db.Databases["example_com_production"] || db.Packages["nginx"] != "" {
-		t.Error("db node state wrong")
+	if srv.Plan.Empty() || !strings.Contains(out.String(), "198.51.100.7") {
+		t.Fatalf("plan output:\n%s", out.String())
 	}
-	if web.Packages["nginx"] == "" || web.Packages["mariadb-server"] != "" {
-		t.Error("web node state wrong")
+	if err := s.Apply(ctx, srv); err != nil {
+		t.Fatal(err)
 	}
-	if strings.Index(out.String(), "db1") > strings.Index(out.String(), "web1") {
-		t.Error("db node must be applied first")
+	if h.Packages["nginx"] == "" || h.Packages["mariadb-server"] != "" || h.Packages["mariadb-client"] == "" {
+		t.Error("an external database means no local MariaDB server")
+	}
+	if !h.Databases["example_com_production"] {
+		t.Error("database not created on the external server")
 	}
 
-	// Second round: nothing to do on either node.
-	if err := s.Plan(ctx, runs); err != nil {
+	// Second round: nothing to do.
+	if err := s.Plan(ctx, srv); err != nil {
 		t.Fatal(err)
 	}
-	if !remote.Empty(runs) {
+	if !srv.Plan.Empty() {
 		t.Errorf("not converged:\n%s", out.String())
 	}
 }
 
-func TestHostOverrideOnlyForSingleNode(t *testing.T) {
-	p, _ := project.Open(filepath.Join("..", "testdata", "projects", "split"))
-	c, err := p.Compile("production", "test", nil)
-	if err != nil {
-		t.Fatal(err)
+func TestHostOverride(t *testing.T) {
+	f := &fakeSSH{host: hosttest.New(), users: map[string]bool{"root": true}, installed: map[string]bool{}}
+	s := &remote.Session{Out: &bytes.Buffer{}, Users: []string{"root"}, Host: "10.0.0.9", Port: 2222}
+	_, srv := session(t, "minimal", "production", s, f)
+	if srv.Target.Host != "10.0.0.9" || srv.Target.Port != 2222 {
+		t.Errorf("target = %+v", srv.Target)
 	}
-	s := &remote.Session{SSH: &remote.SSH{}, Host: "10.0.0.9"}
-	if _, err := s.Prepare(context.Background(), c.Env, c.Manifests); err == nil {
-		t.Fatal("expected error for --host with two nodes")
+	if srv.Name != "203.0.113.10 10.0.0.9" {
+		t.Errorf("name = %q", srv.Name)
 	}
 }
 
-func TestSessionDeploysToWebNodesOnly(t *testing.T) {
+func TestDevelopmentNeedsAHost(t *testing.T) {
+	p, _ := project.Open(filepath.Join("..", "testdata", "projects", "minimal"))
+	c, err := p.Compile("development", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &remote.Session{SSH: &remote.SSH{}}
+	if _, err := s.Connect(context.Background(), c.Env, c.Manifest); err == nil || !strings.Contains(err.Error(), "--lima") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestSessionDeployAndRollback(t *testing.T) {
 	ctx := context.Background()
-	p, err := project.Open(filepath.Join("..", "testdata", "projects", "split"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := p.Compile("production", "test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	web, db := hosttest.New(), hosttest.New()
-	f := &fakeSSH{
-		hosts:     map[string]*hosttest.Fake{"203.0.113.10": web, "203.0.113.11": db},
-		users:     map[string]bool{"root": true},
-		installed: map[string]bool{},
-	}
-	bin := binary(t)
+	h := hosttest.New()
+	f := &fakeSSH{host: h, users: map[string]bool{"root": true}, installed: map[string]bool{}}
 	var out bytes.Buffer
-	s := &remote.Session{SSH: &remote.SSH{Exec: f}, FindBinary: func(string) (remote.Binary, error) { return bin, nil }, Out: &out, Users: []string{"root"}}
-	runs, err := s.Prepare(ctx, c.Env, c.Manifests)
-	if err != nil {
-		t.Fatal(err)
-	}
-	uploadsBefore := f.uploads // the agent binaries
+	s := &remote.Session{Out: &out, Users: []string{"root"}}
+	_, srv := session(t, "minimal", "production", s, f)
+	uploadsBefore := f.uploads // the agent binary
 
 	art := remote.Artifact{Data: []byte("tarball"), SHA256: "abc123", Path: "/var/cache/trellis/abc123.tar.gz"}
 	spec := release.Spec{Site: "example.com", ID: "20261125120000-0123456", Artifact: art.Path, PHPUnit: "php8.4-fpm.service",
 		Shared: []release.Link{{Path: ".env", Target: "shared/.env"}}}
-	if err := s.Deploy(ctx, runs, art, spec); err != nil {
+	if err := s.Deploy(ctx, srv, art, spec); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
 	if f.uploads != uploadsBefore+1 {
-		t.Errorf("artifact uploads = %d, want 1 (web node only)", f.uploads-uploadsBefore)
+		t.Errorf("artifact uploads = %d, want 1", f.uploads-uploadsBefore)
 	}
-	if len(web.Commands("runuser -u web -- tar -xzf /var/cache/trellis/abc123.tar.gz")) != 1 || len(db.Commands("runuser")) != 0 {
-		t.Error("release must be activated on the web node only")
+	if len(h.Commands("runuser -u web -- tar -xzf /var/cache/trellis/abc123.tar.gz")) != 1 {
+		t.Error("release not unpacked")
 	}
 	if !strings.Contains(out.String(), "✓ 20261125120000-0123456 is live") {
 		t.Errorf("output:\n%s", out.String())
 	}
 
 	// Same artifact again: not re-uploaded.
-	if err := s.Deploy(ctx, runs, art, spec); err != nil {
+	if err := s.Deploy(ctx, srv, art, spec); err != nil {
 		t.Fatal(err)
 	}
 	if f.uploads != uploadsBefore+1 {
 		t.Error("an existing artifact was uploaded again")
 	}
 
-	web.Outputs = map[string]string{
+	h.Outputs = map[string]string{
 		"readlink /srv/www/example.com/current": "releases/20261125120000-0123456\n",
 		"ls -1 /srv/www/example.com/releases":   "20261120000000-aaaaaaa\n20261125120000-0123456\n",
 	}
 	out.Reset()
-	if err := s.Rollback(ctx, runs, "example.com", "php8.4-fpm.service"); err != nil {
+	if err := s.Rollback(ctx, srv, "example.com", "php8.4-fpm.service"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "rolled back 20261125120000-0123456 → 20261120000000-aaaaaaa") {

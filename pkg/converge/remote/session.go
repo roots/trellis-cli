@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
-	"sync"
 
 	"github.com/roots/trellis-cli/pkg/converge/agent"
 	"github.com/roots/trellis-cli/pkg/converge/config"
@@ -15,170 +13,111 @@ import (
 	"github.com/roots/trellis-cli/pkg/converge/release"
 )
 
-// NodeRun is one node's manifest, connection and plan.
-type NodeRun struct {
-	Node     config.Node
+// Server is an environment's server: its manifest, connection and plan.
+type Server struct {
+	Name     string
 	Manifest *manifest.Manifest
 	Target   Target
 	Binary   Binary
 	Plan     *engine.Plan
 }
 
-func (n *NodeRun) Title() string {
-	if n.Node.Name == n.Target.Host {
-		return n.Node.Name
-	}
-	return n.Node.Name + " " + n.Target.Host
-}
-
-// Session orchestrates plan/apply across an environment's nodes.
+// Session runs plan/apply/deploy against an environment's server.
 type Session struct {
 	SSH *SSH
-	// FindBinary returns the agent binary for a node architecture.
+	// FindBinary returns the agent binary for a server architecture.
 	FindBinary func(arch string) (Binary, error)
 	Out        io.Writer
-	// Host and Port override the address of a single-node environment
-	// (e.g. a local VM).
+	// Host and Port override the environment's address (e.g. a local VM).
 	Host string
 	Port int
-	// Users to try when a node doesn't set one.
+	// Users to try, in order.
 	Users []string
 	// SudoPassword is the admin user's sudo password (admin_password).
 	SudoPassword string
 }
 
-// Prepare pairs manifests with nodes, orders them (db-only nodes first, so
-// databases exist before web nodes need them), connects to each and makes
-// sure the agent is installed. Nodes are prepared concurrently.
-func (s *Session) Prepare(ctx context.Context, env *config.Environment, ms []*manifest.Manifest) ([]*NodeRun, error) {
-	if s.Host != "" && len(env.Nodes) != 1 {
-		return nil, errors.New("--host can only be used with single-node environments")
+// Connect logs in to env's server, checks how to get root, and makes sure
+// the agent is installed.
+func (s *Session) Connect(ctx context.Context, env *config.Environment, m *manifest.Manifest) (*Server, error) {
+	host, port := env.Host, env.Port
+	if s.Host != "" {
+		host = s.Host
 	}
-	byName := map[string]*manifest.Manifest{}
-	for _, m := range ms {
-		byName[m.Node] = m
+	if s.Port != 0 {
+		port = s.Port
 	}
-	var runs []*NodeRun
-	for _, n := range env.Nodes {
-		if s.Host != "" {
-			n.Host = s.Host
-		}
-		if s.Port != 0 {
-			n.Port = s.Port
-		}
-		if n.Host == "" {
-			return nil, fmt.Errorf("node %s has no host (pass --host for the development VM)", n.Name)
-		}
-		runs = append(runs, &NodeRun{Node: n, Manifest: byName[n.Name]})
+	if host == "" {
+		return nil, fmt.Errorf("environment %s has no host (use --lima or --host for a local VM)", env.Name)
 	}
-	slices.SortStableFunc(runs, func(a, b *NodeRun) int {
-		return dbFirst(a.Node) - dbFirst(b.Node)
-	})
-
-	err := parallel(runs, func(r *NodeRun) error {
-		users := s.Users
-		if r.Node.User != "" {
-			users = []string{r.Node.User}
-		}
-		t, err := s.SSH.Connect(ctx, r.Node.Host, r.Node.Port, users)
-		if err != nil {
-			return err
-		}
-		if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
-			return err
-		}
-		r.Target = t
-		arch, err := s.SSH.Arch(ctx, t)
-		if err != nil {
-			return err
-		}
-		if r.Binary, err = s.FindBinary(arch); err != nil {
-			return err
-		}
-		return s.SSH.EnsureAgent(ctx, t, r.Binary)
-	})
-	return runs, err
+	srv := &Server{Name: env.ServerName(), Manifest: m}
+	if srv.Name != host {
+		srv.Name += " " + host
+	}
+	t, err := s.SSH.Connect(ctx, host, port, s.Users)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
+		return nil, err
+	}
+	srv.Target = t
+	arch, err := s.SSH.Arch(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	if srv.Binary, err = s.FindBinary(arch); err != nil {
+		return nil, err
+	}
+	if err := s.SSH.EnsureAgent(ctx, t, srv.Binary); err != nil {
+		return nil, err
+	}
+	return srv, nil
 }
 
-func dbFirst(n config.Node) int {
-	if n.HasRole(config.RoleDB) && !n.HasRole(config.RoleWeb) {
-		return 0
-	}
-	return 1
-}
-
-// Plan computes every node's plan concurrently and renders them in order.
-func (s *Session) Plan(ctx context.Context, runs []*NodeRun) error {
-	err := parallel(runs, func(r *NodeRun) error {
-		return s.SSH.Call(ctx, r.Target, r.Binary, agent.Request{Mode: agent.ModePlan, Manifest: r.Manifest}, func(m agent.Message) {
-			if m.Type == "plan" {
-				r.Plan = m.Plan
-			}
-		})
+// Plan asks the agent for a plan and renders it.
+func (s *Session) Plan(ctx context.Context, srv *Server) error {
+	srv.Plan = nil
+	err := s.SSH.Call(ctx, srv.Target, srv.Binary, agent.Request{Mode: agent.ModePlan, Manifest: srv.Manifest}, func(m agent.Message) {
+		if m.Type == "plan" {
+			srv.Plan = m.Plan
+		}
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", srv.Name, err)
 	}
-	for _, r := range runs {
-		if r.Plan == nil {
-			return fmt.Errorf("%s: agent returned no plan", r.Title())
-		}
-		r.Plan.Render(s.Out, r.Title())
-		_, _ = fmt.Fprintln(s.Out)
+	if srv.Plan == nil {
+		return fmt.Errorf("%s: agent returned no plan", srv.Name)
 	}
+	srv.Plan.Render(s.Out, srv.Name)
+	_, _ = fmt.Fprintln(s.Out)
 	return nil
 }
 
-// Empty reports whether no node has changes.
-func Empty(runs []*NodeRun) bool {
-	for _, r := range runs {
-		if r.Plan != nil && !r.Plan.Empty() {
-			return false
-		}
+// Apply applies the reviewed plan. The agent refuses if its plan differs
+// from the reviewed one (the server changed in between).
+func (s *Session) Apply(ctx context.Context, srv *Server) error {
+	if srv.Plan == nil {
+		return errors.New("apply needs a reviewed plan")
 	}
-	return true
-}
-
-// Apply applies each node's reviewed plan in order, stopping at the first
-// failure. Each apply is bound to the reviewed plan's hash.
-func (s *Session) Apply(ctx context.Context, runs []*NodeRun) error {
-	for _, r := range runs {
-		if r.Plan.Empty() {
-			continue
+	if srv.Plan.Empty() {
+		return nil
+	}
+	fmt.Fprintf(s.Out, "%s\n", srv.Name)
+	err := s.SSH.Call(ctx, srv.Target, srv.Binary, agent.Request{
+		Mode: agent.ModeApply, Manifest: srv.Manifest, Expect: srv.Plan.Hash(),
+	}, func(m agent.Message) {
+		switch m.Type {
+		case "event":
+			_, _ = fmt.Fprintln(s.Out, m.Event.String())
+		case "result":
+			fmt.Fprintf(s.Out, "  ✓ generation %d applied\n\n", m.Result.Generation)
 		}
-		fmt.Fprintf(s.Out, "%s\n", r.Title())
-		err := s.SSH.Call(ctx, r.Target, r.Binary, agent.Request{
-			Mode: agent.ModeApply, Manifest: r.Manifest, Expect: r.Plan.Hash(),
-		}, func(m agent.Message) {
-			switch m.Type {
-			case "event":
-				_, _ = fmt.Fprintln(s.Out, m.Event.String())
-			case "result":
-				fmt.Fprintf(s.Out, "  ✓ generation %d applied\n\n", m.Result.Generation)
-			}
-		})
-		if err != nil {
-			return fmt.Errorf("%s: %w", r.Title(), err)
-		}
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", srv.Name, err)
 	}
 	return nil
-}
-
-// parallel runs f for each run concurrently and joins the errors.
-func parallel(runs []*NodeRun, f func(*NodeRun) error) error {
-	var wg sync.WaitGroup
-	errs := make([]error, len(runs))
-	for i, r := range runs {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := f(r); err != nil {
-				errs[i] = fmt.Errorf("%s: %w", r.Node.Name, err)
-			}
-		}()
-	}
-	wg.Wait()
-	return errors.Join(errs...)
 }
 
 // Artifact is a built release to upload.
@@ -188,19 +127,8 @@ type Artifact struct {
 	Path   string // content-addressed path on the server
 }
 
-// webRuns returns the nodes that serve sites.
-func webRuns(runs []*NodeRun) []*NodeRun {
-	var out []*NodeRun
-	for _, r := range runs {
-		if r.Node.HasRole(config.RoleWeb) {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-func (s *Session) releaseCall(ctx context.Context, r *NodeRun, req agent.Request, done func(*agent.ReleaseResult)) error {
-	return s.SSH.Call(ctx, r.Target, r.Binary, req, func(m agent.Message) {
+func (s *Session) releaseCall(ctx context.Context, srv *Server, req agent.Request, done func(*agent.ReleaseResult)) error {
+	err := s.SSH.Call(ctx, srv.Target, srv.Binary, req, func(m agent.Message) {
 		switch m.Type {
 		case "event":
 			_, _ = fmt.Fprintln(s.Out, m.Event.String())
@@ -210,38 +138,29 @@ func (s *Session) releaseCall(ctx context.Context, r *NodeRun, req agent.Request
 			}
 		}
 	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", srv.Name, err)
+	}
+	return nil
 }
 
-// Deploy uploads art to each web node and activates spec there, one node
-// at a time, stopping at the first failure.
-func (s *Session) Deploy(ctx context.Context, runs []*NodeRun, art Artifact, spec release.Spec) error {
-	for _, r := range webRuns(runs) {
-		fmt.Fprintf(s.Out, "%s\n", r.Title())
-		fmt.Fprintf(s.Out, "  upload   %s (%.1f MB)\n", art.Path, float64(len(art.Data))/1e6)
-		if err := s.SSH.Upload(ctx, r.Target, art.Data, art.SHA256, art.Path); err != nil {
-			return fmt.Errorf("%s: upload: %w", r.Title(), err)
-		}
-		err := s.releaseCall(ctx, r, agent.Request{Mode: agent.ModeDeploy, Deploy: &spec}, func(res *agent.ReleaseResult) {
-			fmt.Fprintf(s.Out, "  ✓ %s is live\n\n", res.To)
+// Deploy uploads art (unless the server has it) and activates spec.
+func (s *Session) Deploy(ctx context.Context, srv *Server, art Artifact, spec release.Spec) error {
+	fmt.Fprintf(s.Out, "%s\n", srv.Name)
+	fmt.Fprintf(s.Out, "  upload   %s (%.1f MB)\n", art.Path, float64(len(art.Data))/1e6)
+	if err := s.SSH.Upload(ctx, srv.Target, art.Data, art.SHA256, art.Path); err != nil {
+		return fmt.Errorf("%s: upload: %w", srv.Name, err)
+	}
+	return s.releaseCall(ctx, srv, agent.Request{Mode: agent.ModeDeploy, Deploy: &spec}, func(res *agent.ReleaseResult) {
+		fmt.Fprintf(s.Out, "  ✓ %s is live\n\n", res.To)
+	})
+}
+
+// Rollback switches site back to its previous release.
+func (s *Session) Rollback(ctx context.Context, srv *Server, site, phpUnit string) error {
+	fmt.Fprintf(s.Out, "%s\n", srv.Name)
+	return s.releaseCall(ctx, srv, agent.Request{Mode: agent.ModeRollback, Rollback: &agent.RollbackRequest{Site: site, PHPUnit: phpUnit}},
+		func(res *agent.ReleaseResult) {
+			fmt.Fprintf(s.Out, "  ✓ rolled back %s → %s\n\n", res.From, res.To)
 		})
-		if err != nil {
-			return fmt.Errorf("%s: %w", r.Title(), err)
-		}
-	}
-	return nil
-}
-
-// Rollback switches site back to its previous release on each web node.
-func (s *Session) Rollback(ctx context.Context, runs []*NodeRun, site, phpUnit string) error {
-	for _, r := range webRuns(runs) {
-		fmt.Fprintf(s.Out, "%s\n", r.Title())
-		err := s.releaseCall(ctx, r, agent.Request{Mode: agent.ModeRollback, Rollback: &agent.RollbackRequest{Site: site, PHPUnit: phpUnit}},
-			func(res *agent.ReleaseResult) {
-				fmt.Fprintf(s.Out, "  ✓ rolled back %s → %s\n\n", res.From, res.To)
-			})
-		if err != nil {
-			return fmt.Errorf("%s: %w", r.Title(), err)
-		}
-	}
-	return nil
 }

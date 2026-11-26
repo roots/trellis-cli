@@ -63,13 +63,13 @@ sites:
 
 environments:
   staging:
-    nodes: [{ host: 198.51.100.7 }]
+    host: 198.51.100.7
     sites:
       example.com: { domain: staging.example.com, branch: develop }
       shop.example.com: null
 
   production:
-    nodes: [{ host: 203.0.113.10 }]
+    host: 203.0.113.10
     php:
       fpm: { max_children: 40 }
     sites:

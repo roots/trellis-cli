@@ -104,7 +104,8 @@ access:
   deploy: [file:keys/admin.pub]
 environments:
   production:
-    nodes: [{ host: 127.0.0.1, port: $(port $C) }]
+    host: 127.0.0.1
+    port: $(port $C)
     sites:
       example.com: $SITE
 EOF

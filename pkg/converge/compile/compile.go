@@ -32,10 +32,10 @@ type Input struct {
 	Version string
 }
 
-// Compile returns one finalized manifest per node, in node order. All
-// errors (missing secrets, ownership conflicts, template errors) are
-// collected and returned together.
-func Compile(in Input) ([]*manifest.Manifest, error) {
+// Compile returns the environment's finalized manifest (one server per
+// environment). All errors (missing secrets, ownership conflicts, template
+// errors) are collected and returned together.
+func Compile(in Input) (*manifest.Manifest, error) {
 	if in.Lock == nil {
 		in.Lock = lock.New()
 	}
@@ -56,42 +56,35 @@ func Compile(in Input) ([]*manifest.Manifest, error) {
 	tpl := templates.NewSet(overrides)
 	ejectWarnings := checkEjected(tpl, in.Lock)
 
-	var errs []error
-	var out []*manifest.Manifest
-	for _, node := range in.Env.Nodes {
-		b := &builder{
-			in:       in,
-			env:      in.Env,
-			node:     node,
-			tpl:      tpl,
-			codename: codename,
-			m:        manifest.New(node.Name, slices.Clone(node.Roles)),
-			pkgs:     map[string]bool{},
-		}
-		b.m.Warnings = append(b.m.Warnings, ejectWarnings...)
-		b.compile()
-		if len(b.errs) > 0 {
-			errs = append(errs, fmt.Errorf("node %s:\n  %w", node.Name, indent(errors.Join(b.errs...))))
-			continue
-		}
-		b.m.Finalize()
-		out = append(out, b.m)
+	roles := []string{"web", "db"}
+	if !in.Env.LocalDB() {
+		roles = []string{"web"}
 	}
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
+	b := &builder{
+		in:       in,
+		env:      in.Env,
+		tpl:      tpl,
+		codename: codename,
+		m:        manifest.New(in.Env.ServerName(), roles),
+		pkgs:     map[string]bool{},
 	}
-	return out, nil
+	b.m.Warnings = append(b.m.Warnings, ejectWarnings...)
+	b.compile()
+	if len(b.errs) > 0 {
+		return nil, fmt.Errorf("  %w", indent(errors.Join(b.errs...)))
+	}
+	b.m.Finalize()
+	return b.m, nil
 }
 
 func indent(err error) error {
 	return errors.New(strings.ReplaceAll(err.Error(), "\n", "\n  "))
 }
 
-// builder accumulates one node's manifest and its errors.
+// builder accumulates the manifest and its errors.
 type builder struct {
 	in       Input
 	env      *config.Environment
-	node     config.Node
 	tpl      *templates.Set
 	codename string
 	m        *manifest.Manifest
@@ -101,19 +94,14 @@ type builder struct {
 
 func (b *builder) compile() {
 	b.base()
-	if b.node.HasRole(config.RoleWeb) {
-		b.webStack()
-		b.services()
-		b.userExec()
-	}
-	if b.node.HasRole(config.RoleDB) {
+	b.webStack()
+	b.services()
+	b.userExec()
+	if b.env.LocalDB() {
 		b.db()
 	}
 	b.dropIns()
 }
-
-func (b *builder) isWeb() bool { return b.node.HasRole(config.RoleWeb) }
-func (b *builder) isDB() bool  { return b.node.HasRole(config.RoleDB) }
 
 func (b *builder) errorf(format string, args ...any) {
 	b.errs = append(b.errs, fmt.Errorf(format, args...))

@@ -3,7 +3,6 @@ package compile
 import (
 	"maps"
 
-	"github.com/roots/trellis-cli/pkg/converge/config"
 	m "github.com/roots/trellis-cli/pkg/converge/manifest"
 	"github.com/roots/trellis-cli/pkg/converge/templates"
 )
@@ -19,29 +18,18 @@ func (b *builder) db() {
 	})
 	b.pkg("mariadb-server", "mariadb-client")
 
-	bind := "127.0.0.1"
-	clientHost := "localhost"
-	if !b.isWeb() {
-		bind = b.node.PrivateIP
-		for _, n := range b.env.Nodes {
-			if n.HasRole(config.RoleWeb) {
-				clientHost = n.Address()
-			}
-		}
-	}
 	settings := maps.Clone(b.env.Server.MariaDB)
 	if settings == nil {
 		settings = map[string]string{}
 	}
-	maps.Copy(settings, b.node.MariaDB)
 
 	b.add(
 		m.NewRootFile("/etc/mysql/mariadb.conf.d/90-trellis.cnf", b.render("mariadb/server.cnf", map[string]any{
-			"BindAddress": bind, "Settings": templates.Sorted(settings),
+			"BindAddress": "127.0.0.1", "Settings": templates.Sorted(settings),
 		}), 0o644, mariadbRestart),
 		m.NewService("mariadb.service", enabled, true),
 	)
-	b.siteDatabases(nil, clientHost)
+	b.siteDatabases(nil, "localhost")
 }
 
 // siteDatabases declares each site's database and user on server (nil =
@@ -56,7 +44,7 @@ func (b *builder) siteDatabases(server *m.DBServer, clientHost string) {
 	}
 }
 
-// externalDatabases is compiled on the web node when the database is
+// externalDatabases is compiled when the database is
 // external: databases are created over the network with admin credentials,
 // or left to the user (with a warning) when none are given.
 func (b *builder) externalDatabases() {

@@ -8,10 +8,10 @@ applied.
 trellis.yml + trellis.lock + secrets/<env>.yml + server/
         │  compile (local, pure, offline)
         ▼
-per-node manifest ── every file's bytes, package, unit, DB, cert, notification
+the server's manifest ── every file's bytes, package, unit, DB, cert, notification
         │  ssh (one multiplexed connection)
         ▼
-trellis-agent on the node: observe → plan → (approve) → apply → record generation
+trellis-agent on the server: observe → plan → (approve) → apply → record generation
 ```
 
 ## Two binaries
@@ -44,7 +44,7 @@ development, `--agent-binary` or `$TRELLIS_AGENT_DIR` override the embedded agen
 | `host`      | The engine's only port to a machine. `Local` on the server; `hosttest.Fake` in tests      | – |
 | `agent`     | Server-side request/stream protocol (JSON lines over stdin/stdout); `cmd/trellis-agent`   | – |
 | `agentbin`  | Embedded linux agent executables (generated)                                              | – |
-| `remote`    | SSH transport, agent upload, multi-node orchestration (`remote.Exec` injected)            | – |
+| `remote`    | SSH transport, agent upload, plan/apply/deploy sessions (`remote.Exec` injected)         | – |
 | `project`   | Finds/loads a project and assembles a compile input                                       | – |
 
 The CLI commands in `cmd/converge.go` are a thin layer over these packages.
@@ -83,7 +83,7 @@ plaintext `secrets/development.yml`.
   drift repair, rollback when `nginx -t` fails, pre-write validation (`visudo`),
   pruning, recovery from failed runs, download verification.
 - **remote**: a fake `ssh` dispatches to the real agent against fake hosts, so
-  the client, protocol, agent upload and multi-node ordering are tested end to end.
+  the client, protocol and agent upload are tested end to end.
 
 ## Resource kinds
 
@@ -116,6 +116,13 @@ Users and directories are not resource kinds: the compiler writes
 
 `apply` sends the hash of the plan you reviewed. The agent refuses to apply
 if the plan it computes differs.
+
+## One server per environment
+
+An environment is one server (`host:`, optional `user:`/`port:`), running
+nginx, PHP and MariaDB, or nginx and PHP with an external database
+(`database:`, e.g. RDS), whose databases and users converge creates over the
+network. Separate web and database servers aren't supported.
 
 ## Deploys
 

@@ -77,7 +77,7 @@ func (c *Config) EnvironmentNames() []string {
 	return slices.Sorted(maps.Keys(c.File.Environments))
 }
 
-var serverOnlyEnvKeys = []string{"nodes", "sites", "database", "access"}
+var serverOnlyEnvKeys = []string{"host", "user", "port", "sites", "database", "access"}
 
 // Resolve merges, defaults and validates environment env.
 func (c *Config) Resolve(env string) (*Environment, error) {
@@ -101,7 +101,7 @@ func (c *Config) Resolve(env string) (*Environment, error) {
 
 	raw := c.File.Environments[env]
 	e.Name = env
-	e.Nodes = slices.Clone(raw.Nodes)
+	e.Host, e.User, e.Port = raw.Host, raw.User, raw.Port
 	e.Database = raw.Database
 
 	// Sites: sites.<s> → environments.<env>.sites.<s>.

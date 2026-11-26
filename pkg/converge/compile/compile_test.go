@@ -19,7 +19,7 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
-func compileProject(t *testing.T, name, env string) []*manifest.Manifest {
+func compileProject(t *testing.T, name, env string) *manifest.Manifest {
 	t.Helper()
 	p, err := project.Open(filepath.Join("..", "testdata", "projects", name))
 	if err != nil {
@@ -29,7 +29,7 @@ func compileProject(t *testing.T, name, env string) []*manifest.Manifest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return c.Manifests
+	return c.Manifest
 }
 
 // TestGolden pins the full rendered output for each example project. Run
@@ -40,12 +40,12 @@ func TestGolden(t *testing.T) {
 		{"minimal", "production"},
 		{"minimal", "development"},
 		{"full", "production"},
-		{"split", "production"},
-		{"split", "staging"},
+		{"external-db", "production"},
 	}
 	for _, tc := range cases {
-		for _, m := range compileProject(t, tc.project, tc.env) {
-			name := tc.project + "-" + tc.env + "-" + m.Node + ".golden"
+		{
+			m := compileProject(t, tc.project, tc.env)
+			name := tc.project + "-" + tc.env + ".golden"
 			t.Run(name, func(t *testing.T) {
 				var buf bytes.Buffer
 				m.Render(&buf, true)
@@ -75,11 +75,11 @@ func TestDeterministic(t *testing.T) {
 	a := compileProject(t, "full", "production")
 	for range 5 {
 		b := compileProject(t, "full", "production")
-		if a[0].Hash() != b[0].Hash() {
+		if a.Hash() != b.Hash() {
 			t.Fatal("compiling twice produced different manifests")
 		}
-		ja, _ := a[0].Marshal()
-		jb, _ := b[0].Marshal()
+		ja, _ := a.Marshal()
+		jb, _ := b.Marshal()
 		if !bytes.Equal(ja, jb) {
 			t.Fatal("JSON encoding differs between runs")
 		}
@@ -87,7 +87,7 @@ func TestDeterministic(t *testing.T) {
 }
 
 func TestManifestRoundTrip(t *testing.T) {
-	m := compileProject(t, "full", "production")[0]
+	m := compileProject(t, "full", "production")
 	b, err := m.Marshal()
 	if err != nil {
 		t.Fatal(err)
@@ -110,43 +110,12 @@ func get(t *testing.T, m *manifest.Manifest, kind manifest.Kind, name string) *m
 	return r
 }
 
-func TestSplitTopology(t *testing.T) {
-	ms := compileProject(t, "split", "production")
-	if len(ms) != 2 {
-		t.Fatalf("want 2 manifests, got %d", len(ms))
-	}
-	web, db := ms[0], ms[1]
-
-	env := get(t, web, manifest.KindFile, "/srv/www/example.com/shared/.env").File.Content
-	if !strings.Contains(env, "DB_HOST='10.0.0.5'") {
-		t.Errorf("web .env should point at db private ip:\n%s", env)
-	}
-	if web.Get(manifest.ID{Kind: manifest.KindPackage, Name: "mariadb-server"}) != nil {
-		t.Error("web node must not install mariadb-server")
-	}
-	get(t, web, manifest.KindPackage, "mariadb-client")
-
-	cnf := get(t, db, manifest.KindFile, "/etc/mysql/mariadb.conf.d/90-trellis.cnf").File.Content
-	for _, want := range []string{"bind-address = 10.0.0.5", "innodb_buffer_pool_size = 4G"} {
-		if !strings.Contains(cnf, want) {
-			t.Errorf("db cnf missing %q:\n%s", want, cnf)
-		}
-	}
-	fw := get(t, db, manifest.KindFile, "/etc/nftables.conf").File.Content
-	if !strings.Contains(fw, "ip saddr 10.0.0.4 tcp dport 3306 accept") {
-		t.Errorf("db firewall should allow web node:\n%s", fw)
-	}
-	if strings.Contains(fw, "dport { 80, 443 }") {
-		t.Error("db node must not open http")
-	}
-	get(t, db, manifest.KindDatabaseUser, "example_com@10.0.0.4")
-	if db.Get(manifest.ID{Kind: manifest.KindPackage, Name: "nginx"}) != nil {
-		t.Error("db node must not install nginx")
-	}
-}
-
 func TestExternalDatabase(t *testing.T) {
-	m := compileProject(t, "split", "staging")[0]
+	m := compileProject(t, "external-db", "production")
+	if m.Get(manifest.ID{Kind: manifest.KindPackage, Name: "mariadb-server"}) != nil {
+		t.Error("an external database must not install mariadb-server")
+	}
+	get(t, m, manifest.KindPackage, "mariadb-client")
 	env := get(t, m, manifest.KindFile, "/srv/www/example.com/shared/.env").File.Content
 	if !strings.Contains(env, "DB_HOST='staging-db.abc123.us-east-1.rds.amazonaws.com:3306'") {
 		t.Errorf(".env:\n%s", env)
@@ -158,7 +127,7 @@ func TestExternalDatabase(t *testing.T) {
 }
 
 func TestExtensionLadder(t *testing.T) {
-	m := compileProject(t, "full", "production")[0]
+	m := compileProject(t, "full", "production")
 
 	// Rung 2: drop-ins, including a rendered .tmpl with site context.
 	get(t, m, manifest.KindFile, "/etc/nginx/conf.d/realip.conf")
@@ -218,7 +187,7 @@ func TestExecInputsHashTracksFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return ms[0].Get(manifest.ID{Kind: manifest.KindExec, Name: "user:rebuild-font-cache"}).Exec.Inputs
+		return ms.Get(manifest.ID{Kind: manifest.KindExec, Name: "user:rebuild-font-cache"}).Exec.Inputs
 	}
 	if compileWith("v1") == compileWith("v2") {
 		t.Error("changing an input file must change the exec inputs hash")
@@ -236,7 +205,7 @@ sites:
   a.com: { repo: r, env: { X: secret:nope } }
 environments:
   production:
-    nodes: [{ host: 1.2.3.4 }]
+    host: 1.2.3.4
     sites: { a.com: { domain: a.com } }
 `))
 	if err != nil {

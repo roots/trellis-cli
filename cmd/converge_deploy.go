@@ -113,11 +113,11 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 	c.UI.Info(fmt.Sprintf("Built %s: %d files, %.1f MB (%s)\n", art.Commit[:7], art.Files, float64(len(art.Data))/1e6, time.Since(start).Round(100*time.Millisecond)))
 
 	spec := deploy.Spec(compiled.Env, site, art, hooks, time.Now())
-	s, runs, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
+	s, srv, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
 	if err != nil {
 		return err
 	}
-	if err := s.Deploy(ctx, runs, remote.Artifact{Data: art.Data, SHA256: art.SHA256, Path: art.RemotePath()}, spec); err != nil {
+	if err := s.Deploy(ctx, srv, remote.Artifact{Data: art.Data, SHA256: art.SHA256, Path: art.RemotePath()}, spec); err != nil {
 		return err
 	}
 	c.UI.Info(fmt.Sprintf("Deployed %s %s (%s) in %s.", name, spec.ID, ref, time.Since(start).Round(100*time.Millisecond)))
@@ -140,7 +140,7 @@ func (c *ConvergeDeployCommand) Help() string {
 Builds the site locally from an exact commit of its local_path repository
 (never uncommitted changes): composer install with your own credentials, then
 deploy-hooks/build.sh if present (e.g. theme assets). The packed release is
-uploaded to each web server, which links shared paths (.env, uploads), checks
+uploaded to the server, which links shared paths (.env, uploads), checks
 the server's PHP platform, runs deploy-hooks/release.sh, switches current
 atomically, updates the database and reloads PHP-FPM, then runs
 deploy-hooks/after.sh. A failure before the switch leaves the site unchanged.
@@ -199,9 +199,9 @@ func (c *ConvergeRollbackCommand) Run(args []string) int {
 		c.UI.Error(err.Error())
 		return 1
 	}
-	s, runs, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
+	s, srv, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
 	if err == nil {
-		err = s.Rollback(ctx, runs, name, "php"+compiled.Env.Server.PHP.Version+"-fpm.service")
+		err = s.Rollback(ctx, srv, name, "php"+compiled.Env.Server.PHP.Version+"-fpm.service")
 	}
 	if err != nil {
 		c.UI.Error(err.Error())

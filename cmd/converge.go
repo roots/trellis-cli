@@ -25,7 +25,7 @@ import (
 
 // The `trellis converge` commands are the experimental Ansible-free engine:
 // trellis.yml is compiled locally into per-node manifests, and
-// trellis-agent (embedded in trellis-cli) runs on each node to observe,
+// trellis-agent (embedded in trellis-cli) runs on the server to observe,
 // plan and apply them.
 
 const convergeHelp = `Usage: trellis converge <subcommand> [<args>]
@@ -98,7 +98,6 @@ type ConvergeCompileCommand struct {
 	UI      cli.Ui
 	Version string
 	flags   *flag.FlagSet
-	node    string
 	json    bool
 	content bool
 }
@@ -107,7 +106,6 @@ func NewConvergeCompileCommand(ui cli.Ui, version string) *ConvergeCompileComman
 	c := &ConvergeCompileCommand{UI: ui, Version: version}
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.node, "node", "", "Only show this node")
 	c.flags.BoolVar(&c.json, "json", false, "Print the manifest as JSON (includes secrets)")
 	c.flags.BoolVar(&c.content, "content", false, "Include file contents (secrets are hidden)")
 	return c
@@ -131,39 +129,34 @@ func (c *ConvergeCompileCommand) Run(args []string) int {
 	if compiled == nil {
 		return 1
 	}
-	for _, m := range compiled.Manifests {
-		if c.node != "" && m.Node != c.node {
-			continue
+	m := compiled.Manifest
+	if c.json {
+		b, err := m.Marshal()
+		if err != nil {
+			c.UI.Error(err.Error())
+			return 1
 		}
-		if c.json {
-			b, err := m.Marshal()
-			if err != nil {
-				c.UI.Error(err.Error())
-				return 1
-			}
-			c.UI.Output(string(b))
-			continue
-		}
-		var sb strings.Builder
-		m.Render(&sb, c.content)
-		c.UI.Output(sb.String())
+		c.UI.Output(string(b))
+		return 0
 	}
+	var sb strings.Builder
+	m.Render(&sb, c.content)
+	c.UI.Output(sb.String())
 	return 0
 }
 
 func (c *ConvergeCompileCommand) Synopsis() string {
-	return "Compile trellis.yml into per-node manifests (no server access)"
+	return "Compile trellis.yml into the server's manifest (no server access)"
 }
 
 func (c *ConvergeCompileCommand) Help() string {
 	return `Usage: trellis converge compile [options] <environment>
 
 Compiles trellis.yml + trellis.lock + secrets into the exact desired state of
-each node. Compilation never touches the network or a server, and the same
+the environment's server. Compilation never touches the network or a server, and the same
 inputs always produce the same manifest hash.
 
 Options:
-  --node     Only show this node
   --content  Include file contents (sensitive files are hidden)
   --json     Print the raw manifest JSON (includes secrets!)
 `
@@ -191,25 +184,28 @@ type connection struct {
 }
 
 func (c *connection) register(fs *flag.FlagSet) {
-	fs.StringVar(&c.host, "host", "", "Override the address of a single-node environment (e.g. a development VM)")
-	fs.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name (single-node environments)")
+	fs.StringVar(&c.host, "host", "", "Override the environment's host (e.g. a VM)")
+	fs.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name")
 	fs.StringVar(&c.user, "user", "", "SSH user (default: admin, falling back to root)")
 	fs.Var(&c.sshOptions, "ssh-option", "Extra ssh -o option (repeatable), e.g. ProxyJump=bastion")
 	fs.StringVar(&c.agentBinary, "agent-binary", "", "Path to a linux trellis-agent binary (default: the one embedded in trellis-cli)")
 }
 
-const connectionHelp = `  --host          Address for a single-node environment (e.g. the dev VM)
-  --lima          Target a local Lima VM by name (single-node environments)
+const connectionHelp = `  --host          Override the environment's host (e.g. a VM)
+  --lima          Target a local Lima VM by name
   --user          SSH user (default: admin, falling back to root)
   --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
   --agent-binary  Linux trellis-agent binary (default: embedded)
 `
 
-// session connects to compiled's nodes and makes sure the agent is there.
-func (c *connection) session(ctx context.Context, out io.Writer, compiled *project.Compiled) (*remote.Session, []*remote.NodeRun, error) {
+// session connects to compiled's server and makes sure the agent is there.
+func (c *connection) session(ctx context.Context, out io.Writer, compiled *project.Compiled) (*remote.Session, *remote.Server, error) {
 	ssh := remote.NewSSH()
 	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
 	users := []string{"admin", "root"}
+	if compiled.Env.User != "" {
+		users = []string{compiled.Env.User}
+	}
 	host, port := c.host, 0
 	if c.lima != "" {
 		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)
@@ -233,8 +229,8 @@ func (c *connection) session(ctx context.Context, out io.Writer, compiled *proje
 			return remote.FindBinary(c.agentBinary, arch)
 		},
 	}
-	runs, err := s.Prepare(ctx, compiled.Env, compiled.Manifests)
-	return s, runs, err
+	srv, err := s.Connect(ctx, compiled.Env, compiled.Manifest)
+	return s, srv, err
 }
 
 func NewConvergeRunCommand(ui cli.Ui, version string, apply bool) *ConvergeRunCommand {
@@ -270,16 +266,16 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 		return 1
 	}
 	out := &uiWriter{ui: c.UI}
-	s, runs, err := c.conn.session(ctx, out, compiled)
+	s, srv, err := c.conn.session(ctx, out, compiled)
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
-	if err := s.Plan(ctx, runs); err != nil {
+	if err := s.Plan(ctx, srv); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
-	if remote.Empty(runs) {
+	if srv.Plan.Empty() {
 		c.UI.Info("No changes. Servers match trellis.yml.")
 		return 0
 	}
@@ -294,7 +290,7 @@ func (c *ConvergeRunCommand) Run(args []string) int {
 			return 1
 		}
 	}
-	if err := s.Apply(ctx, runs); err != nil {
+	if err := s.Apply(ctx, srv); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}

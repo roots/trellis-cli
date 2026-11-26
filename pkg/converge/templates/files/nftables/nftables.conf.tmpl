@@ -33,15 +33,10 @@ table inet trellis {
     ip6 saddr { {{ join .SSHAllow6 ", " }} } tcp dport 22 accept
 {{- end }}
 {{- end }}
-{{- if .Web }}
 
     tcp dport { 80, 443 } accept
 {{- if .HTTP3 }}
     udp dport 443 accept
-{{- end }}
-{{- end }}
-{{- range .DBClients }}
-    ip saddr {{ . }} tcp dport 3306 accept
 {{- end }}
   }
 

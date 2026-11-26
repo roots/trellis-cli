@@ -41,7 +41,7 @@ environments:
   development:
     sites: { example.com: { domain: example.test } }
   production:
-    nodes: [{ host: 203.0.113.10 }]
+    host: 203.0.113.10
     sites: { example.com: { domain: example.com } }
 `,
 		"trellis.lock": "version: 1\nos: ubuntu-24.04\n",

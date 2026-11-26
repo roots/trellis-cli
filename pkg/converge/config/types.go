@@ -30,10 +30,14 @@ type File struct {
 // Environment is both the raw per-environment block and, after Resolve, the
 // fully merged result.
 type Environment struct {
-	Name     string            `yaml:"-"`
-	Server   Server            `yaml:",inline"` // server settings override `defaults`
-	Access   Access            `yaml:"access,omitempty"`
-	Nodes    []Node            `yaml:"nodes,omitempty"`
+	Name   string `yaml:"-"`
+	Server Server `yaml:",inline"` // server settings override `defaults`
+	Access Access `yaml:"access,omitempty"`
+	// Host is the server (one per environment). Development may omit it
+	// and target a VM with --lima or --host.
+	Host     string            `yaml:"host,omitempty"`
+	User     string            `yaml:"user,omitempty"` // SSH user (default: admin, falling back to root)
+	Port     int               `yaml:"port,omitempty"` // SSH port (default 22)
 	Database *ExternalDatabase `yaml:"database,omitempty"`
 
 	// RawSites holds per-environment site overrides (nil value = excluded).
@@ -130,37 +134,17 @@ type Access struct {
 	Recipients []string `yaml:"recipients,omitempty"`
 }
 
-const (
-	RoleWeb = "web"
-	RoleDB  = "db"
-)
-
-type Node struct {
-	Name      string            `yaml:"name,omitempty"`
-	Host      string            `yaml:"host"`
-	PrivateIP string            `yaml:"private_ip,omitempty"`
-	User      string            `yaml:"user,omitempty"` // default: try admin, then root
-	Port      int               `yaml:"port,omitempty"`
-	Roles     []string          `yaml:"roles,omitempty"`
-	MariaDB   map[string]string `yaml:"mariadb,omitempty"`
-}
-
-func (n Node) HasRole(role string) bool {
-	for _, r := range n.Roles {
-		if r == role {
-			return true
-		}
+// ServerName names the environment's server in output: its host, or the
+// environment for a development VM without one.
+func (e *Environment) ServerName() string {
+	if e.Host != "" {
+		return e.Host
 	}
-	return false
+	return e.Name
 }
 
-// Address is how other nodes reach this one (private IP preferred).
-func (n Node) Address() string {
-	if n.PrivateIP != "" {
-		return n.PrivateIP
-	}
-	return n.Host
-}
+// LocalDB reports whether MariaDB runs on the server (no external database).
+func (e *Environment) LocalDB() bool { return e.Database == nil }
 
 type ExternalDatabase struct {
 	Host  string   `yaml:"host"`

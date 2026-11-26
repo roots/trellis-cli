@@ -10,7 +10,6 @@ ignoreip = 127.0.0.1/8 ::1
 
 [sshd]
 enabled = true
-{{- if .Web }}
 
 [wordpress-wp-login]
 enabled = {{ .WPLogin }}
@@ -25,4 +24,3 @@ backend = auto
 filter = wordpress-xmlrpc
 port = http,https
 logpath = /srv/www/*/logs/access.log
-{{- end }}

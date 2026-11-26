@@ -82,7 +82,7 @@ func (b *builder) webStack() {
 	for _, ext := range []string{"bcmath", "cli", "curl", "fpm", "imagick", "intl", "mbstring", "mysql", "xml", "zip"} {
 		b.pkg("php" + v + "-" + ext)
 	}
-	if !b.isDB() {
+	if !b.env.LocalDB() {
 		b.pkg("mariadb-client")
 	}
 
@@ -251,11 +251,6 @@ func unitSafe(s string) string {
 func (b *builder) dbHost() string {
 	if db := b.env.Database; db != nil {
 		return db.Host + ":" + strconv.Itoa(db.Port)
-	}
-	for _, n := range b.env.Nodes {
-		if n.HasRole(config.RoleDB) && n.Name != b.node.Name {
-			return n.Address()
-		}
 	}
 	return "localhost"
 }

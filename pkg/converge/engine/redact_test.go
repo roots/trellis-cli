@@ -28,11 +28,11 @@ func assertNoSecrets(t *testing.T, where string, data []byte) {
 func TestGenerationsAndPlansNeverContainSecrets(t *testing.T) {
 	for _, tc := range []struct{ proj, env string }{
 		{"full", "production"},
-		{"split", "staging"}, // external DB: admin password in every DB resource
+		{"external-db", "production"}, // external DB: admin password in every DB resource
 	} {
 		t.Run(tc.proj+"/"+tc.env, func(t *testing.T) {
 			h := newFake()
-			m := compileEnv(t, tc.proj, tc.env, nil)[0]
+			m := compileEnv(t, tc.proj, tc.env, nil)
 
 			p, _ := plan(t, h, m)
 			red := p.Redacted()

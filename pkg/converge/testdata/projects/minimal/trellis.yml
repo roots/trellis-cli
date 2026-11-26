@@ -14,8 +14,7 @@ environments:
       example.com: { domain: example.test }
 
   production:
-    nodes:
-      - host: 203.0.113.10
+    host: 203.0.113.10
     sites:
       example.com:
         domain: example.com

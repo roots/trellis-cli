@@ -155,8 +155,8 @@ func (p *Project) SaveSecrets(env string, plaintext []byte) (string, []string, e
 
 // Compiled is a compiled environment.
 type Compiled struct {
-	Env       *config.Environment
-	Manifests []*manifest.Manifest
+	Env      *config.Environment
+	Manifest *manifest.Manifest
 	// PlaintextSecrets is set when a non-development environment's secrets
 	// file is not encrypted.
 	PlaintextSecrets string
@@ -189,7 +189,7 @@ func (p *Project) Compile(env, version string, keys secrets.Keys) (*Compiled, er
 	if err != nil {
 		return nil, fmt.Errorf("compile %s:\n%w", env, err)
 	}
-	c := &Compiled{Env: e, Manifests: ms}
+	c := &Compiled{Env: e, Manifest: ms}
 	if env != config.DevelopmentEnv {
 		c.SudoPassword, _ = sec.Lookup("admin_password")
 	}

@@ -14,7 +14,7 @@ func BenchmarkCompile(b *testing.B) {
 }
 
 func BenchmarkObservePlanConverged(b *testing.B) {
-	m := compileEnv(b, "full", "production", nil)[0]
+	m := compileEnv(b, "full", "production", nil)
 	h := newFake()
 	converge(b, h, m)
 	ctx := context.Background()

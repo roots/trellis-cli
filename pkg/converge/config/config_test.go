@@ -32,11 +32,8 @@ func TestMinimalDefaults(t *testing.T) {
 	if got := e.Server.PHP.Version; got != "8.4" {
 		t.Errorf("php version = %q", got)
 	}
-	if len(e.Nodes) != 1 || e.Nodes[0].Name != "203.0.113.10" {
-		t.Fatalf("nodes = %+v", e.Nodes)
-	}
-	if diff := cmp.Diff([]string{RoleWeb, RoleDB}, e.Nodes[0].Roles); diff != "" {
-		t.Errorf("roles: %s", diff)
+	if e.Host != "203.0.113.10" || e.Port != 22 || !e.LocalDB() || e.ServerName() != "203.0.113.10" {
+		t.Fatalf("server = %s:%d local db %v", e.Host, e.Port, e.LocalDB())
 	}
 	s := e.Sites[0]
 	if s.SSL != SSLLetsEncrypt || s.Branch != "main" || s.Cache != CacheOff {
@@ -50,10 +47,10 @@ func TestMinimalDefaults(t *testing.T) {
 	}
 }
 
-func TestDevelopmentImplicitNodeAndSelfSigned(t *testing.T) {
+func TestDevelopmentNeedsNoHostAndIsSelfSigned(t *testing.T) {
 	e := resolve(t, "minimal", "development")
-	if len(e.Nodes) != 1 || e.Nodes[0].Name != DevelopmentEnv {
-		t.Fatalf("nodes = %+v", e.Nodes)
+	if e.Host != "" || e.ServerName() != DevelopmentEnv {
+		t.Fatalf("host = %q, name = %q", e.Host, e.ServerName())
 	}
 	if e.Sites[0].SSL != SSLSelfSigned {
 		t.Errorf("ssl = %q", e.Sites[0].SSL)
@@ -124,17 +121,17 @@ func TestMergeFunction(t *testing.T) {
 	}
 }
 
-func TestSplitTopology(t *testing.T) {
-	e := resolve(t, "split", "production")
-	if len(e.Nodes) != 2 || !e.Nodes[0].HasRole(RoleWeb) || !e.Nodes[1].HasRole(RoleDB) {
-		t.Fatalf("nodes = %+v", e.Nodes)
-	}
-	ext := resolve(t, "split", "staging")
-	if ext.Database == nil || ext.Database.Port != 3306 {
+func TestExternalDatabase(t *testing.T) {
+	ext := resolve(t, "external-db", "production")
+	if ext.Database == nil || ext.Database.Port != 3306 || ext.LocalDB() {
 		t.Fatalf("database = %+v", ext.Database)
 	}
-	if diff := cmp.Diff([]string{RoleWeb}, ext.Nodes[0].Roles); diff != "" {
-		t.Errorf("external db node roles: %s", diff)
+}
+
+func TestNodesAreNotSupported(t *testing.T) {
+	_, err := Parse([]byte("version: 1\nenvironments:\n  production:\n    nodes: [{ host: 1.2.3.4 }]\n"))
+	if err == nil || !strings.Contains(err.Error(), "nodes") {
+		t.Fatalf("nodes must be rejected (one host per environment), got %v", err)
 	}
 }
 
@@ -156,7 +153,7 @@ version: 1
 sites: { a.com: { repo: r } }
 environments:
   production:
-    nodes: [{ host: 1.2.3.4 }]
+    host: 1.2.3.4
 `,
 			want: []string{"domain is required", "access.admins"},
 		},
@@ -167,38 +164,21 @@ access: { admins: [k] }
 sites: { a.com: { repo: r } }
 environments:
   production:
-    nodes: [{ host: 1.2.3.4 }]
+    host: 1.2.3.4
     sites: { a.com: { domain: a.com }, b.com: { domain: b.com } }
 `,
 			want: []string{"b.com: site is not defined"},
 		},
-		"split needs private ips": {
+		"host is required outside development": {
 			yaml: `
 version: 1
 access: { admins: [k] }
 sites: { a.com: { repo: r } }
 environments:
   production:
-    nodes:
-      - { name: w, host: 1.2.3.4, roles: [web] }
-      - { name: d, host: 1.2.3.5, roles: [db] }
     sites: { a.com: { domain: a.com } }
 `,
-			want: []string{`node "w": private_ip is required`, `node "d": private_ip is required`},
-		},
-		"two web nodes unsupported": {
-			yaml: `
-version: 1
-access: { admins: [k] }
-sites: { a.com: { repo: r } }
-environments:
-  production:
-    nodes:
-      - { name: w1, host: 1.2.3.4 }
-      - { name: w2, host: 1.2.3.5, roles: [web] }
-    sites: { a.com: { domain: a.com } }
-`,
-			want: []string{"exactly one node must have the web role (found 2)"},
+			want: []string{"environments.production: host is required"},
 		},
 		"duplicate domains and bad values": {
 			yaml: `
@@ -209,7 +189,7 @@ sites:
   b.com: { repo: r, ssl: maybe }
 environments:
   production:
-    nodes: [{ host: 1.2.3.4 }]
+    host: 1.2.3.4
     php: { version: eight }
     sites:
       a.com: { domain: a.com }
@@ -256,7 +236,7 @@ sites:
 access: { admins: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey me"] }
 environments:
   production:
-    nodes: [{ host: 203.0.113.10 }]
+    host: 203.0.113.10
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -274,7 +254,7 @@ environments:
 	}
 
 	for _, bad := range []string{`deploy: { keep: -1 }`, `deploy: { exclude: ["[oops"] }`, `deploy: { bogus: 1 }`} {
-		c, err := Parse([]byte("version: 1\nsites:\n  a.com: { repo: git@github.com:x/a.git, domain: a.com, " + strings.TrimSuffix(strings.TrimPrefix(bad, "deploy: "), "") + " }\naccess: { admins: [\"ssh-ed25519 AAAA me\"] }\nenvironments:\n  production:\n    nodes: [{ host: 203.0.113.10 }]\n"))
+		c, err := Parse([]byte("version: 1\nsites:\n  a.com: { repo: git@github.com:x/a.git, domain: a.com, " + strings.TrimSuffix(strings.TrimPrefix(bad, "deploy: "), "") + " }\naccess: { admins: [\"ssh-ed25519 AAAA me\"] }\nenvironments:\n  production:\n    host: 203.0.113.10\n"))
 		if err == nil {
 			_, err = c.Resolve("production")
 		}
