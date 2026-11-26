@@ -180,6 +180,18 @@ environments:
 `,
 			want: []string{"environments.production: host is required"},
 		},
+		"unsafe site name and unknown time zone": {
+			yaml: `
+version: 1
+access: { admins: [k] }
+sites: { "../../etc/evil": { repo: r, domain: a.com } }
+environments:
+  production:
+    host: 1.2.3.4
+    timezone: Mars/Olympus
+`,
+			want: []string{"site name must be lowercase", `timezone "Mars/Olympus" is not a known time zone`},
+		},
 		"duplicate domains and bad values": {
 			yaml: `
 version: 1

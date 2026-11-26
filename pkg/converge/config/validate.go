@@ -7,6 +7,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
+	_ "time/tzdata" // validate time zones the same way on every OS
 )
 
 const DevelopmentEnv = "development"
@@ -101,7 +103,10 @@ func oneOf(v string, allowed ...string) bool {
 	return false
 }
 
-var swapSizeRe = regexp.MustCompile(`^[1-9][0-9]*[MG]$`)
+var (
+	swapSizeRe = regexp.MustCompile(`^[1-9][0-9]*[MG]$`)
+	siteNameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$`)
+)
 
 func validate(e *Environment) error {
 	var errs []error
@@ -111,6 +116,9 @@ func validate(e *Environment) error {
 	s := e.Server
 	if !phpVersionRe.MatchString(s.PHP.Version) {
 		add("%s: php.version %q must look like 8.4", p, s.PHP.Version)
+	}
+	if _, err := time.LoadLocation(s.Timezone); err != nil || s.Timezone == "Local" {
+		add("%s: timezone %q is not a known time zone (e.g. Etc/UTC, America/Toronto)", p, s.Timezone)
 	}
 	if s.Swap != "auto" && s.Swap != "off" && !swapSizeRe.MatchString(s.Swap) {
 		add("%s: swap must be auto, off or a size like 1G or 512M", p)
@@ -204,6 +212,11 @@ func validateSites(e *Environment, add func(string, ...any)) {
 	dbNames := map[string]string{}
 	for _, s := range e.Sites {
 		sp := fmt.Sprintf("%s.sites.%s", p, s.Name)
+		// Site names become paths and file names on the server
+		// (/srv/www/<site>, nginx and PHP-FPM configs).
+		if !siteNameRe.MatchString(s.Name) {
+			add("%s: site name must be lowercase letters, digits, dots and hyphens (usually the domain)", sp)
+		}
 		if s.Deploy.Keep < 1 {
 			add("%s: deploy.keep must be at least 1", sp)
 		}
