@@ -254,6 +254,9 @@ type File struct {
 	// one; "%s" is replaced by the staged path (e.g. visudo -cf %s). A
 	// failure leaves the live file untouched.
 	Validate []string `json:"validate,omitempty"`
+	// Unit is the systemd unit this file defines, if any: it's stopped
+	// before the file is removed, so a pruned unit doesn't keep running.
+	Unit string `json:"unit,omitempty"`
 }
 
 // SHA256 returns the hex sha256 of the desired content.

@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 0047ccf8451d65cc584759189cfcec46a2107dcd9d08707f0ddadb9fcc34edc9
+# hash 97597de6f0d22644b6824b990d32e340b18052316a8f4703d553bc420e0bbfb7
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)

@@ -49,8 +49,11 @@ var (
 	installSectionRe = regexp.MustCompile(`(?m)^\s*\[Install\]\s*$`)
 	envFileRe        = regexp.MustCompile(`(?m)^\s*EnvironmentFile=-?(/\S+)\s*$`)
 	unitSuffixes     = []string{".service", ".timer", ".socket", ".path", ".target", ".mount", ".slice"}
-	quadletSuffixes  = []string{".container", ".volume", ".network", ".pod", ".kube", ".image", ".build"}
-	sysctlApply      = m.RunCommand("sysctl", "--system")
+	// Units that can be restarted when their file changes. Restarting a
+	// target, mount or slice would stop what depends on it.
+	restartableSuffixes = []string{".service", ".timer", ".socket", ".path"}
+	quadletSuffixes     = []string{".container", ".volume", ".network", ".pod", ".kube", ".image", ".build"}
+	sysctlApply         = m.RunCommand("sysctl", "--system")
 )
 
 // serverFiles compiles server/files/ and this environment's overlay. It
@@ -184,6 +187,7 @@ type rule struct {
 	validate []string
 	service  *m.Resource // a unit to enable and start
 	pkgs     []string    // packages the file needs (e.g. podman)
+	unit     string      // the systemd unit the file defines
 	site     *config.Site
 	skip     bool // not for this environment (e.g. a site it doesn't have)
 }
@@ -261,24 +265,32 @@ func (b *builder) fileRule(dest, content string) (rule, error) {
 		}
 
 	case in("/etc/systemd/system/") && hasSuffix(name, unitSuffixes):
-		// A unit with [Install] is enabled and started; one without is
-		// started by whatever triggers it (a timer, a socket).
+		// A running unit restarts when its file changes and stops when the
+		// file is removed. With [Install] it's also enabled and started;
+		// without, whatever triggers it (a timer, a .path, a socket) starts it.
 		r.notify = []m.Notify{daemonReload}
-		if installSectionRe.MatchString(content) && !strings.Contains(name, "@.") {
-			r.notify = append(r.notify, m.RestartUnit(name))
-			svc := m.NewService(name, enabled, true)
-			r.service = &svc
+		if !strings.Contains(name, "@.") {
+			if hasSuffix(name, restartableSuffixes) {
+				r.unit = name
+				r.notify = append(r.notify, m.RestartUnit(name))
+			}
+			if installSectionRe.MatchString(content) {
+				svc := m.NewService(name, enabled, true)
+				r.service = &svc
+			}
 		}
 
 	case in("/etc/containers/systemd/") && hasSuffix(name, quadletSuffixes):
 		// Podman Quadlet: the generator turns <name>.container into
 		// <name>.service, enabled by its [Install] section.
 		r.notify, r.pkgs = []m.Notify{daemonReload}, []string{"podman"}
-		if strings.HasSuffix(name, ".container") && installSectionRe.MatchString(content) {
-			unit := strings.TrimSuffix(name, ".container") + ".service"
-			r.notify = append(r.notify, m.RestartUnit(unit))
-			svc := m.NewService(unit, nil, true)
-			r.service = &svc
+		if strings.HasSuffix(name, ".container") {
+			r.unit = strings.TrimSuffix(name, ".container") + ".service"
+			r.notify = append(r.notify, m.RestartUnit(r.unit))
+			if installSectionRe.MatchString(content) {
+				svc := m.NewService(r.unit, nil, true)
+				r.service = &svc
+			}
 		}
 
 	case under("/etc/fail2ban/"):
@@ -371,6 +383,9 @@ func (b *builder) serverFile(dest, src string, started map[string]string) {
 	}
 	if len(r.validate) > 0 {
 		file = file.WithValidate(r.validate...)
+	}
+	if r.unit != "" {
+		file = file.DefiningUnit(r.unit)
 	}
 	b.pkg(r.pkgs...)
 	b.add(file)

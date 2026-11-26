@@ -575,6 +575,13 @@ func (r *run) prune(acts []Action) error {
 func (r *run) pruneOne(res manifest.Resource) error {
 	switch res.Kind {
 	case manifest.KindFile:
+		if u := res.File.Unit; u != "" && !r.stopped[u] {
+			// A unit without [Install] has no service resource to stop it.
+			r.stopped[u] = true
+			if err := r.stopUnit(u); err != nil {
+				return err
+			}
+		}
 		if err := r.backupFile(res.File.Path); err != nil {
 			return err
 		}
@@ -584,10 +591,7 @@ func (r *run) pruneOne(res manifest.Resource) error {
 	case manifest.KindService:
 		r.stopped[res.Service.Unit] = true
 		_, err := r.h.Run(r.ctx, host.Cmd{Argv: []string{"systemctl", "disable", "--now", res.Service.Unit}})
-		if err != nil && (strings.Contains(err.Error(), "not loaded") || strings.Contains(err.Error(), "does not exist")) {
-			return nil
-		}
-		return err
+		return ignoreMissingUnit(err)
 	case manifest.KindDatabaseUser:
 		_, err := r.h.Run(r.ctx, mariadbCmd(res.DatabaseUser.Server, dropUserSQL(res.DatabaseUser)))
 		return err
@@ -598,6 +602,18 @@ func (r *run) pruneOne(res manifest.Resource) error {
 		return errors.Join(r.h.Remove(res.Cert.CertPath), r.h.Remove(res.Cert.KeyPath))
 	}
 	return nil
+}
+
+func (r *run) stopUnit(unit string) error {
+	_, err := r.h.Run(r.ctx, host.Cmd{Argv: []string{"systemctl", "stop", unit}})
+	return ignoreMissingUnit(err)
+}
+
+func ignoreMissingUnit(err error) error {
+	if err != nil && (strings.Contains(err.Error(), "not loaded") || strings.Contains(err.Error(), "does not exist")) {
+		return nil
+	}
+	return err
 }
 
 // record writes the new generation. On failure only completed resources

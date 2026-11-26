@@ -481,3 +481,27 @@ func TestRemovingAUnitDoesNotRestartIt(t *testing.T) {
 		t.Errorf("a pruned unit was restarted: %v", c)
 	}
 }
+
+func TestRemovingAUnitWithoutInstallStopsIt(t *testing.T) {
+	h := newFake()
+	m := compileEnv(t, "full", "production", nil)
+	unit := manifest.NewRootFile("/etc/systemd/system/job.service", "[Service]\nExecStart=/bin/true\n", 0o644,
+		manifest.RestartUnit("job.service")).DefiningUnit("job.service")
+	with := manifest.New(m.Node, m.Roles)
+	with.OS = m.OS
+	for _, r := range append(slices.Clone(m.Resources), unit) {
+		if err := with.Add(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	with.Finalize()
+	converge(t, h, with)
+	restarts := len(h.Commands("systemctl try-restart job.service"))
+	converge(t, h, m)
+	if len(h.Commands("systemctl stop job.service")) != 1 {
+		t.Errorf("a removed unit without a service resource must be stopped: %v", h.Commands("systemctl"))
+	}
+	if c := h.Commands("systemctl try-restart job.service"); len(c) != restarts {
+		t.Errorf("a pruned unit was restarted: %v", c)
+	}
+}

@@ -12,7 +12,7 @@ escape hatch: a command, or leaving that part of the server unmanaged.
 |---|---|---|
 | **File** | `server/files/<path>` → `/<path>` on the server | Planned, diffed, pruned when removed |
 | **Package** | `packages:` in `trellis.yml` | Installed; pruned when removed |
-| **Service** | Inferred from a unit file's `[Install]` section | Enabled and started; stopped and disabled when the file is removed |
+| **Service** | Inferred from a unit file's `[Install]` section | Enabled and started; restarted when its file changes; stopped and disabled when the file is removed |
 | **Command** | `commands:` in `trellis.yml` | Runs once, re-runs when it or a watched file changes, never undone |
 
 Plus two ways to vary them:
@@ -69,8 +69,8 @@ executable, else 0644); a command with `on:` can react to them.
 | `/etc/sysctl.d/*` | files | `sysctl --system` |
 | `/etc/systemd/{journald,timesyncd,resolved}.conf.d/*` | files | restart that daemon |
 | `/etc/systemd/system/<unit>.d/*` | files | `daemon-reload`, restart the unit |
-| `/etc/systemd/system/<unit>` | files | `daemon-reload`; with `[Install]`: enable, start and restart on change |
-| `/etc/containers/systemd/<name>.{container,volume,network,…}` | files | installs Podman, `daemon-reload`; a `.container` with `[Install]` is started and restarted on change |
+| `/etc/systemd/system/<unit>` | files | `daemon-reload`, restart if running; with `[Install]`: enabled and started. Removing the file stops the unit |
+| `/etc/containers/systemd/<name>.{container,volume,network,…}` | files | installs Podman, `daemon-reload`; a `.container` is restarted if running, and with `[Install]` started |
 | `/etc/fail2ban/**` | files | check, then restart fail2ban |
 | `/usr/local/{bin,sbin}/*` | files | mode 0755 |
 
@@ -119,25 +119,50 @@ For journal logging or randomized start times, use a systemd `.service`
 without `[Install]` plus a `.timer` with `[Install]` under
 `server/files/etc/systemd/system/`.
 
-### Background worker
+### Services that need a release (workers)
+
+A unit that runs site code (`WorkingDirectory=` or `ExecStart=` under
+`/srv/www/<site>/current`) can't run before the first deploy. Don't give it
+`[Install]`: Trellis would try to start it on a fresh server. Let a `.path`
+unit start it once the release exists:
 
 ```ini
 # server/files/etc/systemd/system/example-actions.service
+[Unit]
+Description=Action Scheduler worker (example.com)
+
 [Service]
 User=web
 WorkingDirectory=/srv/www/example.com/current
 ExecStart=/usr/local/bin/wp action-scheduler run --batches=100
 Restart=always
 RestartSec=5
+```
+```ini
+# server/files/etc/systemd/system/example-actions.path
+[Path]
+PathExists=/srv/www/example.com/current
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-No `trellis.yml` needed: `[Install]` makes it enabled and started. A worker
-keeps the release it started with until it exits, so let it exit
+Trellis enables and starts the `.path` unit, which waits until the first
+deploy creates `current` and then starts the worker (and again at boot).
+Plans are clean before and after the first deploy.
+
+A worker keeps the release it started with until it exits. Either let it exit
 regularly (here: after 100 batches; `Restart=always` brings it back on the
-new release).
+new release), or restart it from a deploy hook, allowed by a sudoers file:
+
+```
+# server/files/etc/sudoers.d/example-actions
+web ALL=(root) NOPASSWD: /usr/bin/systemctl restart example-actions.service
+```
+```sh
+# deploy-hooks/after.sh
+sudo systemctl restart example-actions.service
+```
 
 ### Kernel and service limits
 

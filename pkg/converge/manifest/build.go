@@ -91,6 +91,16 @@ func (r Resource) WithValidate(argv ...string) Resource {
 	return r
 }
 
+// DefiningUnit marks a file as the definition of a systemd unit.
+func (r Resource) DefiningUnit(unit string) Resource {
+	if r.File != nil {
+		f := *r.File
+		f.Unit = unit
+		r.File = &f
+	}
+	return r
+}
+
 // WithSHA256 pins a download's content hash.
 func (r Resource) WithSHA256(sum string) Resource {
 	if r.Download != nil {

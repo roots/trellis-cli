@@ -91,6 +91,18 @@ func TestServerFileRules(t *testing.T) {
 	if m.Get(manifest.ID{Kind: manifest.KindService, Name: "job.service"}) != nil {
 		t.Error("a unit without [Install] is started by its trigger, not by Trellis")
 	}
+	if !notifies("/etc/systemd/system/job.service", "unit:job.service") {
+		t.Error("a unit without [Install] must still restart (if running) when its file changes")
+	}
+	for path, unit := range map[string]string{
+		"/etc/systemd/system/job.service":          "job.service",
+		"/etc/systemd/system/worker.service":       "worker.service",
+		"/etc/containers/systemd/search.container": "search.service",
+	} {
+		if u := get(t, m, manifest.KindFile, path).File.Unit; u != unit {
+			t.Errorf("%s defines unit %q, want %q (stopped when the file is removed)", path, u, unit)
+		}
+	}
 	get(t, m, manifest.KindService, "job.timer")
 	if !notifies("/etc/systemd/system/nginx.service.d/limits.conf", "unit:nginx.service") {
 		t.Error("a drop-in must restart its unit")
