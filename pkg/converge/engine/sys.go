@@ -40,20 +40,6 @@ func parseDpkg(out []byte) map[string]string {
 	return pkgs
 }
 
-func aptInstallCmd(pkgs []manifest.Package) host.Cmd {
-	argv := []string{"apt-get", "install", "-y", "-q",
-		"-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold"}
-	argv = append(argv, "--")
-	for _, p := range pkgs {
-		if p.Version != "" {
-			argv = append(argv, p.Name+"="+p.Version)
-		} else {
-			argv = append(argv, p.Name)
-		}
-	}
-	return host.Cmd{Argv: argv, Env: aptEnv}
-}
-
 func aptRemoveCmd(names []string) host.Cmd {
 	return host.Cmd{Argv: append([]string{"apt-get", "remove", "-y", "-q", "--"}, names...), Env: aptEnv}
 }

@@ -38,7 +38,12 @@ type Local struct {
 
 func NewLocal() *Local {
 	return &Local{
-		HTTP:   &http.Client{Timeout: 2 * time.Minute},
+		// Keep a connection per parallel download (package prefetch) open:
+		// reconnecting per file costs far more than the transfer on a
+		// distant mirror.
+		HTTP: &http.Client{Timeout: 2 * time.Minute, Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment, MaxIdleConnsPerHost: 8, IdleConnTimeout: 30 * time.Second,
+		}},
 		users:  map[uint32]string{},
 		groups: map[uint32]string{},
 		uids:   map[string]int{},

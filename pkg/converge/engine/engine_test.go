@@ -135,7 +135,7 @@ func TestFirstRunOrdering(t *testing.T) {
 		}
 		last = i
 	}
-	if n := len(h.Commands("apt-get install")); n != 1 {
+	if n := len(h.Commands("apt-get install -y")); n != 1 {
 		t.Errorf("want a single apt transaction, got %d", n)
 	}
 	// nginx was started fresh, so its reload notifications are skipped.
@@ -418,11 +418,43 @@ func TestPlanHashBindsApproval(t *testing.T) {
 	}
 }
 
-// Debian packages start their services on install, before Trellis writes
-// their config. Those must still be reloaded, not treated as fresh starts.
+// A fresh install defers daemon starts (policy-rc.d), so each daemon
+// starts once, with Trellis's config, and needs no restart.
+func TestFreshInstallStartsDaemonsOnceWithConfig(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)
+	h := newFake()
+	converge(t, h, m)
+	for _, unit := range []string{"php8.4-fpm.service", "fail2ban.service"} {
+		if len(h.Commands("systemctl start "+unit)) != 1 {
+			t.Errorf("%s not started once", unit)
+		}
+		if n := len(h.Commands("systemctl try-reload-or-restart "+unit)) + len(h.Commands("systemctl try-restart "+unit)); n != 0 {
+			t.Errorf("%s restarted after a fresh start", unit)
+		}
+		if c := h.Commands("systemctl enable --no-reload " + unit); len(c) != 0 {
+			t.Errorf("%s was enabled by its package; enabling it again is redundant (and slow for SysV-backed units)", unit)
+		}
+	}
+	if len(h.Commands("apt-get install -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-unsafe-io")) != 1 {
+		t.Errorf("fresh install without unsafe I/O: %v", h.Commands("apt-get install"))
+	}
+	if _, ok := h.Files["/usr/sbin/policy-rc.d"]; ok {
+		t.Error("policy-rc.d left behind")
+	}
+	if len(h.Commands("fetch http://deb.example/")) == 0 {
+		t.Error("packages weren't prefetched")
+	}
+}
+
+// When an install also upgrades installed packages, daemon starts can't be
+// deferred (policy-rc.d would block the upgrade's restarts too). Packages
+// then start their services with their default config, so those must still
+// be reloaded rather than treated as fresh starts.
 func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
 	m := compileEnv(t, "minimal", "production", nil)
 	h := newFake()
+	// An installed daemon that this install upgrades.
+	h.Packages["openssh-server"], h.PackageUnits["openssh-server"], h.Upgradable = "0.9", "ssh.service", []string{"openssh-server"}
 	converge(t, h, m)
 	if got := h.Commands("systemctl start php8.4-fpm.service"); len(got) != 0 {
 		t.Errorf("php-fpm was already running; start is a no-op: %v", got)
@@ -432,6 +464,86 @@ func TestServicesStartedByPackagesAreReloaded(t *testing.T) {
 		if n == 0 {
 			t.Errorf("%s kept the package's default config:\n%s", unit, strings.Join(h.Commands("systemctl"), "\n"))
 		}
+	}
+	if _, ok := h.Files["/usr/sbin/policy-rc.d"]; ok || len(h.Commands("dpkg-query -L -- openssh-server")) != 1 {
+		t.Error("deferral must be ruled out by checking the upgraded package for daemons")
+	}
+}
+
+// Fresh images always pull some library upgrades; those don't rule out
+// deferring daemon starts. Unsafe I/O is only for a server's first
+// converge.
+func TestLibraryUpgradesStillDeferAndUnsafeIOOnlyFirst(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)
+	h := newFake()
+	h.Packages["libc6"], h.Upgradable = "0.9", []string{"libc6"}
+	converge(t, h, m)
+	if len(h.Commands("systemctl start php8.4-fpm.service")) != 1 {
+		t.Error("a library upgrade must not prevent deferred starts")
+	}
+	if len(h.Commands("sync")) != 1 {
+		t.Error("unsafe I/O must be followed by a sync")
+	}
+
+	// A later converge that installs a new package: safe I/O.
+	h.Packages["libc6"] = "1.0-fake"
+	with := manifest.New(m.Node, m.Roles)
+	with.OS = m.OS
+	for _, r := range append(slices.Clone(m.Resources), manifest.NewPackage("jq", "")) {
+		if err := with.Add(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	with.Finalize()
+	h.ResetLog()
+	converge(t, h, with)
+	if c := h.Commands("apt-get install -y"); len(c) != 1 || strings.Contains(c[0], "unsafe-io") {
+		t.Errorf("only a first converge may use unsafe I/O: %v", c)
+	}
+}
+
+// Units a package wanted started but Trellis doesn't manage (e.g. a
+// user's tailscaled, PHP's session cleanup timer) still start, after
+// Trellis's files are written.
+func TestDeferredStartsOfUnmanagedUnits(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)
+	h := newFake()
+	h.PackageUnits["php8.4-cli"] = "phpsessionclean.timer"
+	converge(t, h, m)
+	if len(h.Commands("systemctl start phpsessionclean.timer")) != 1 || !h.Units["phpsessionclean.timer"].Active {
+		t.Errorf("a package's own unit wasn't started: %v", h.Commands("systemctl start"))
+	}
+	if _, ok := h.Files["/run/trellis/policy-rc.d.log"]; ok {
+		t.Error("the denied-starts log wasn't cleared")
+	}
+}
+
+func TestStalePolicyIsRemovedAndForeignOneRespected(t *testing.T) {
+	m := compileEnv(t, "minimal", "production", nil)
+
+	h := newFake()
+	h.Files["/usr/sbin/policy-rc.d"] = &hosttest.File{Data: []byte("#!/bin/sh\n# Trellis: defers daemon starts during a package install.\nexit 101\n"), Mode: 0o755}
+	converge(t, h, m)
+	if _, ok := h.Files["/usr/sbin/policy-rc.d"]; ok {
+		t.Error("a stale Trellis policy-rc.d must be removed")
+	}
+
+	h = newFake()
+	h.Files["/usr/sbin/policy-rc.d"] = &hosttest.File{Data: []byte("#!/bin/sh\nexit 0\n"), Mode: 0o755}
+	converge(t, h, m)
+	if string(h.Files["/usr/sbin/policy-rc.d"].Data) != "#!/bin/sh\nexit 0\n" {
+		t.Error("someone else's policy-rc.d was changed")
+	}
+	if len(h.Commands("systemctl start php8.4-fpm.service")) != 0 {
+		t.Error("with a foreign policy-rc.d (allowing starts), packages start their own daemons")
+	}
+}
+
+func TestParseDenied(t *testing.T) {
+	log := "fail2ban start 5\nfail2ban.service start\nmsmtpd (start) 5\nmariadb stop 5\nphp8.4-fpm restart 5\nphpsessionclean.timer start\n"
+	got := strings.Join(engine.ParseDenied([]byte(log)), " ")
+	if want := "fail2ban.service msmtpd.service php8.4-fpm.service phpsessionclean.timer"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -503,5 +615,26 @@ func TestRemovingAUnitWithoutInstallStopsIt(t *testing.T) {
 	}
 	if c := h.Commands("systemctl try-restart job.service"); len(c) != restarts {
 		t.Errorf("a pruned unit was restarted: %v", c)
+	}
+}
+
+func TestEnablingUnitsReloadsSystemdOnce(t *testing.T) {
+	h := newFake()
+	converge(t, h, compileEnv(t, "full", "production", nil))
+	cmds := h.Commands("systemctl")
+	lastEnable, reloads := -1, 0
+	for i, c := range cmds {
+		switch {
+		case strings.HasPrefix(c, "systemctl enable "):
+			if !strings.HasPrefix(c, "systemctl enable --no-reload ") {
+				t.Errorf("%s reloads systemd itself", c)
+			}
+			lastEnable = i
+		case c == "systemctl daemon-reload" && lastEnable >= 0:
+			reloads++
+		}
+	}
+	if lastEnable < 0 || reloads != 1 {
+		t.Errorf("want one daemon-reload after the enables, got %d:\n%s", reloads, strings.Join(cmds, "\n"))
 	}
 }

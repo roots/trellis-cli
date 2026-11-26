@@ -65,6 +65,8 @@ func Apply(ctx context.Context, h host.Host, desired *manifest.Manifest, p *Plan
 		stopped:   map[string]bool{},
 		triggers:  map[string][]string{},
 		deferred:  map[string]manifest.Notify{},
+
+		firstConverge: prev == nil || (prev.Failed && prev.Number == 1),
 	}
 	for i := range desired.Resources {
 		r.completed[desired.Resources[i].ID()] = true
@@ -75,7 +77,10 @@ func Apply(ctx context.Context, h host.Host, desired *manifest.Manifest, p *Plan
 		}
 	}
 
-	err := r.execute(p)
+	err := r.removeStalePolicy()
+	if err == nil {
+		err = r.execute(p)
+	}
 	if err := r.record(desired, prev, p.Generation, err != nil); err != nil {
 		return nil, fmt.Errorf("record generation: %w", err)
 	}
@@ -98,15 +103,18 @@ type run struct {
 	// installed is set once packages were installed in this run.
 	installed bool
 
-	backups   map[string]backup          // original content of files changed in this run
-	completed map[manifest.ID]bool       // desired resources known to be converged
-	started   map[string]bool            // units started in this run
-	stopped   map[string]bool            // units stopped by pruning in this run
-	triggers  map[string][]string        // notify key → paths whose change triggered it
-	deferred  map[string]manifest.Notify // unit → strongest pending notification
-	order     []string                   // deferred units in first-seen order
-	issue     []manifest.Resource        // Let's Encrypt certs to issue
-	notified  []string
+	backups   map[string]backup    // original content of files changed in this run
+	completed map[manifest.ID]bool // desired resources known to be converged
+	started   map[string]bool      // units started in this run
+	stopped   map[string]bool      // units stopped by pruning in this run
+	relink    bool                 // units enabled or disabled without a daemon-reload yet
+	// firstConverge is set until a server has a successful generation.
+	firstConverge bool
+	triggers      map[string][]string        // notify key → paths whose change triggered it
+	deferred      map[string]manifest.Notify // unit → strongest pending notification
+	order         []string                   // deferred units in first-seen order
+	issue         []manifest.Resource        // Let's Encrypt certs to issue
+	notified      []string
 }
 
 func (r *run) log(op, target, msg string) { r.opts.Log(Event{Op: op, Target: target, Message: msg}) }
@@ -130,9 +138,16 @@ func (r *run) execute(p *Plan) error {
 			}
 			acts = append(acts, extra...)
 		}
+		if phase == manifest.PhaseData {
+			// Daemons whose start a package install deferred: their config
+			// and certificates are in place, and databases need MariaDB.
+			if err := r.startDeferred(); err != nil {
+				return err
+			}
+		}
 		if phase == manifest.PhaseServices && r.installed {
 			var err error
-			if acts, err = r.recheckStarted(acts); err != nil {
+			if acts, err = r.recheckServices(acts); err != nil {
 				return err
 			}
 		}
@@ -152,14 +167,15 @@ func (r *run) execute(p *Plan) error {
 	return r.issueCerts()
 }
 
-// recheckStarted drops "start" for units a package started earlier in
-// this run (Debian postinst scripts start their services). Those units are
-// running the package's default config, so they must not count as freshly
-// started: their reload/restart notifications still have to run.
-func (r *run) recheckStarted(acts []Action) ([]Action, error) {
+// recheckServices drops what a package install already did: units it
+// enabled, and units it started (Debian postinst scripts start their
+// services unless the start was deferred). Units a package started run its
+// default config, so they don't count as freshly started: their
+// reload/restart notifications still have to run.
+func (r *run) recheckServices(acts []Action) ([]Action, error) {
 	var units []string
 	for _, a := range acts {
-		if a.Resource.Kind == manifest.KindService && slices.Contains(a.Reasons, "start") {
+		if a.Resource.Kind == manifest.KindService && (slices.Contains(a.Reasons, "start") || slices.Contains(a.Reasons, "enable")) {
 			units = append(units, a.Resource.Service.Unit)
 		}
 	}
@@ -173,13 +189,13 @@ func (r *run) recheckStarted(acts []Action) ([]Action, error) {
 	live := parseSystemctlShow(out)
 	kept := acts[:0:0]
 	for _, a := range acts {
-		if a.Resource.Kind == manifest.KindService {
-			if u, ok := live[a.Resource.Service.Unit]; ok && u.Active() {
-				a.Reasons = slices.DeleteFunc(slices.Clone(a.Reasons), func(s string) bool { return s == "start" })
-				if len(a.Reasons) == 0 {
-					r.completed[a.ID()] = true
-					continue
-				}
+		if u, ok := live[a.Resource.Service.Unit]; ok && a.Resource.Kind == manifest.KindService {
+			a.Reasons = slices.DeleteFunc(slices.Clone(a.Reasons), func(s string) bool {
+				return (s == "start" && u.Active()) || (s == "enable" && u.Enabled())
+			})
+			if len(a.Reasons) == 0 {
+				r.completed[a.ID()] = true
+				continue
 			}
 		}
 		kept = append(kept, a)
@@ -200,6 +216,12 @@ func (r *run) phase(acts []Action) error {
 		}
 		r.completed[a.ID()] = true
 	}
+	if r.relink {
+		r.relink = false
+		if _, err := r.h.Run(r.ctx, host.Cmd{Argv: []string{"systemctl", "daemon-reload"}}); err != nil {
+			return err
+		}
+	}
 	if len(pkgs) > 0 {
 		if err := r.installPackages(pkgs); err != nil {
 			return err
@@ -215,8 +237,19 @@ func (r *run) installPackages(acts []Action) error {
 		pkgs[i] = *a.Resource.Package
 		names[i] = a.Resource.Name
 	}
-	r.log("install", strings.Join(names, " "), "")
-	if _, err := r.h.Run(r.ctx, aptInstallCmd(pkgs)); err != nil {
+	r.prefetch(pkgs)
+	deferStarts, err := r.canDeferStarts(pkgs)
+	if err != nil {
+		return err
+	}
+	if deferStarts {
+		r.log("install", strings.Join(names, " "), "daemons start after configuration")
+		err = r.installDeferred(pkgs)
+	} else {
+		r.log("install", strings.Join(names, " "), "")
+		err = r.install(pkgs)
+	}
+	if err != nil {
 		return err
 	}
 	r.installed = true
@@ -409,7 +442,14 @@ func (r *run) apply(a Action) error {
 	case manifest.KindService:
 		s := res.Service
 		for _, reason := range a.Reasons {
-			if _, err := r.h.Run(r.ctx, host.Cmd{Argv: []string{"systemctl", reason, s.Unit}}); err != nil {
+			argv := []string{"systemctl", reason, s.Unit}
+			if reason == "enable" || reason == "disable" {
+				// Each enable would otherwise reload systemd (~0.2s); the
+				// links are on disk either way, so reload once per phase.
+				argv = []string{"systemctl", reason, "--no-reload", s.Unit}
+				r.relink = true
+			}
+			if _, err := r.h.Run(r.ctx, host.Cmd{Argv: argv}); err != nil {
 				return err
 			}
 			if reason == "start" {

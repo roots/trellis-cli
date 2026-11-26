@@ -58,6 +58,9 @@ type Fake struct {
 	// PackageUnits are units a package's postinst enables and starts,
 	// with whatever config exists at that moment.
 	PackageUnits map[string]string
+	// Upgradable are installed packages apt would upgrade along with any
+	// install (a newer dependency).
+	Upgradable []string
 
 	// Outputs are canned stdout for commands with these prefixes.
 	Outputs map[string]string
@@ -228,10 +231,14 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 	case "dpkg-query":
 		return f.dpkgQuery(argv), nil
 	case "apt-get":
-		return nil, f.apt(argv)
+		return f.apt(argv)
 	case "systemctl":
 		return f.systemctl(argv)
 	case "mariadb":
+		local := !slices.ContainsFunc(argv, func(a string) bool { return strings.HasPrefix(a, "--host=") })
+		if u, ok := f.Units["mariadb.service"]; local && ok && !u.Active {
+			return nil, fmt.Errorf("mariadb: can't connect to local server through socket (mariadb.service is stopped)")
+		}
 		return f.mariadb(string(c.Stdin))
 	case "certbot":
 		return nil, f.certbot(argv)
@@ -243,6 +250,14 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 func (f *Fake) dpkgQuery(argv []string) []byte {
 	i := slices.Index(argv, "--")
 	var b strings.Builder
+	if argv[1] == "-L" { // a package's files: its unit, if it has one
+		for _, name := range argv[i+1:] {
+			if unit, ok := f.PackageUnits[name]; ok {
+				fmt.Fprintf(&b, "/usr/lib/systemd/system/%s\n", unit)
+			}
+		}
+		return []byte(b.String())
+	}
 	for _, name := range argv[i+1:] {
 		if v, ok := f.Packages[name]; ok {
 			fmt.Fprintf(&b, "%s\t%s\tii \n", name, v)
@@ -251,13 +266,18 @@ func (f *Fake) dpkgQuery(argv []string) []byte {
 	return []byte(b.String())
 }
 
-func (f *Fake) apt(argv []string) error {
+func (f *Fake) apt(argv []string) ([]byte, error) {
 	if len(argv) < 2 {
-		return nil
+		return nil, nil
 	}
 	i := slices.Index(argv, "--")
 	switch argv[1] {
 	case "install":
+		if slices.Contains(argv, "-s") || slices.Contains(argv, "--print-uris") {
+			return f.aptPreview(argv[i+1:], slices.Contains(argv, "-s")), nil
+		}
+		policy := f.Files["/usr/sbin/policy-rc.d"]
+		deferred := policy != nil && strings.Contains(string(policy.Data), "exit 101")
 		for _, spec := range argv[i+1:] {
 			name, version, ok := strings.Cut(spec, "=")
 			if !ok {
@@ -269,7 +289,15 @@ func (f *Fake) apt(argv []string) error {
 				}
 				if unit, ok := f.PackageUnits[name]; ok {
 					u := f.unit(unit)
-					u.Enabled, u.Active = true, true
+					u.Enabled, u.Active = true, !deferred
+					if deferred { // policy-rc.d logs the start it denied
+						log := f.Files["/run/trellis/policy-rc.d.log"]
+						if log == nil {
+							log = &File{Mode: 0o644, Owner: "root", Group: "root"}
+							f.Files["/run/trellis/policy-rc.d.log"] = log
+						}
+						log.Data = append(log.Data, unit+" start\n"...)
+					}
 				}
 			}
 			f.Packages[name] = version
@@ -279,7 +307,38 @@ func (f *Fake) apt(argv []string) error {
 			delete(f.Packages, name)
 		}
 	}
-	return nil
+	return nil, nil
+}
+
+// aptPreview answers `apt-get install -s` (simulate) and --print-uris for
+// specs: new packages, plus Upgradable ones as upgrades.
+func (f *Fake) aptPreview(specs []string, simulate bool) []byte {
+	var b strings.Builder
+	var names []string
+	for _, spec := range specs {
+		name, _, _ := strings.Cut(spec, "=")
+		if _, installed := f.Packages[name]; !installed {
+			names = append(names, name)
+		}
+	}
+	for _, name := range f.Upgradable {
+		if _, installed := f.Packages[name]; installed {
+			names = append(names, name)
+		}
+	}
+	for _, name := range names {
+		if simulate {
+			old := ""
+			if v, installed := f.Packages[name]; installed {
+				old = "[" + v + "] "
+			}
+			fmt.Fprintf(&b, "Inst %s %s(1.0-fake fake [amd64])\n", name, old)
+			continue
+		}
+		url := "http://deb.example/pool/" + name + "_1.0-fake_amd64.deb"
+		fmt.Fprintf(&b, "'%s' %s_1.0-fake_amd64.deb %d SHA256:fake\n", url, name, len("content of "+url))
+	}
+	return []byte(b.String())
 }
 
 func (f *Fake) unit(name string) *Unit {
@@ -315,7 +374,7 @@ func (f *Fake) systemctl(argv []string) ([]byte, error) {
 		}
 		return []byte(b.String()), nil
 	case "enable":
-		f.unit(argv[2]).Enabled = true
+		f.unit(argv[len(argv)-1]).Enabled = true
 	case "disable":
 		unit := argv[len(argv)-1]
 		f.unit(unit).Enabled = false
