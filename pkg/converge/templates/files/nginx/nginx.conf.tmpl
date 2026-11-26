@@ -101,6 +101,8 @@ http {
     text/x-component text/x-cross-domain-policy text/xml;
 
   ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_ciphers EECDH+CHACHA20:EECDH+AES;
+  ssl_buffer_size 1400; # fit a TLS record in one MTU
   ssl_prefer_server_ciphers off;
   ssl_session_cache shared:SSL:10m;
   ssl_session_timeout 1d;

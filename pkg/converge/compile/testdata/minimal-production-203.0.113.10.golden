@@ -1,5 +1,5 @@
 # node 203.0.113.10 (roles: web, db)
-# hash 5a3d66dfc28d5b61f4ef0f3ef9370d728e72e5d431fab6ca4265f6a423409f2f
+# hash eb9e548dd29399ef65bb4d728d0901f42a7fec5d09063440c8e15dbebb662140
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
@@ -192,6 +192,7 @@ file          /etc/nftables.conf 0755 root:root
     │     tcp dport 22 accept
     │ 
     │     tcp dport { 80, 443 } accept
+    │     udp dport 443 accept
     │   }
     │ 
     │   chain output {
@@ -296,6 +297,8 @@ file          /etc/nginx/nginx.conf 0644 root:root
     │     text/x-component text/x-cross-domain-policy text/xml;
     │ 
     │   ssl_protocols TLSv1.2 TLSv1.3;
+    │   ssl_ciphers EECDH+CHACHA20:EECDH+AES;
+    │   ssl_buffer_size 1400; # fit a TLS record in one MTU
     │   ssl_prefer_server_ciphers off;
     │   ssl_session_cache shared:SSL:10m;
     │   ssl_session_timeout 1d;
@@ -310,8 +313,11 @@ file          /etc/nginx/sites/00-no-default.conf 0644 root:root
     │ server {
     │   listen 80 default_server deferred;
     │   listen [::]:80 default_server deferred;
-    │   listen 443 ssl default_server;
-    │   listen [::]:443 ssl default_server;
+    │   listen 443 ssl default_server deferred;
+    │   listen [::]:443 ssl default_server deferred;
+    │   # nginx needs exactly one QUIC listener per address with reuseport.
+    │   listen 443 quic reuseport default_server;
+    │   listen [::]:443 quic reuseport default_server;
     │   ssl_reject_handshake on;
     │   server_name _;
     │   location ^~ /.well-known/acme-challenge/ {
@@ -327,7 +333,7 @@ file          /etc/nginx/sites/example.com.conf 0644 root:root
     │ server {
     │   listen 80;
     │   listen [::]:80;
-    │   server_name example.com www.example.com;
+    │   server_name example.com;
     │   location ^~ /.well-known/acme-challenge/ {
     │     root /srv/www/acme;
     │   }
@@ -336,9 +342,20 @@ file          /etc/nginx/sites/example.com.conf 0644 root:root
     │   }
     │ }
     │ 
+    │ # Redirect www.example.com to the canonical host in one hop, from HTTP and HTTPS.
     │ server {
+    │   listen 80;
+    │   listen [::]:80;
     │   listen 443 ssl;
     │   listen [::]:443 ssl;
+    │   listen 443 quic;
+    │   listen [::]:443 quic;
+    │   http2 on;
+    │   http3 on;
+    │   quic_retry on;
+    │   quic_gso on;
+    │   add_header Alt-Svc 'h3=":443"; ma=86400';
+    │   keepalive_timeout 300s; # amortize TLS handshakes
     │   server_name www.example.com;
     │   ssl_certificate     /etc/nginx/ssl/example.com.crt;
     │   ssl_certificate_key /etc/nginx/ssl/example.com.key;
@@ -353,6 +370,13 @@ file          /etc/nginx/sites/example.com.conf 0644 root:root
     │ server {
     │   listen 443 ssl;
     │   listen [::]:443 ssl;
+    │   listen 443 quic;
+    │   listen [::]:443 quic;
+    │   http3 on;
+    │   quic_retry on;
+    │   quic_gso on;
+    │   add_header Alt-Svc 'h3=":443"; ma=86400';
+    │   keepalive_timeout 300s; # amortize TLS handshakes
     │   http2 on;
     │   server_name example.com;
     │ 

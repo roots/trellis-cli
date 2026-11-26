@@ -175,7 +175,7 @@ func blockKey(d directive) string {
 		for _, c := range d.block {
 			switch c.name {
 			case "listen":
-				listens = append(listens, strings.Join(c.args, " "))
+				listens = append(listens, listenKey(c.args))
 			case "server_name":
 				names = append(names, c.args...)
 			}
@@ -206,7 +206,11 @@ func walkNginx(ds []directive, ctx string, add func(string, string)) {
 		key, value := d.name, strings.Join(d.args, " ")
 		switch {
 		case keyed[d.name] && len(d.args) > 0:
-			key, value = d.name+" "+d.args[0], strings.Join(d.args[1:], " ")
+			first := d.args[0]
+			if d.name == "add_header" || d.name == "more_set_headers" {
+				first = strings.ToLower(first) // header names are case-insensitive
+			}
+			key, value = d.name+" "+first, strings.Join(d.args[1:], " ")
 		case d.name == "server_name" || d.name == "index" || d.name == "gzip_types":
 			args := slices.Clone(d.args)
 			slices.Sort(args)
@@ -219,4 +223,21 @@ func walkNginx(ds []directive, ctx string, add func(string, string)) {
 		}
 		add(prefix+key, value)
 	}
+}
+
+// listenKey keeps a listen directive's address and protocol (ssl, quic,
+// default_server) and drops socket tuning, so servers that differ only in
+// reuseport or deferred still line up.
+func listenKey(args []string) string {
+	var keep []string
+	for _, a := range args {
+		switch {
+		case a == "reuseport", a == "deferred", a == "ipv6only=on", a == "ipv6only=off",
+			strings.HasPrefix(a, "backlog="), strings.HasPrefix(a, "fastopen="),
+			strings.HasPrefix(a, "so_keepalive="), strings.HasPrefix(a, "rcvbuf="), strings.HasPrefix(a, "sndbuf="):
+			continue
+		}
+		keep = append(keep, a)
+	}
+	return strings.Join(keep, " ")
 }

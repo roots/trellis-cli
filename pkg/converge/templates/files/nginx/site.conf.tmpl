@@ -4,7 +4,7 @@
 server {
   listen 80;
   listen [::]:80;
-  server_name {{ join .Site.Domains " " }}{{ if .Subdomains }} *.{{ .Site.Domain }}{{ end }};
+  server_name {{ .Site.Domain }}{{ if .Subdomains }} *.{{ .Site.Domain }}{{ end }};
   location ^~ /.well-known/acme-challenge/ {
     root /srv/www/acme;
   }
@@ -15,9 +15,22 @@ server {
 {{- end }}
 {{- range .Site.Redirects }}
 
+# Redirect {{ . }} to the canonical host in one hop, from HTTP and HTTPS.
 server {
-  listen {{ if $.SSL }}443 ssl{{ else }}80{{ end }};
-  listen [::]:{{ if $.SSL }}443 ssl{{ else }}80{{ end }};
+  listen 80;
+  listen [::]:80;
+{{- if $.SSL }}
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  listen 443 quic;
+  listen [::]:443 quic;
+  http2 on;
+  http3 on;
+  quic_retry on;
+  quic_gso on;
+  add_header Alt-Svc 'h3=":443"; ma=86400';
+  keepalive_timeout 300s; # amortize TLS handshakes
+{{- end }}
   server_name {{ . }};
 {{- if $.SSL }}
   ssl_certificate     {{ $.CertPath }};
@@ -35,6 +48,15 @@ server {
 server {
   listen {{ if .SSL }}443 ssl{{ else }}80{{ end }};
   listen [::]:{{ if .SSL }}443 ssl{{ else }}80{{ end }};
+{{- if .SSL }}
+  listen 443 quic;
+  listen [::]:443 quic;
+  http3 on;
+  quic_retry on;
+  quic_gso on;
+  add_header Alt-Svc 'h3=":443"; ma=86400';
+  keepalive_timeout 300s; # amortize TLS handshakes
+{{- end }}
   http2 on;
   server_name {{ .Site.Domain }}{{ if .Subdomains }} *.{{ .Site.Domain }}{{ end }};
 
@@ -128,7 +150,9 @@ server {
     fastcgi_cache wordpress;
     fastcgi_cache_valid 200 30s;
     fastcgi_cache_bypass $skip_cache;
-    fastcgi_no_cache $skip_cache;
+    # Never cache redirects: they can depend on the visitor (cookies).
+    fastcgi_no_cache $skip_cache $upstream_http_location;
+    fastcgi_cache_background_update on;
 {{- end }}
   }
 }

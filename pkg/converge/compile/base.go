@@ -223,6 +223,7 @@ func (b *builder) firewall() {
 		"SSHRateLimit": ssh.RateLimit != nil && *ssh.RateLimit,
 		"SSHAny":       false,
 		"Web":          b.isWeb(),
+		"HTTP3":        b.isWeb() && b.anySSL(),
 	}
 	var v4, v6 []string
 	for _, a := range ssh.AllowFrom {
@@ -319,4 +320,14 @@ func (b *builder) swap() {
 		m.NewRootFile(swapUnit, "# Managed by Trellis.\n[Unit]\nDescription=Trellis swap file\nConditionPathExists=/swapfile\n\n[Swap]\nWhat=/swapfile\n\n[Install]\nWantedBy=swap.target\n", 0o644, daemonReload),
 		m.NewExec("swapfile", []string{"/bin/sh", "-c", script}, size),
 	)
+}
+
+// anySSL reports whether any site on this node serves HTTPS.
+func (b *builder) anySSL() bool {
+	for _, s := range b.env.Sites {
+		if s.SSL != config.SSLNone {
+			return true
+		}
+	}
+	return false
 }

@@ -50,7 +50,7 @@ add_header X-Frame-Options "SAMEORIGIN";
 	if a[want] != "600s" {
 		t.Errorf("missing %s in %v", want, a)
 	}
-	if a["nginx/http > server[80 | example.com] > add_header X-Frame-Options"] != "SAMEORIGIN" {
+	if a["nginx/http > server[80 | example.com] > add_header x-frame-options"] != "SAMEORIGIN" {
 		t.Errorf("header not keyed: %v", a)
 	}
 }

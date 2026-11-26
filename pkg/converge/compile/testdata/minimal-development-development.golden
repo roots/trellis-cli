@@ -1,5 +1,5 @@
 # node development (roles: web, db)
-# hash 8ecac2fb1d6da2b4799b2c9c5ead1ebfac638f12996f6ee394d34fa86e6d801a
+# hash 409a30f7a817dab1a8b41d6ffd665922633e525fd78add7c3a8d782372526835
 # warning: composer latest-2.x is not pinned by sha256 in trellis.lock
 # warning: wp-cli 2.12.0 is not pinned by sha256 in trellis.lock
 
@@ -182,6 +182,7 @@ file          /etc/nftables.conf 0755 root:root
     │     tcp dport 22 accept
     │ 
     │     tcp dport { 80, 443 } accept
+    │     udp dport 443 accept
     │   }
     │ 
     │   chain output {
@@ -286,6 +287,8 @@ file          /etc/nginx/nginx.conf 0644 root:root
     │     text/x-component text/x-cross-domain-policy text/xml;
     │ 
     │   ssl_protocols TLSv1.2 TLSv1.3;
+    │   ssl_ciphers EECDH+CHACHA20:EECDH+AES;
+    │   ssl_buffer_size 1400; # fit a TLS record in one MTU
     │   ssl_prefer_server_ciphers off;
     │   ssl_session_cache shared:SSL:10m;
     │   ssl_session_timeout 1d;
@@ -300,8 +303,11 @@ file          /etc/nginx/sites/00-no-default.conf 0644 root:root
     │ server {
     │   listen 80 default_server deferred;
     │   listen [::]:80 default_server deferred;
-    │   listen 443 ssl default_server;
-    │   listen [::]:443 ssl default_server;
+    │   listen 443 ssl default_server deferred;
+    │   listen [::]:443 ssl default_server deferred;
+    │   # nginx needs exactly one QUIC listener per address with reuseport.
+    │   listen 443 quic reuseport default_server;
+    │   listen [::]:443 quic reuseport default_server;
     │   ssl_reject_handshake on;
     │   server_name _;
     │   location ^~ /.well-known/acme-challenge/ {
@@ -329,6 +335,13 @@ file          /etc/nginx/sites/example.com.conf 0644 root:root
     │ server {
     │   listen 443 ssl;
     │   listen [::]:443 ssl;
+    │   listen 443 quic;
+    │   listen [::]:443 quic;
+    │   http3 on;
+    │   quic_retry on;
+    │   quic_gso on;
+    │   add_header Alt-Svc 'h3=":443"; ma=86400';
+    │   keepalive_timeout 300s; # amortize TLS handshakes
     │   http2 on;
     │   server_name example.test;
     │ 

@@ -3,8 +3,11 @@ server {
   listen 80 default_server deferred;
   listen [::]:80 default_server deferred;
 {{- if .AnySSL }}
-  listen 443 ssl default_server;
-  listen [::]:443 ssl default_server;
+  listen 443 ssl default_server deferred;
+  listen [::]:443 ssl default_server deferred;
+  # nginx needs exactly one QUIC listener per address with reuseport.
+  listen 443 quic reuseport default_server;
+  listen [::]:443 quic reuseport default_server;
   ssl_reject_handshake on;
 {{- end }}
   server_name _;

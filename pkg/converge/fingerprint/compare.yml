@@ -32,7 +32,7 @@ expected:
   # Firewall and fail2ban
   - key: '^firewall/input/accept tcp 22 from '
     reason: No automatic allowlist of the provisioning machine's IP (ipify)
-  - key: '^firewall/input/(accept (tcp (22|80|443)|established|loopback|icmpv6)|ratelimit tcp 22|policy drop)$'
+  - key: '^firewall/input/(accept (tcp (22|80|443)|udp 443|established|loopback|icmpv6)|ratelimit tcp 22|policy drop)$'
     reason: Same rules for IPv6 (Trellis filters IPv6 only until reboot); 443 open regardless of SSL
   - key: '^firewall/input/accept udp 500$'
     reason: Leftover IPsec rule from the Debian ferm package defaults
@@ -106,8 +106,18 @@ expected:
     reason: FastCGI cache settings only when a site uses it; TLS defaults at http level
   - key: '^nginx/.*(fastcgi_pass|location\[\^~ /\.well-known/acme-challenge/\] > (alias|root|try_files))$'
     reason: Per-site PHP socket; shared ACME webroot
-  - key: '^nginx/http > server\[80 default_server'
-    reason: Default server also serves ACME challenges; its key differs by server_name
+  - key: '^nginx/http > server\[[^|]*default_server[^|]*\|'
+    reason: One default server for HTTP, HTTPS and QUIC (Trellis has two); it also serves ACME challenges and holds the QUIC reuseport listener
+  - key: '^nginx/.*> listen (443|\[::\]:443)$'
+    reason: The QUIC reuseport listener is on the default server, not the first site
+  - key: '^nginx/.*server\[.*\] > ssl_(protocols|ciphers|prefer_server_ciphers|session_cache|session_tickets|session_timeout|buffer_size|trusted_certificate)$'
+    reason: TLS settings are set once at http level and inherited (ssl_trusted_certificate only matters for OCSP)
+  - key: '^nginx/.*> ssl_certificate$'
+    reason: Certificate file naming
+  - key: '^(nginx/.*add_header alt-svc|http/.* alt-svc)$'
+    reason: Redirect servers also advertise HTTP/3
+  - key: 'if\[\(\$http_cookie '
+    reason: Also skips the FastCGI cache for WooCommerce carts
   - key: '^nginx/http > map\[\$sent_http_content_type \$(cors|expires)\] > '
     reason: Equivalent maps with fewer entries (regexes and the 1y default cover Trellis's explicit types)
   - key: '^nginx/http > gzip_types$'
@@ -116,6 +126,8 @@ expected:
   # System
   - key: '^logrotate/'
     reason: Site logs rotate daily, 14 kept, compressed (Trellis weekly, 8)
+  - key: '^(listen/tcp \[::1\]:6379|users/web)$'
+    reason: Redis also listens on ::1 (Ubuntu default); web connects over TCP so needn't join the redis group
   - key: '^(swap/|units-enabled/swapfile\.swap$)'
     reason: Swapfile sized to memory (max 2G) instead of a fixed 1G
   - key: '^msmtp/(syslog|tls_trust_file|tls_starttls)$'

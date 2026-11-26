@@ -4,6 +4,10 @@
 # compares their effective configuration (see README.md).
 #
 #   pkg/converge/fingerprint/compare-lima.sh ~/dev/trellis [workdir]
+#   PROFILE=full pkg/converge/fingerprint/compare-lima.sh ~/dev/trellis
+#
+# PROFILE=basic (default) is Trellis's stock production site; full adds
+# self-signed SSL, the FastCGI cache, a Redis object cache and multisite.
 #
 # Needs: go, limactl, and a Trellis checkout with its virtualenv
 # (`trellis init`). The VMs are named trellis-cmp-ansible and
@@ -22,6 +26,8 @@ KEY=$HOME/.lima/_config/user
 VENV=$TRELLIS/.trellis/virtualenv/bin
 A=trellis-cmp-ansible
 C=trellis-cmp-converge
+PROFILE=${PROFILE:-basic}
+case $PROFILE in basic | full) ;; *) echo "PROFILE must be basic or full" >&2; exit 2 ;; esac
 
 for cmd in go limactl; do command -v $cmd >/dev/null || { echo "missing $cmd" >&2; exit 1; }; done
 [ -x "$VENV/ansible-playbook" ] || { echo "no Ansible in $VENV (run \`trellis init\` in $TRELLIS)" >&2; exit 1; }
@@ -55,7 +61,26 @@ printf '[production]\n%s\n\n[web]\n%s\n' "$line" "$line" >"$WORK/trellis/hosts/p
 sed -i.orig -e "s#lookup('file', '~/.ssh/id_rsa.pub', errors='ignore')#lookup('file', '$KEY.pub')#" \
   -e "s#lookup('file', '~/.ssh/id_ed25519.pub', errors='ignore')#lookup('file', '$KEY.pub')#" "$WORK/trellis/group_vars/all/users.yml"
 
-log "Preparing the equivalent converge project"
+if [ "$PROFILE" = full ]; then
+  python3 - "$WORK/trellis/group_vars/production/wordpress_sites.yml" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+for old, new in [
+    ("multisite:\n      enabled: false", "multisite:\n      enabled: true\n      subdomains: false"),
+    ("ssl:\n      enabled: false\n      provider: letsencrypt", "ssl:\n      enabled: true\n      provider: self-signed"),
+    ("cache:\n      enabled: false", "cache:\n      enabled: true\n    object_cache:\n      enabled: true\n      provider: redis"),
+]:
+    assert old in s, "unexpected wordpress_sites.yml: " + old
+    s = s.replace(old, new, 1)
+open(p, "w").write(s)
+PY
+  SITE="{ domain: example.com, redirects: [www.example.com], ssl: self-signed, cache: fastcgi, object_cache: redis, multisite: true }"
+else
+  SITE="{ domain: example.com, redirects: [www.example.com], ssl: none }"
+fi
+
+log "Preparing the equivalent converge project ($PROFILE)"
 P=$WORK/converge
 mkdir -p "$P/keys"
 cp "$KEY.pub" "$P/keys/admin.pub"
@@ -81,7 +106,7 @@ environments:
   production:
     nodes: [{ host: 127.0.0.1, port: $(port $C) }]
     sites:
-      example.com: { domain: example.com, redirects: [www.example.com], ssl: none }
+      example.com: $SITE
 EOF
 printf 'version: 1\nos: ubuntu-24.04\n' >"$P/trellis.lock"
 export TRELLIS_AGE_KEY_FILE=$KEY # decrypt secrets with the Lima SSH key
