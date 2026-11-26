@@ -121,6 +121,13 @@ func (c *DoctorCommand) Run(args []string) int {
 
 	c.printText(report)
 
+	// --quiet is for cron, where --fix can't prompt.
+	if !c.fix && !c.quiet {
+		if hint := fixHint(report, c.offline); hint != "" {
+			c.UI.Output("\n" + hint)
+		}
+	}
+
 	if c.fix && !c.applyFixes(report) {
 		// A provision run failed, whatever the re-check shows.
 		return 1
@@ -135,6 +142,30 @@ func (c *DoctorCommand) printText(report *doctor.Report) {
 	if out.Len() > 0 {
 		c.UI.Output(strings.TrimRight(out.String(), "\n"))
 	}
+}
+
+// fixHint suggests --fix for the environments that have a Fix, or returns
+// empty.
+func fixHint(report *doctor.Report, offline bool) string {
+	var envs []string
+	for _, env := range report.Environments {
+		if env.Fix != nil {
+			envs = append(envs, env.Name)
+		}
+	}
+	if len(envs) == 0 {
+		return ""
+	}
+
+	flags, what := "--fix", "this"
+	if offline {
+		flags = "--offline --fix"
+	}
+	if len(envs) > 1 {
+		what = "these"
+	}
+
+	return fmt.Sprintf("Run `trellis doctor %s %s` to have doctor run %s for you.", flags, strings.Join(envs, " "), what)
 }
 
 // applyFixes offers to run each environment's fix, then checks the fixed

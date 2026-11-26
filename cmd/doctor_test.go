@@ -149,18 +149,23 @@ func TestDoctorRun(t *testing.T) {
 		code   int
 		want   []string
 		envs   []string
+		// hint is the expected --fix hint; empty means none.
+		hint string
 	}{
 		{
 			name: "outdated", output: ok, args: []string{"production"}, code: 1, envs: []string{"production"},
 			want: []string{"production · admin@default (127.0.0.1)", "✗ nginx", "Fix:", "trellis provision --tags nginx,php,mariadb"},
+			hint: "Run `trellis doctor --offline --fix production` to have doctor run this for you.",
 		},
 		{
 			name: "every environment except development", output: ok, code: 1,
 			envs: []string{"production", "valet-link"},
+			hint: "Run `trellis doctor --offline --fix production valet-link` to have doctor run these for you.",
 		},
 		{
 			name: "inventory directory is left to Ansible", output: ok, args: []string{"production"}, code: 1,
 			envs: []string{"production"},
+			hint: "Run `trellis doctor --offline --fix production` to have doctor run this for you.",
 			setup: func(t *testing.T) {
 				if err := os.Remove("hosts/production"); err != nil {
 					t.Fatal(err)
@@ -169,6 +174,10 @@ func TestDoctorRun(t *testing.T) {
 					t.Fatal(err)
 				}
 			},
+		},
+		{
+			name: "quiet has no --fix hint", output: ok, args: []string{"--quiet", "production"}, code: 1, envs: []string{"production"},
+			want: []string{"Fix:"},
 		},
 		{
 			name: "placeholder host", output: ok, args: []string{"production"}, code: 2,
@@ -214,6 +223,11 @@ func TestDoctorRun(t *testing.T) {
 				if !strings.Contains(text, want) {
 					t.Errorf("expected %q in:\n%s", want, text)
 				}
+			}
+			if hint := strings.Contains(text, "to have doctor run"); tc.hint == "" && hint {
+				t.Errorf("expected no --fix hint in:\n%s", text)
+			} else if tc.hint != "" && !strings.Contains(text, tc.hint) {
+				t.Errorf("expected %q in:\n%s", tc.hint, text)
 			}
 
 			runs, envs := playbookCalls(*calls, doctor.FilePrefix)
@@ -273,6 +287,9 @@ func TestDoctorFix(t *testing.T) {
 			if tc.want != "" && !strings.Contains(text, tc.want) {
 				t.Errorf("expected %q in:\n%s", tc.want, text)
 			}
+			if strings.Contains(text, "to have doctor run") {
+				t.Errorf("expected no --fix hint when --fix was given:\n%s", text)
+			}
 
 			provisions, _ := playbookCalls(*calls, "server.yml")
 			checks, _ := playbookCalls(*calls, doctor.FilePrefix)
@@ -290,5 +307,14 @@ func TestDoctorFix(t *testing.T) {
 				t.Errorf("expected no provision run, got %v", provisions)
 			}
 		})
+	}
+}
+
+func TestDoctorFixHint(t *testing.T) {
+	report := &doctor.Report{Environments: []doctor.EnvReport{{Name: "production", Fix: &doctor.Fix{}}, {Name: "staging"}}}
+
+	want := "Run `trellis doctor --fix production` to have doctor run this for you."
+	if got := fixHint(report, false); got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }

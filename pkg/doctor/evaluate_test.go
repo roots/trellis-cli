@@ -367,6 +367,11 @@ func TestEvaluate(t *testing.T) {
 			id:     "reboot", status: StatusWarn, contains: "up 10 days",
 		},
 		{
+			name:   "reboot required hint",
+			mutate: func(f *hostFacts) { f.RebootRequired = true },
+			id:     "reboot", status: StatusWarn, contains: "run `sudo reboot` on the server",
+		},
+		{
 			name:   "unattended-upgrades not installed",
 			mutate: func(f *hostFacts) { f.UUInstalled = false },
 			id:     "unattended-upgrades", status: StatusWarn, contains: "apt-get install unattended-upgrades",

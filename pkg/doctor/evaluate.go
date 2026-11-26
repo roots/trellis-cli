@@ -346,7 +346,7 @@ func (e *evaluator) reboot() {
 		if e.f.Uptime > 0 {
 			r.Message += " · up " + humanDuration(e.f.Uptime)
 		}
-		r.Details = []string{"Reboot when convenient: connect with `trellis ssh <environment>` and run `sudo reboot`"}
+		r.Details = []string{"Reboot when convenient: run `sudo reboot` on the server"}
 	}
 
 	e.add(r)
