@@ -13,6 +13,34 @@ the server inside the agent.
 Not done yet: uploading only what changed against the current release; a
 `build` command for CI; deploying to several web nodes in parallel.
 
+## Customizing
+
+Per site, in `trellis.yml`:
+
+```yaml
+sites:
+  example.com:
+    writable: [web/app/uploads]   # shared between releases
+    deploy:
+      keep: 5                     # releases kept on servers
+      update_db: true             # wp core update-db after the switch
+      exclude: ["*.map", "web/app/themes/*/resources"]
+```
+
+A pattern without a slash matches any file or directory name; one with a
+slash matches a path from the release root.
+
+Hooks are shell scripts in `deploy-hooks/` (`sh -e`). Each gets
+`TRELLIS_ENV`, `TRELLIS_SITE` and `TRELLIS_COMMIT`; branch on
+`$TRELLIS_SITE` for per-site steps.
+
+| Script | Runs |
+|---|---|
+| `build.sh` | locally in the build directory, after Composer (assets) |
+| `release.sh` | on the server as `web` in the new release, before the switch; failing aborts |
+| `after.sh` | on the server as `web` in `current`, after the switch |
+| `done.sh` | locally after every server switched (notifications, CDN purges) |
+
 ## What Trellis does today
 
 `deploy.yml` runs on the server, as `web`:

@@ -54,6 +54,8 @@ type BuildOptions struct {
 	Subtree string // path of the site within the repo (site.path)
 	Hook    string // build hook script, if any
 	Env     []string
+	// Exclude are patterns kept out of the artifact (see config.SiteDeploy).
+	Exclude []string
 	// Composer is the composer command (default: composer).
 	Composer []string
 	// Out receives build output (Composer, hook).
@@ -113,7 +115,7 @@ func Build(ctx context.Context, o BuildOptions) (Artifact, error) {
 			return Artifact{}, fmt.Errorf("build hook: %w", err)
 		}
 	}
-	data, files, err := pack(dir)
+	data, files, err := pack(dir, o.Exclude)
 	if err != nil {
 		return Artifact{}, err
 	}
@@ -193,8 +195,26 @@ func extract(r io.Reader, dir string) error {
 	}
 }
 
-// pack tars and gzips dir, skipping excluded directories.
-func pack(dir string) ([]byte, int, error) {
+// excludedBy reports whether rel (slash-separated, from the release root)
+// matches one of patterns: a pattern without a slash matches the name, one
+// with a slash the whole path.
+func excludedBy(rel string, patterns []string) bool {
+	name := path.Base(rel)
+	for _, p := range patterns {
+		p = strings.Trim(p, "/")
+		target := name
+		if strings.Contains(p, "/") {
+			target = rel
+		}
+		if ok, _ := path.Match(p, target); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// pack tars and gzips dir, skipping excluded paths.
+func pack(dir string, exclude []string) ([]byte, int, error) {
 	var buf bytes.Buffer
 	gz, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
 	tw := tar.NewWriter(gz)
@@ -207,8 +227,11 @@ func pack(dir string) ([]byte, int, error) {
 		if rel == "." {
 			return nil
 		}
-		if d.IsDir() && excluded[d.Name()] {
-			return filepath.SkipDir
+		if (d.IsDir() && excluded[d.Name()]) || excludedBy(filepath.ToSlash(rel), exclude) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
@@ -254,8 +277,20 @@ func pack(dir string) ([]byte, int, error) {
 	return buf.Bytes(), files, nil
 }
 
-// Hooks reads the project's server-side deploy hooks.
-func Hooks(projectRoot string) (release.Hooks, string, error) {
+// LocalHooks are hook scripts that run on the machine deploying.
+type LocalHooks struct {
+	Build string // after composer, before packing
+	Done  string // after every server has switched
+}
+
+// RunHook runs a local hook script with sh -e.
+func RunHook(ctx context.Context, script, dir string, env []string, out io.Writer) error {
+	return run(ctx, dir, out, env, "/bin/sh", "-e", script)
+}
+
+// Hooks reads the project's deploy hooks: the server-side scripts' contents
+// and the local scripts' paths.
+func Hooks(projectRoot string) (release.Hooks, LocalHooks, error) {
 	read := func(name string) (string, error) {
 		b, err := os.ReadFile(filepath.Join(projectRoot, HooksDir, name))
 		if errors.Is(err, fs.ErrNotExist) {
@@ -264,18 +299,23 @@ func Hooks(projectRoot string) (release.Hooks, string, error) {
 		return string(b), err
 	}
 	var h release.Hooks
+	var local LocalHooks
 	var err error
 	if h.Release, err = read("release.sh"); err != nil {
-		return h, "", err
+		return h, local, err
 	}
 	if h.After, err = read("after.sh"); err != nil {
-		return h, "", err
+		return h, local, err
 	}
-	build := filepath.Join(projectRoot, HooksDir, "build.sh")
-	if _, err := os.Stat(build); err != nil {
-		build = ""
+	exists := func(name string) string {
+		p := filepath.Join(projectRoot, HooksDir, name)
+		if _, err := os.Stat(p); err != nil {
+			return ""
+		}
+		return p
 	}
-	return h, build, nil
+	local.Build, local.Done = exists("build.sh"), exists("done.sh")
+	return h, local, nil
 }
 
 // Spec describes deploying art for site in env.
@@ -291,8 +331,9 @@ func Spec(env *config.Environment, site config.Site, art Artifact, hooks release
 		Shared:    shared,
 		PHPUnit:   "php" + env.Server.PHP.Version + "-fpm.service",
 		Multisite: site.Multisite.Enabled,
+		UpdateDB:  site.Deploy.UpdatesDB(),
 		Hooks:     hooks,
 		Env:       []string{"TRELLIS_ENV=" + env.Name, "TRELLIS_COMMIT=" + art.Commit},
-		Keep:      5,
+		Keep:      site.Deploy.Keep,
 	}
 }

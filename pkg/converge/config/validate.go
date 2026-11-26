@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -75,6 +76,9 @@ func applyDefaults(e *Environment) {
 
 	for i := range e.Sites {
 		site := &e.Sites[i]
+		if site.Deploy.Keep == 0 {
+			site.Deploy.Keep = 5
+		}
 		if site.Branch == "" {
 			site.Branch = "main"
 		}
@@ -261,6 +265,14 @@ func validateSites(e *Environment, add func(string, ...any)) {
 	dbNames := map[string]string{}
 	for _, s := range e.Sites {
 		sp := fmt.Sprintf("%s.sites.%s", p, s.Name)
+		if s.Deploy.Keep < 1 {
+			add("%s: deploy.keep must be at least 1", sp)
+		}
+		for _, pat := range s.Deploy.Exclude {
+			if _, err := path.Match(strings.Trim(pat, "/"), ""); err != nil || strings.Trim(pat, "/") == "" {
+				add("%s: deploy.exclude pattern %q is invalid", sp, pat)
+			}
+		}
 		if s.Domain == "" {
 			add("%s: domain is required", sp)
 		}

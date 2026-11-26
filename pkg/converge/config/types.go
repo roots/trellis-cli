@@ -205,7 +205,21 @@ type Site struct {
 	PHP         SitePHP           `yaml:"php,omitempty"`
 	Env         map[string]string `yaml:"env,omitempty"`
 	DB          SiteDB            `yaml:"db,omitempty"`
+	Deploy      SiteDeploy        `yaml:"deploy,omitempty"`
 }
+
+// SiteDeploy tunes deploys of a site.
+type SiteDeploy struct {
+	Keep     int   `yaml:"keep,omitempty"`      // releases kept on servers (default 5)
+	UpdateDB *bool `yaml:"update_db,omitempty"` // wp core update-db after the switch (default true)
+	// Exclude keeps paths out of the release: a pattern without a slash
+	// matches any file or directory name (e.g. "*.map"); one with a slash
+	// matches a path from the release root (e.g. "web/app/themes/*/resources").
+	Exclude []string `yaml:"exclude,omitempty"`
+}
+
+// UpdatesDB reports whether deploys run wp core update-db.
+func (d SiteDeploy) UpdatesDB() bool { return d.UpdateDB == nil || *d.UpdateDB }
 
 type SitePHP struct {
 	INI map[string]string `yaml:"ini,omitempty"`

@@ -87,7 +87,7 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 	if ref == "" {
 		ref = site.Branch
 	}
-	hooks, buildHook, err := deploy.Hooks(p.Root)
+	hooks, local, err := deploy.Hooks(p.Root)
 	if err != nil {
 		return err
 	}
@@ -99,8 +99,9 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 		Repo:    filepath.Join(p.Root, site.LocalPath),
 		Ref:     ref,
 		Subtree: site.Path,
-		Hook:    buildHook,
+		Hook:    local.Build,
 		Env:     []string{"TRELLIS_ENV=" + compiled.Env.Name, "TRELLIS_SITE=" + name},
+		Exclude: site.Deploy.Exclude,
 		Out:     &buildOut,
 	})
 	if err != nil {
@@ -120,6 +121,12 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 		return err
 	}
 	c.UI.Info(fmt.Sprintf("Deployed %s %s (%s) in %s.", name, spec.ID, ref, time.Since(start).Round(100*time.Millisecond)))
+	if local.Done != "" {
+		env := []string{"TRELLIS_ENV=" + compiled.Env.Name, "TRELLIS_SITE=" + name, "TRELLIS_COMMIT=" + art.Commit, "TRELLIS_RELEASE=" + spec.ID}
+		if err := deploy.RunHook(ctx, local.Done, p.Root, env, &uiWriter{ui: c.UI}); err != nil {
+			return fmt.Errorf("deployed, but deploy-hooks/done.sh failed: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -137,6 +144,14 @@ uploaded to each web server, which links shared paths (.env, uploads), checks
 the server's PHP platform, runs deploy-hooks/release.sh, switches current
 atomically, updates the database and reloads PHP-FPM, then runs
 deploy-hooks/after.sh. A failure before the switch leaves the site unchanged.
+Finally deploy-hooks/done.sh runs locally (notifications, CDN purges).
+
+Per site in trellis.yml:
+
+  deploy:
+    keep: 5              # releases kept on servers
+    update_db: true      # wp core update-db after the switch
+    exclude: ["*.map", "web/app/themes/*/resources"]
 
 Options:
   --ref           Branch, tag or commit (default: the site's branch)

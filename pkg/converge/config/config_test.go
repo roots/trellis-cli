@@ -244,3 +244,42 @@ func siteNames(e *Environment) []string {
 	}
 	return n
 }
+
+func TestSiteDeploySettings(t *testing.T) {
+	c, err := Parse([]byte(`version: 1
+sites:
+  a.com: { repo: git@github.com:x/a.git, domain: a.com }
+  b.com:
+    repo: git@github.com:x/b.git
+    domain: b.com
+    deploy: { keep: 2, update_db: false, exclude: ["*.map"] }
+access: { admins: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey me"] }
+environments:
+  production:
+    nodes: [{ host: 203.0.113.10 }]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := c.Resolve("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b := e.Sites[0], e.Sites[1]
+	if a.Deploy.Keep != 5 || !a.Deploy.UpdatesDB() {
+		t.Errorf("defaults: %+v", a.Deploy)
+	}
+	if b.Deploy.Keep != 2 || b.Deploy.UpdatesDB() || len(b.Deploy.Exclude) != 1 {
+		t.Errorf("b.com: %+v", b.Deploy)
+	}
+
+	for _, bad := range []string{`deploy: { keep: -1 }`, `deploy: { exclude: ["[oops"] }`, `deploy: { bogus: 1 }`} {
+		c, err := Parse([]byte("version: 1\nsites:\n  a.com: { repo: git@github.com:x/a.git, domain: a.com, " + strings.TrimSuffix(strings.TrimPrefix(bad, "deploy: "), "") + " }\naccess: { admins: [\"ssh-ed25519 AAAA me\"] }\nenvironments:\n  production:\n    nodes: [{ host: 203.0.113.10 }]\n"))
+		if err == nil {
+			_, err = c.Resolve("production")
+		}
+		if err == nil {
+			t.Errorf("accepted %s", bad)
+		}
+	}
+}

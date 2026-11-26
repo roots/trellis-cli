@@ -2,6 +2,7 @@ package release_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,10 +13,11 @@ import (
 func spec() release.Spec {
 	return release.Spec{
 		Site: "example.com", ID: "20261125120000-abc1234", Artifact: "/var/lib/trellis/artifacts/abc.tar.gz",
-		Shared:  []release.Link{{Path: ".env", Target: "shared/.env"}, {Path: "web/app/uploads", Target: "shared/uploads"}},
-		PHPUnit: "php8.4-fpm.service",
-		Hooks:   release.Hooks{Release: "echo release", After: "wp cache flush"},
-		Env:     []string{"TRELLIS_ENV=production"},
+		Shared:   []release.Link{{Path: ".env", Target: "shared/.env"}, {Path: "web/app/uploads", Target: "shared/uploads"}},
+		PHPUnit:  "php8.4-fpm.service",
+		UpdateDB: true,
+		Hooks:    release.Hooks{Release: "echo release", After: "wp cache flush"},
+		Env:      []string{"TRELLIS_ENV=production"},
 	}
 }
 
@@ -38,6 +40,7 @@ func TestStepsOrder(t *testing.T) {
 		"release hook",
 		"switch current → 20261125120000-abc1234",
 		"update database",
+		"clear theme roots cache",
 		"reload php8.4-fpm.service",
 		"after hook",
 		"prune releases (keep 5)",
@@ -47,7 +50,7 @@ func TestStepsOrder(t *testing.T) {
 		t.Errorf("steps:\n%s\nwant:\n%s", got, want)
 	}
 	for _, s := range release.Steps(spec()) {
-		live := s.Name == "update database" || strings.HasPrefix(s.Name, "reload") || s.Name == "after hook" ||
+		live := s.Name == "update database" || s.Name == "clear theme roots cache" || strings.HasPrefix(s.Name, "reload") || s.Name == "after hook" ||
 			strings.HasPrefix(s.Name, "prune") || s.Name == "remove artifact"
 		if s.Live != live {
 			t.Errorf("%s: live = %v", s.Name, s.Live)
@@ -139,5 +142,13 @@ func TestExistingReleaseIsNotReused(t *testing.T) {
 	}
 	if len(h.Commands("rm -rf /srv/www/example.com/releases/")) != 0 {
 		t.Error("deleted a release this deploy didn't create")
+	}
+}
+
+func TestUpdateDBCanBeTurnedOff(t *testing.T) {
+	s := spec()
+	s.UpdateDB = false
+	if slices.Contains(names(release.Steps(s)), "update database") {
+		t.Error("update database ran with update_db: false")
 	}
 }

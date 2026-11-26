@@ -64,6 +64,8 @@ func TestBuildPacksTheCommitNotTheWorkingTree(t *testing.T) {
 	repo, bin := t.TempDir(), t.TempDir()
 	write(t, filepath.Join(repo, "site/composer.json"), `{}`)
 	write(t, filepath.Join(repo, "site/web/app/themes/t/style.css"), "committed")
+	write(t, filepath.Join(repo, "site/web/app/themes/t/resources/app.scss"), "source")
+	write(t, filepath.Join(repo, "site/resources/keep.txt"), "not under themes")
 	write(t, filepath.Join(repo, "README.md"), "outside the subtree")
 	git(t, repo, "init", "-q", "-b", "main")
 	git(t, repo, "add", ".")
@@ -75,10 +77,11 @@ func TestBuildPacksTheCommitNotTheWorkingTree(t *testing.T) {
 	composer := filepath.Join(bin, "composer")
 	write(t, composer, "#!/bin/sh\nmkdir -p vendor && echo '<?php' > vendor/autoload.php\n")
 	hook := filepath.Join(bin, "build.sh")
-	write(t, hook, "mkdir -p web/app/themes/t/dist web/app/themes/t/node_modules/x\necho built > web/app/themes/t/dist/app.js\necho junk > web/app/themes/t/node_modules/x/i.js\n")
+	write(t, hook, "mkdir -p web/app/themes/t/dist web/app/themes/t/node_modules/x\necho built > web/app/themes/t/dist/app.js\necho map > web/app/themes/t/dist/app.js.map\necho junk > web/app/themes/t/node_modules/x/i.js\n")
 
 	art, err := deploy.Build(context.Background(), deploy.BuildOptions{
 		Repo: repo, Ref: "main", Subtree: "site", Hook: hook, Composer: []string{composer},
+		Exclude: []string{"*.map", "web/app/themes/*/resources"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -87,12 +90,13 @@ func TestBuildPacksTheCommitNotTheWorkingTree(t *testing.T) {
 	if got["web/app/themes/t/style.css"] != "committed" {
 		t.Errorf("style.css = %q, want the committed content", got["web/app/themes/t/style.css"])
 	}
-	for _, name := range []string{"untracked.php", "README.md", "web/app/themes/t/node_modules/x/i.js"} {
+	for _, name := range []string{"untracked.php", "README.md", "web/app/themes/t/node_modules/x/i.js",
+		"web/app/themes/t/dist/app.js.map", "web/app/themes/t/resources/app.scss"} {
 		if _, ok := got[name]; ok {
 			t.Errorf("%s must not be packed", name)
 		}
 	}
-	for _, name := range []string{"vendor/autoload.php", "web/app/themes/t/dist/app.js", "composer.json"} {
+	for _, name := range []string{"vendor/autoload.php", "web/app/themes/t/dist/app.js", "composer.json", "resources/keep.txt"} {
 		if _, ok := got[name]; !ok {
 			t.Errorf("%s missing; have %v", name, keys(got))
 		}
@@ -121,7 +125,9 @@ func keys(m map[string]string) []string {
 func TestSpec(t *testing.T) {
 	env := &config.Environment{Name: "production"}
 	env.Server.PHP.Version = "8.4"
-	site := config.Site{Name: "example.com", Writable: []string{"web/app/uploads", "web/app/cache/"}}
+	off := false
+	site := config.Site{Name: "example.com", Writable: []string{"web/app/uploads", "web/app/cache/"},
+		Deploy: config.SiteDeploy{Keep: 3, UpdateDB: &off}}
 	art := deploy.Artifact{SHA256: "ab12", Commit: "0123456789abcdef"}
 	s := deploy.Spec(env, site, art, release.Hooks{After: "true"}, time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC))
 	if s.ID != "20261125120000-0123456" || s.Artifact != "/var/cache/trellis/ab12.tar.gz" || s.PHPUnit != "php8.4-fpm.service" {
@@ -134,6 +140,9 @@ func TestSpec(t *testing.T) {
 	}
 	if !slices.Equal(s.Shared, want) {
 		t.Errorf("shared = %v", s.Shared)
+	}
+	if s.Keep != 3 || s.UpdateDB {
+		t.Errorf("deploy settings not applied: keep=%d update_db=%v", s.Keep, s.UpdateDB)
 	}
 	if err := s.Validate(); err != nil {
 		t.Error(err)

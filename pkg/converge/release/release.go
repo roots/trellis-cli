@@ -33,6 +33,7 @@ type Spec struct {
 	Shared    []Link   `json:"shared"`
 	PHPUnit   string   `json:"php_unit"` // e.g. php8.4-fpm.service
 	Multisite bool     `json:"multisite,omitempty"`
+	UpdateDB  bool     `json:"update_db,omitempty"` // wp core update-db after the switch
 	Hooks     Hooks    `json:"hooks"`
 	Env       []string `json:"env,omitempty"` // for hooks: TRELLIS_ENV, …
 	Keep      int      `json:"keep"`          // releases to keep
@@ -121,9 +122,14 @@ func Steps(s Spec) []Step {
 	if s.Multisite {
 		transient = "wp network meta delete 1 _site_transient_theme_roots"
 	}
+	if s.UpdateDB {
+		steps = append(steps, Step{Name: "update database", Live: true, Optional: true,
+			Cmd: asWeb(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; wp core update-db"+network)})
+	}
 	steps = append(steps,
-		Step{Name: "update database", Live: true, Optional: true,
-			Cmd: asWeb(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; wp core update-db"+network+" && { "+transient+" >/dev/null 2>&1 || true; }")},
+		// Theme paths are cached with the old release's absolute path.
+		Step{Name: "clear theme roots cache", Live: true, Optional: true,
+			Cmd: asWeb(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; "+transient+" >/dev/null 2>&1 || true")},
 		Step{Name: "reload " + s.PHPUnit, Live: true, Cmd: host.Cmd{Argv: []string{"systemctl", "reload", s.PHPUnit}}},
 	)
 	if s.Hooks.After != "" {
