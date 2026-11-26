@@ -51,8 +51,7 @@ var schemaDescriptions = map[string]string{
 	"Server.mail":     "SMTP relay for outgoing mail (msmtp).",
 	"Server.security": "SSH and fail2ban settings.",
 	"Server.packages": "Extra apt packages to install.",
-	"Server.services": "Containerized services (Podman Quadlet). Deprecated: write a .container file instead.",
-	"Server.exec":     "Escape hatch: commands that re-run when `run` or their inputs change. Run as root, last.",
+	"Server.commands": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
 
 	"PHP.version": "PHP version from packages.sury.org, e.g. \"8.4\".",
 	"PHP.ini":     "php.ini settings for PHP-FPM and the CLI.",
@@ -110,20 +109,13 @@ var schemaDescriptions = map[string]string{
 	"FPM.max_spare_servers": "Maximum idle workers (dynamic).",
 	"FPM.max_requests":      "Requests a worker serves before being recycled (default 500).",
 
-	"Exec.name":   "Unique name (letters, digits, - and _).",
-	"Exec.run":    "Shell command, run as root with /bin/sh -c.",
-	"Exec.inputs": "Project files whose contents trigger a re-run when they change.",
+	"Command.name": "Name shown in plans and history (default: derived from run). Letters, digits, - and _.",
+	"Command.run":  "Shell command, run as root with /bin/sh -c after everything else. Runs once, then when run, env or a watched file changes.",
+	"Command.on":   "Server paths (files, or directories ending in /) managed by Trellis or server/files/; a change re-runs the command.",
+	"Command.env":  "Environment variables (values may be secret:<path>; kept out of plans and history).",
 
 	"DBAdmin.user":     "Admin user on the external database.",
 	"DBAdmin.password": "Admin password (use secret:<path>).",
-
-	"Service.image":   "Container image (pin a digest: image@sha256:…).",
-	"Service.publish": "Published ports, e.g. 127.0.0.1:7700:7700.",
-	"Service.env":     "Environment variables (values may be secret:<path>).",
-	"Service.volumes": "Named volumes or bind mounts, e.g. data:/data.",
-	"Service.memory":  "Memory limit, e.g. 512M.",
-	"Service.health":  "Health check.",
-	"Health.http":     "URL that must return 2xx for the service to be healthy.",
 
 	"SiteDeploy.keep":      "Releases kept on the server (default 5).",
 	"SiteDeploy.update_db": "Run wp core update-db after the switch (default true).",

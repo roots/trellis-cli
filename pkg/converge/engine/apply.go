@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -61,6 +62,7 @@ func Apply(ctx context.Context, h host.Host, desired *manifest.Manifest, p *Plan
 		backups:   map[string]backup{},
 		completed: map[manifest.ID]bool{},
 		started:   map[string]bool{},
+		stopped:   map[string]bool{},
 		triggers:  map[string][]string{},
 		deferred:  map[string]manifest.Notify{},
 	}
@@ -99,6 +101,7 @@ type run struct {
 	backups   map[string]backup          // original content of files changed in this run
 	completed map[manifest.ID]bool       // desired resources known to be converged
 	started   map[string]bool            // units started in this run
+	stopped   map[string]bool            // units stopped by pruning in this run
 	triggers  map[string][]string        // notify key → paths whose change triggered it
 	deferred  map[string]manifest.Notify // unit → strongest pending notification
 	order     []string                   // deferred units in first-seen order
@@ -336,6 +339,9 @@ func (r *run) flushDeferred() error {
 		if r.started[unit] {
 			continue // a fresh start already loaded the new config
 		}
+		if r.stopped[unit] {
+			continue // pruned: its own unit file's removal notified it
+		}
 		if err := r.check(n); err != nil {
 			return err
 		}
@@ -425,6 +431,9 @@ func (r *run) apply(a Action) error {
 
 	case manifest.KindExec:
 		cmd := host.Cmd{Argv: res.Exec.Command}
+		for _, k := range slices.Sorted(maps.Keys(res.Exec.Env)) {
+			cmd.Env = append(cmd.Env, k+"="+res.Exec.Env[k])
+		}
 		if res.Exec.Stdin != "" {
 			cmd.Stdin = []byte(res.Exec.Stdin)
 		}
@@ -573,6 +582,7 @@ func (r *run) pruneOne(res manifest.Resource) error {
 	case manifest.KindDownload:
 		return r.h.Remove(res.Download.Path)
 	case manifest.KindService:
+		r.stopped[res.Service.Unit] = true
 		_, err := r.h.Run(r.ctx, host.Cmd{Argv: []string{"systemctl", "disable", "--now", res.Service.Unit}})
 		if err != nil && (strings.Contains(err.Error(), "not loaded") || strings.Contains(err.Error(), "does not exist")) {
 			return nil

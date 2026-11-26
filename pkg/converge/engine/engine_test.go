@@ -311,20 +311,20 @@ func TestFailedRunKeepsOwnershipForPruning(t *testing.T) {
 	// Exec that failed must re-run; resources that succeeded must not.
 	p2, _ := plan(t, h, m)
 	got := describe(p2)
-	if !strings.Contains(got, "run exec:user:rebuild-font-cache") {
+	if !strings.Contains(got, "run exec:user:fc-cache-f") {
 		t.Errorf("failed exec not retried:\n%s", got)
 	}
 	if strings.Contains(got, "file:/etc/nginx/nginx.conf") {
 		t.Errorf("completed resources should not be re-applied:\n%s", got)
 	}
 
-	// Meilisearch's files were written before the failure; removing the
-	// service from config must still prune them.
+	// Mail's files were written before the failure; removing mail from
+	// config must still prune them.
 	without := compileEnv(t, "full", "production", func(e *config.Environment) {
-		e.Server.Services = nil
+		e.Server.Mail = nil
 	})
 	p3, _ := plan(t, h, without)
-	if !strings.Contains(describe(p3), "prune file:/etc/containers/systemd/meilisearch.container") {
+	if !strings.Contains(describe(p3), "prune file:/etc/msmtprc") {
 		t.Errorf("resources from a failed run were not pruned:\n%s", describe(p3))
 	}
 }
@@ -341,11 +341,15 @@ func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 		t.Errorf("exec re-ran without input changes")
 	}
 	changed := compileEnv(t, "full", "production", func(e *config.Environment) {
-		e.Server.Exec[0].Run = "fc-cache -fv"
+		e.Server.Commands[0].Run = "fc-cache -fv"
 	})
 	converge(t, h, changed)
 	if n := len(h.Commands("/bin/sh -c fc-cache -fv")); n != 1 {
 		t.Errorf("exec did not re-run after its command changed")
+	}
+	// Secret env reaches the command but never history.
+	if c := h.Commands("/bin/sh -c tailscale up"); len(c) != 1 || !slices.Contains(h.Envs[c[0]], "TS_AUTHKEY=tskey-auth-example") {
+		t.Errorf("tailscale-up ran with %+v", c)
 	}
 }
 
@@ -449,5 +453,31 @@ func TestFailedPhaseCommandIsRetried(t *testing.T) {
 	}
 	if p, _ := plan(t, h, m); !p.Empty() {
 		t.Errorf("not converged:\n%s", describe(p))
+	}
+}
+
+// Removing a unit file stops its service; the file's own restart
+// notification must not then try to restart a unit that no longer exists.
+func TestRemovingAUnitDoesNotRestartIt(t *testing.T) {
+	h := newFake()
+	m := compileEnv(t, "full", "production", nil)
+	converge(t, h, m)
+
+	without := manifest.New(m.Node, m.Roles)
+	without.OS = m.OS
+	for _, r := range m.Resources {
+		if r.Name != "example-actions.service" && r.Name != "/etc/systemd/system/example-actions.service" {
+			if err := without.Add(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	without.Finalize()
+	converge(t, h, without)
+	if len(h.Commands("systemctl disable --now example-actions.service")) != 1 {
+		t.Error("the unit was not stopped")
+	}
+	if c := h.Commands("systemctl try-restart example-actions.service"); len(c) != 0 {
+		t.Errorf("a pruned unit was restarted: %v", c)
 	}
 }

@@ -43,6 +43,8 @@ type Fake struct {
 	Units     map[string]*Unit
 	Databases map[string]bool
 	DBUsers   map[string]string // "user@host" → password
+	// Envs records the environment commands ran with (keyed like Log).
+	Envs map[string][]string
 	// URLs served by Fetch.
 	URLs map[string][]byte
 	// Fail makes commands whose argv (joined by spaces) has this prefix
@@ -199,6 +201,12 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 	defer f.mu.Unlock()
 	line := strings.Join(c.Argv, " ")
 	f.Log = append(f.Log, line)
+	if len(c.Env) > 0 {
+		if f.Envs == nil {
+			f.Envs = map[string][]string{}
+		}
+		f.Envs[line] = c.Env
+	}
 	// Redacted secrets come from stored history; using one as a real
 	// value (a password, file content) is always a bug.
 	if strings.Contains(line, manifest.RedactedPrefix) || strings.Contains(string(c.Stdin), manifest.RedactedPrefix) ||

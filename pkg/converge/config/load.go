@@ -54,8 +54,38 @@ func Load(path string) (*Config, error) {
 	return c, nil
 }
 
+// removedServerKeys explain server keys that no longer exist.
+var removedServerKeys = map[string]string{
+	"exec":     "exec: was replaced by commands: (run, on, env); ship its inputs as files under server/files/ and list them in on:",
+	"services": "services: was removed: write a Podman Quadlet file to server/files/etc/containers/systemd/<name>.container (see CUSTOMIZING.md)",
+}
+
+func checkRemovedKeys(doc map[string]any) error {
+	var errs []error
+	check := func(where string, m any) {
+		mm, _ := m.(map[string]any)
+		for _, k := range slices.Sorted(maps.Keys(removedServerKeys)) {
+			if _, ok := mm[k]; ok {
+				errs = append(errs, fmt.Errorf("%s.%s", where, removedServerKeys[k]))
+			}
+		}
+	}
+	check("defaults", doc["defaults"])
+	envs, _ := doc["environments"].(map[string]any)
+	for _, name := range slices.Sorted(maps.Keys(envs)) {
+		check("environments."+name, envs[name])
+	}
+	return errors.Join(errs...)
+}
+
 // Parse decodes trellis.yml strictly.
 func Parse(b []byte) (*Config, error) {
+	var pre map[string]any
+	if err := yaml.Unmarshal(b, &pre); err == nil {
+		if err := checkRemovedKeys(pre); err != nil {
+			return nil, err
+		}
+	}
 	var f File
 	dec := yaml.NewDecoder(bytes.NewReader(b))
 	dec.KnownFields(true)

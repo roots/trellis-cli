@@ -27,6 +27,38 @@
       },
       "type": "object"
     },
+    "Command": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "Environment variables (values may be secret:\u003cpath\u003e; kept out of plans and history).",
+          "type": "object"
+        },
+        "name": {
+          "description": "Name shown in plans and history (default: derived from run). Letters, digits, - and _.",
+          "type": "string"
+        },
+        "on": {
+          "description": "Server paths (files, or directories ending in /) managed by Trellis or server/files/; a change re-runs the command.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "run": {
+          "description": "Shell command, run as root with /bin/sh -c after everything else. Runs once, then when run, env or a watched file changes.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "DBAdmin": {
       "additionalProperties": false,
       "properties": {
@@ -48,16 +80,16 @@
           "$ref": "#/$defs/Access",
           "description": "Overrides top-level access for this environment."
         },
+        "commands": {
+          "description": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
+          "items": {
+            "$ref": "#/$defs/Command"
+          },
+          "type": "array"
+        },
         "database": {
           "$ref": "#/$defs/ExternalDatabase",
           "description": "An external database (e.g. RDS). Without it, MariaDB runs on the server."
-        },
-        "exec": {
-          "description": "Escape hatch: commands that re-run when `run` or their inputs change. Run as root, last.",
-          "items": {
-            "$ref": "#/$defs/Exec"
-          },
-          "type": "array"
         },
         "host": {
           "description": "The server's address (one server per environment). Optional in development (use --lima or --host).",
@@ -107,13 +139,6 @@
           "$ref": "#/$defs/Security",
           "description": "SSH and fail2ban settings."
         },
-        "services": {
-          "additionalProperties": {
-            "$ref": "#/$defs/Service"
-          },
-          "description": "Containerized services (Podman Quadlet). Deprecated: write a .container file instead.",
-          "type": "object"
-        },
         "sites": {
           "additionalProperties": {
             "anyOf": [
@@ -142,27 +167,6 @@
         },
         "user": {
           "description": "SSH user (default: admin, falling back to root on fresh servers).",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "Exec": {
-      "additionalProperties": false,
-      "properties": {
-        "inputs": {
-          "description": "Project files whose contents trigger a re-run when they change.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "name": {
-          "description": "Unique name (letters, digits, - and _).",
-          "type": "string"
-        },
-        "run": {
-          "description": "Shell command, run as root with /bin/sh -c.",
           "type": "string"
         }
       },
@@ -238,16 +242,6 @@
         "xmlrpc": {
           "description": "Ban IPs that hammer xmlrpc.php.",
           "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "Health": {
-      "additionalProperties": false,
-      "properties": {
-        "http": {
-          "description": "URL that must return 2xx for the service to be healthy.",
-          "type": "string"
         }
       },
       "type": "object"
@@ -334,10 +328,10 @@
     "Server": {
       "additionalProperties": false,
       "properties": {
-        "exec": {
-          "description": "Escape hatch: commands that re-run when `run` or their inputs change. Run as root, last.",
+        "commands": {
+          "description": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
           "items": {
-            "$ref": "#/$defs/Exec"
+            "$ref": "#/$defs/Command"
           },
           "type": "array"
         },
@@ -381,13 +375,6 @@
           "$ref": "#/$defs/Security",
           "description": "SSH and fail2ban settings."
         },
-        "services": {
-          "additionalProperties": {
-            "$ref": "#/$defs/Service"
-          },
-          "description": "Containerized services (Podman Quadlet). Deprecated: write a .container file instead.",
-          "type": "object"
-        },
         "swap": {
           "description": "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
           "pattern": "^(auto|off|[1-9][0-9]*[MG])$",
@@ -396,49 +383,6 @@
         "timezone": {
           "description": "IANA time zone, e.g. Etc/UTC or America/Toronto.",
           "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "Service": {
-      "additionalProperties": false,
-      "properties": {
-        "env": {
-          "additionalProperties": {
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
-          },
-          "description": "Environment variables (values may be secret:\u003cpath\u003e).",
-          "type": "object"
-        },
-        "health": {
-          "$ref": "#/$defs/Health",
-          "description": "Health check."
-        },
-        "image": {
-          "description": "Container image (pin a digest: image@sha256:…).",
-          "type": "string"
-        },
-        "memory": {
-          "description": "Memory limit, e.g. 512M.",
-          "type": "string"
-        },
-        "publish": {
-          "description": "Published ports, e.g. 127.0.0.1:7700:7700.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "volumes": {
-          "description": "Named volumes or bind mounts, e.g. data:/data.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
         }
       },
       "type": "object"

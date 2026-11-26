@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -247,6 +248,8 @@ func diff(r *manifest.Resource, obs *state.Observed, prev *state.Generation) (Op
 			return OpRun, []string{"inputs changed"}
 		} else if old.Redacted().Exec.Stdin != r.Redacted().Exec.Stdin {
 			return OpRun, []string{"secret input changed"}
+		} else if !maps.Equal(old.Redacted().Exec.Env, r.Redacted().Exec.Env) {
+			return OpRun, []string{"env changed"}
 		}
 	}
 	return "", nil

@@ -1,0 +1,16 @@
+[Unit]
+Description=Meilisearch
+
+[Container]
+Image=docker.io/getmeili/meilisearch:v1.11
+PublishPort=127.0.0.1:7700:7700
+Volume=meili-data:/meili_data
+EnvironmentFile=/etc/trellis/meilisearch.env
+HealthCmd=curl -fsS http://127.0.0.1:7700/health
+
+[Service]
+MemoryMax=512M
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

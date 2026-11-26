@@ -1,0 +1,1 @@
+0 3 * * * web cd /srv/www/example.com/current && wp search-index rebuild --quiet

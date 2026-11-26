@@ -60,6 +60,16 @@ func (r Resource) WithStdin(stdin string) Resource {
 	return r
 }
 
+// WithEnv sets an exec resource's environment (values may be secrets).
+func (r Resource) WithEnv(env map[string]string) Resource {
+	if r.Exec != nil && len(env) > 0 {
+		x := *r.Exec
+		x.Env = env
+		r.Exec = &x
+	}
+	return r
+}
+
 func NewExec(name string, command []string, inputs string) Resource {
 	return Resource{Kind: KindExec, Name: name, Phase: PhaseExec,
 		Exec: &Exec{Command: command, Inputs: inputs}}

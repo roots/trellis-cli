@@ -3,8 +3,6 @@ apt_snapshot: 20261120T000000Z
 packages:
   nginx: 1.29.3-1~noble
   ghostscript: 10.02.1~dfsg1-0ubuntu7.4
-images:
-  getmeili/meilisearch:v1.11: sha256:4f3c5a1e0c0b7a8a1d2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7081
 ssh_keys:
   github:example-admin:
     - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example

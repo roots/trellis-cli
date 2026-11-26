@@ -180,11 +180,12 @@ func (p *Project) Compile(env, version string, keys secrets.Keys) (*Compiled, er
 		return nil, fmt.Errorf("%s: %w", f.Path, err)
 	}
 	ms, err := compile.Compile(compile.Input{
-		Env:     e,
-		Lock:    p.Lock,
-		Secrets: sec,
-		Project: os.DirFS(p.Root),
-		Version: version,
+		Env:          e,
+		Lock:         p.Lock,
+		Secrets:      sec,
+		Project:      os.DirFS(p.Root),
+		Environments: p.Config.EnvironmentNames(),
+		Version:      version,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("compile %s:\n%w", env, err)

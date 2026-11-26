@@ -1,0 +1,12 @@
+[Unit]
+Description=Action Scheduler worker for example.com
+
+[Service]
+User=web
+WorkingDirectory=/srv/www/example.com/current
+ExecStart=/usr/local/bin/wp action-scheduler run --batches=100
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

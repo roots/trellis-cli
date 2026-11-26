@@ -24,20 +24,12 @@ defaults:
   packages:
     - php8.4-imagick
     - ghostscript
-  services:
-    meilisearch:
-      image: getmeili/meilisearch:v1.11
-      publish: ["127.0.0.1:7700:7700"]
-      env:
-        MEILI_ENV: production
-        MEILI_MASTER_KEY: secret:meili_master_key
-      volumes: ["meili-data:/meili_data"]
-      memory: 512M
-      health: { http: "http://127.0.0.1:7700/health" }
-  exec:
-    - name: rebuild-font-cache
-      run: fc-cache -f
-      inputs: [server/fonts/]
+  commands:
+    - run: fc-cache -f
+      on: [/usr/local/share/fonts/]
+    - name: tailscale-up
+      run: tailscale up --auth-key="$TS_AUTHKEY" --ssh=false
+      env: { TS_AUTHKEY: secret:tailscale_authkey }
 
 access:
   admins: [github:example-admin, file:keys/alice.pub]

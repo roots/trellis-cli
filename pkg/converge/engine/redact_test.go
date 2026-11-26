@@ -12,7 +12,7 @@ import (
 
 // secretValues are the fixtures' secrets long enough to search for.
 var secretValues = []string{
-	"postmark-pass", "sk_live_example", "meili-master", "example-db-pass",
+	"postmark-pass", "sk_live_example", "meili-master", "tskey-auth-example", "example-db-pass",
 	"shop-db-pass", "split-db-pass", "rds-pass",
 }
 

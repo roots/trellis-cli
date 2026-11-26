@@ -152,6 +152,15 @@ func Parse(name, src string) (*template.Template, error) {
 	return t, nil
 }
 
+// ParseFuncs is Parse with extra template functions (e.g. secret).
+func ParseFuncs(name, src string, extra template.FuncMap) (*template.Template, error) {
+	t, err := template.New(path.Base(name)).Funcs(funcs).Funcs(extra).Option("missingkey=error").Parse(src)
+	if err != nil {
+		return nil, fmt.Errorf("template %s: %w", name, err)
+	}
+	return t, nil
+}
+
 // Execute renders t, normalising the result to end with one newline.
 func Execute(t *template.Template, data any) (string, error) {
 	var buf bytes.Buffer

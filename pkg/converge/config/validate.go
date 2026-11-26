@@ -156,30 +156,33 @@ func validate(e *Environment) error {
 			add("%s: packages: %q is not a valid package name", p, pkg)
 		}
 	}
-	for name, svc := range s.Services {
+	cmdNames := map[string]bool{}
+	for i, c := range s.Commands {
+		where := fmt.Sprintf("%s: commands[%d]", p, i)
+		if strings.TrimSpace(c.Run) == "" {
+			add("%s: run is required", where)
+			continue
+		}
+		name := c.CommandName()
 		if !unitNameRe.MatchString(name) {
-			add("%s: services.%s: name must match %s", p, name, unitNameRe)
+			add("%s: name %q must match %s", where, name, unitNameRe)
 		}
-		if svc.Image == "" {
-			add("%s: services.%s: image is required", p, name)
+		if cmdNames[name] {
+			add("%s: another command is named %q; give one a name", where, name)
 		}
-		for k := range svc.Env {
-			if !envKeyRe.MatchString(k) {
-				add("%s: services.%s.env: invalid variable name %q", p, name, k)
+		cmdNames[name] = true
+		if strings.Contains(c.Run, "secret:") {
+			add("%s: pass secrets through env (env: {KEY: secret:<path>}), not in run", where)
+		}
+		for _, o := range c.On {
+			if !path.IsAbs(o) || path.Clean(o) != strings.TrimSuffix(o, "/") && o != "/" {
+				add("%s: on: %q must be an absolute, clean server path", where, o)
 			}
 		}
-	}
-	execNames := map[string]bool{}
-	for i, x := range s.Exec {
-		if !unitNameRe.MatchString(x.Name) {
-			add("%s: exec[%d].name %q must match %s", p, i, x.Name, unitNameRe)
-		}
-		if execNames[x.Name] {
-			add("%s: exec %q is declared twice", p, x.Name)
-		}
-		execNames[x.Name] = true
-		if strings.TrimSpace(x.Run) == "" {
-			add("%s: exec %q: run is required", p, x.Name)
+		for k := range c.Env {
+			if !envKeyRe.MatchString(k) {
+				add("%s: env: invalid variable name %q", where, k)
+			}
 		}
 	}
 	if s.Mail != nil && s.Mail.SMTP == "" {

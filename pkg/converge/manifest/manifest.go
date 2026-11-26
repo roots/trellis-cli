@@ -179,7 +179,7 @@ func (r *Resource) Sensitive() bool {
 	case KindDatabaseUser:
 		return true
 	case KindExec:
-		return r.Exec.Stdin != ""
+		return r.Exec.Stdin != "" || len(r.Exec.Env) > 0
 	}
 	return false
 }
@@ -334,6 +334,9 @@ type Exec struct {
 	// Stdin is secret input (e.g. a password for chpasswd). It is redacted
 	// in history; a change to it re-runs the command.
 	Stdin string `json:"stdin,omitempty"`
+	// Env is passed to the command. Values are treated like Stdin:
+	// redacted in history, and a change re-runs the command.
+	Env map[string]string `json:"env,omitempty"`
 }
 
 // Manifest is the desired state of a single node.

@@ -50,9 +50,20 @@ func (r Resource) Redacted() Resource {
 		u.Password = redact(r.ID(), u.Password)
 		u.Server = u.Server.redacted(r.ID())
 		r.DatabaseUser = &u
-	case r.Exec != nil && r.Exec.Stdin != "":
+	case r.Exec != nil && (r.Exec.Stdin != "" || len(r.Exec.Env) > 0):
 		x := *r.Exec
 		x.Stdin = redact(r.ID(), x.Stdin)
+		if len(x.Env) > 0 {
+			env := make(map[string]string, len(x.Env))
+			for k, v := range x.Env {
+				if IsRedacted(v) {
+					env[k] = v
+				} else {
+					env[k] = redact(r.ID(), k+"="+v)
+				}
+			}
+			x.Env = env
+		}
 		r.Exec = &x
 	case r.Database != nil && r.Database.Server != nil:
 		d := *r.Database

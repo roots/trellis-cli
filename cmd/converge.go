@@ -498,8 +498,10 @@ func (c *ConvergeEjectCommand) Help() string {
 	return `Usage: trellis converge eject [--list | --show] <template>
 
 Copies a built-in template (e.g. nginx/site.conf) to server/ejected/ where it
-replaces the built-in one. Prefer drop-ins in server/ when possible: ejected
-templates don't get upstream improvements automatically.
+replaces the built-in one. Prefer a file in a drop-in directory under
+server/files/ (e.g. etc/nginx/includes.d/<site>/) when possible: ejected
+templates don't get upstream improvements automatically (compile warns when
+one changes). See pkg/converge/CUSTOMIZING.md.
 `
 }
 

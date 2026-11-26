@@ -88,9 +88,13 @@ plaintext `secrets/development.yml`.
 ## Resource kinds
 
 `package`, `file` (whole files only; optional pre-write `validate`, `absent`),
-`download` (sha256 or GPG fingerprint verified), `service`, `database`,
+`download` (sha256 or OpenPGP fingerprints verified), `service`, `database`,
 `database_user`, `cert` (self-signed in Go; Let's Encrypt via certbot webroot),
-`exec` (escape hatch, re-runs only when its inputs hash changes).
+`exec` (re-runs only when its command, inputs, stdin or env change).
+
+Users customize servers with files (`server/files/`, per-environment
+overlays), packages, and `commands:`; a path table decides each file's phase
+and effect. See [CUSTOMIZING.md](CUSTOMIZING.md).
 
 Users and directories are not resource kinds: the compiler writes
 `sysusers.d`/`tmpfiles.d` files and lets systemd converge them.

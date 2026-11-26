@@ -25,8 +25,6 @@ type Lock struct {
 	AptSnapshot string `yaml:"apt_snapshot,omitempty"`
 	// Packages maps apt package name → exact version.
 	Packages map[string]string `yaml:"packages,omitempty"`
-	// Images maps an image reference (as written in trellis.yml) → digest.
-	Images map[string]string `yaml:"images,omitempty"`
 	// Tools pins downloaded binaries (wp-cli, composer).
 	Tools map[string]Tool `yaml:"tools,omitempty"`
 	// SSHKeys maps a key reference (github:<user>) → public keys.

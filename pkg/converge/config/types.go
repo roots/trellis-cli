@@ -56,14 +56,13 @@ type Server struct {
 	Timezone string `yaml:"timezone,omitempty"`
 	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
 	// swap), a size for /swapfile (e.g. "1G"), or "off".
-	Swap     string             `yaml:"swap,omitempty"`
-	PHP      PHP                `yaml:"php,omitempty"`
-	MariaDB  map[string]string  `yaml:"mariadb,omitempty"`
-	Mail     *Mail              `yaml:"mail,omitempty"`
-	Security Security           `yaml:"security,omitempty"`
-	Packages []string           `yaml:"packages,omitempty"`
-	Services map[string]Service `yaml:"services,omitempty"`
-	Exec     []Exec             `yaml:"exec,omitempty"`
+	Swap     string            `yaml:"swap,omitempty"`
+	PHP      PHP               `yaml:"php,omitempty"`
+	MariaDB  map[string]string `yaml:"mariadb,omitempty"`
+	Mail     *Mail             `yaml:"mail,omitempty"`
+	Security Security          `yaml:"security,omitempty"`
+	Packages []string          `yaml:"packages,omitempty"`
+	Commands []Command         `yaml:"commands,omitempty"`
 }
 
 type PHP struct {
@@ -103,27 +102,48 @@ type Fail2ban struct {
 	XMLRPC  bool `yaml:"xmlrpc,omitempty"`
 }
 
-// Service is a Podman Quadlet container. The image tag is resolved to a
-// digest in trellis.lock.
-type Service struct {
-	Image   string            `yaml:"image"`
-	Publish []string          `yaml:"publish,omitempty"`
-	Env     map[string]string `yaml:"env,omitempty"`
-	Volumes []string          `yaml:"volumes,omitempty"`
-	Memory  string            `yaml:"memory,omitempty"`
-	Health  *Health           `yaml:"health,omitempty"`
+// Command is the escape hatch for what files and packages can't express:
+// a shell command run as root after everything else. It runs once, then
+// again only when run, env, or a file it watches (on) changes. Commands
+// are never undone.
+type Command struct {
+	// Name identifies the command in plans and history (default: derived
+	// from run).
+	Name string `yaml:"name,omitempty"`
+	Run  string `yaml:"run"`
+	// On lists server paths (files or directories, e.g. /usr/local/share/fonts/)
+	// managed by this manifest; a change to any of them re-runs the command.
+	On []string `yaml:"on,omitempty"`
+	// Env is passed to the command; values may be secret:<path>. Values are
+	// kept out of plans and history.
+	Env map[string]string `yaml:"env,omitempty"`
 }
 
-type Health struct {
-	HTTP string `yaml:"http,omitempty"`
-}
-
-// Exec is the escape hatch: a shell command re-run only when the hash of
-// its inputs (project paths) changes.
-type Exec struct {
-	Name   string   `yaml:"name"`
-	Run    string   `yaml:"run"`
-	Inputs []string `yaml:"inputs,omitempty"`
+// CommandName is the command's name, or one derived from run: its first
+// few words, e.g. "fc-cache -f" → "fc-cache-f".
+func (c Command) CommandName() string {
+	if c.Name != "" {
+		return c.Name
+	}
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(c.Run) {
+		ok := r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_'
+		switch {
+		case ok:
+			if dash && b.Len() > 0 {
+				b.WriteByte('-')
+			}
+			dash = false
+			b.WriteRune(r)
+		default:
+			dash = true
+		}
+		if b.Len() >= 40 {
+			break
+		}
+	}
+	return b.String()
 }
 
 // Access lists SSH key references: "github:<user>", "file:<path>" or a

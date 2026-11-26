@@ -132,7 +132,7 @@ func (c *ConvergeValidateCommand) Help() string {
 	return `Usage: trellis converge validate [options] [<environment>...]
 
 Validates every environment (or the ones given) offline: trellis.yml,
-secrets references, keys, server/ files and templates. Exits non-zero on
+secrets references, keys, server/files/ and templates. Exits non-zero on
 errors. Needs a key that can decrypt the secrets, unless --config-only.
 
 Options:

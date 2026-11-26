@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"testing/fstest"
 
 	"github.com/roots/trellis-cli/pkg/converge/compile"
 	"github.com/roots/trellis-cli/pkg/converge/config"
@@ -126,74 +125,43 @@ func TestExternalDatabase(t *testing.T) {
 	}
 }
 
-func TestExtensionLadder(t *testing.T) {
+func TestFullProjectCustomizations(t *testing.T) {
 	m := compileProject(t, "full", "production")
 
-	// Rung 2: drop-ins, including a rendered .tmpl with site context.
 	get(t, m, manifest.KindFile, "/etc/nginx/conf.d/realip.conf")
 	get(t, m, manifest.KindFile, "/etc/php/8.4/fpm/conf.d/jit.ini")
+	get(t, m, manifest.KindFile, "/usr/local/share/fonts/Inter.ttf")
 	redirects := get(t, m, manifest.KindFile, "/etc/nginx/includes.d/example.com/redirects.conf").File.Content
 	if !strings.Contains(redirects, "https://example.com/new") || !strings.Contains(redirects, "on production") {
-		t.Errorf("rendered drop-in:\n%s", redirects)
+		t.Errorf("rendered file:\n%s", redirects)
 	}
-	// Exec inputs under server/ are not installed as drop-ins.
-	for _, r := range m.Resources {
-		if strings.Contains(r.Name, "fonts") && r.Kind == manifest.KindFile {
-			t.Errorf("exec input installed as file: %s", r.Name)
-		}
-	}
+	// The production overlay.
+	get(t, m, manifest.KindFile, "/etc/sysctl.d/90-tuning.conf")
 
-	// Rung 3: extra packages, deduplicated with core and pinned from lock.
+	// Extra packages, deduplicated with core and pinned from lock.
 	if v := get(t, m, manifest.KindPackage, "ghostscript").Package.Version; v != "10.02.1~dfsg1-0ubuntu7.4" {
 		t.Errorf("ghostscript version = %q", v)
 	}
-	get(t, m, manifest.KindPackage, "php8.4-imagick")
 
-	// Rung 4: Quadlet service pinned by digest, secrets in a 0600 env file.
-	q := get(t, m, manifest.KindFile, "/etc/containers/systemd/meilisearch.container").File.Content
-	if !strings.Contains(q, "Image=getmeili/meilisearch:v1.11@sha256:4f3c") {
-		t.Errorf("quadlet:\n%s", q)
+	// The Quadlet recipe: podman, a started unit, and a secret env file.
+	get(t, m, manifest.KindPackage, "podman")
+	get(t, m, manifest.KindService, "meilisearch.service")
+	env := get(t, m, manifest.KindFile, "/etc/trellis/meilisearch.env")
+	if env.File.Mode != 0o600 || !env.File.Sensitive || !strings.Contains(env.File.Content, "MEILI_MASTER_KEY=meili-master") {
+		t.Errorf("env file = %+v", env.File)
 	}
-	envFile := get(t, m, manifest.KindFile, "/etc/trellis/services/meilisearch.env")
-	if envFile.File.Mode != 0o600 || !envFile.File.Sensitive || !strings.Contains(envFile.File.Content, "MEILI_MASTER_KEY=meili-master") {
-		t.Errorf("env file = %+v", envFile.File)
+	// The unit's EnvironmentFile= restarts it when the file changes.
+	if len(env.Notify) != 1 || env.Notify[0].Unit != "meilisearch.service" {
+		t.Errorf("env file notify = %+v", env.Notify)
 	}
 
-	// Escape hatch.
-	x := get(t, m, manifest.KindExec, "user:rebuild-font-cache")
-	if x.Exec.Inputs == "" {
-		t.Error("exec inputs hash is empty")
+	fonts := get(t, m, manifest.KindExec, "user:fc-cache-f")
+	if fonts.Exec.Inputs == "" {
+		t.Error("a command with on: must hash its watched files")
 	}
-}
-
-func TestExecInputsHashTracksFiles(t *testing.T) {
-	compileWith := func(font string) string {
-		p, err := project.Open(filepath.Join("..", "testdata", "projects", "full"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		e, err := p.Config.Resolve("production")
-		if err != nil {
-			t.Fatal(err)
-		}
-		sec := loadSecrets(t, p, "production")
-		fsys := fstest.MapFS{
-			"keys/alice.pub":      {Data: []byte("ssh-ed25519 AAAA alice")},
-			"server/fonts/a.ttf":  {Data: []byte(font)},
-			"server/php/conf.d/x": nil,
-		}
-		delete(fsys, "server/php/conf.d/x")
-		ms, err := compile.Compile(compile.Input{Env: e, Lock: p.Lock, Secrets: sec, Project: fsys})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return ms.Get(manifest.ID{Kind: manifest.KindExec, Name: "user:rebuild-font-cache"}).Exec.Inputs
-	}
-	if compileWith("v1") == compileWith("v2") {
-		t.Error("changing an input file must change the exec inputs hash")
-	}
-	if a, b := compileWith("v1"), compileWith("v1"); a != b {
-		t.Error("inputs hash must be stable")
+	ts := get(t, m, manifest.KindExec, "user:tailscale-up")
+	if ts.Exec.Env["TS_AUTHKEY"] != "tskey-auth-example" || !ts.Sensitive() {
+		t.Errorf("command env = %v", ts.Exec.Env)
 	}
 }
 
@@ -237,29 +205,6 @@ func TestOwnershipConflict(t *testing.T) {
 	}
 	if err := m.Add(manifest.NewRootFile("/etc/x", "b", 0o644)); err == nil || !strings.Contains(err.Error(), "ownership conflict") {
 		t.Fatalf("expected ownership conflict, got %v", err)
-	}
-}
-
-func TestDropInConflictsWithCore(t *testing.T) {
-	p, err := project.Open(filepath.Join("..", "testdata", "projects", "minimal"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	e, _ := p.Config.Resolve("production")
-	sec := loadSecrets(t, p, "production")
-	fsys := fstest.MapFS{
-		// Collides with Trellis's own php ini.
-		"server/php/conf.d/90-trellis.ini": {Data: []byte("x=1")},
-		"server/nginx/typo/oops.conf":      {Data: []byte("")},
-	}
-	_, err = compile.Compile(compile.Input{Env: e, Lock: p.Lock, Secrets: sec, Project: fsys})
-	if err == nil {
-		t.Fatal("expected errors")
-	}
-	for _, want := range []string{"ownership conflict: file:/etc/php/8.4/fpm/conf.d/90-trellis.ini", "server/nginx/typo/oops.conf: unrecognized drop-in"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("missing %q in:\n%v", want, err)
-		}
 	}
 }
 

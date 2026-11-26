@@ -10,8 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/roots/trellis-cli/pkg/converge/config"
@@ -26,8 +24,11 @@ type Input struct {
 	Env     *config.Environment
 	Lock    *lock.Lock
 	Secrets secrets.Store
-	// Project is the project root (containing server/, keys/, exec inputs).
+	// Project is the project root (containing server/ and keys/).
 	Project fs.FS
+	// Environments are every environment in trellis.yml, to catch typos in
+	// server/env/<name>/ (optional).
+	Environments []string
 	// Version is the trellis-cli version, used for ejected-template checks.
 	Version string
 }
@@ -101,12 +102,14 @@ type builder struct {
 func (b *builder) compile() {
 	b.base()
 	b.webStack()
-	b.services()
-	b.userExec()
+	b.externalDatabases()
 	if b.env.LocalDB() {
 		b.db()
 	}
-	b.dropIns()
+	// User files and commands come last: they may not take over a path
+	// Trellis manages, and commands watch files from either.
+	b.serverFiles()
+	b.commands()
 }
 
 func (b *builder) errorf(format string, args ...any) {
@@ -198,9 +201,4 @@ func checkEjected(tpl *templates.Set, l *lock.Lock) []string {
 		}
 	}
 	return warnings
-}
-
-// sortedKeys is a small helper for deterministic iteration.
-func sortedKeys[V any](m map[string]V) []string {
-	return slices.Sorted(maps.Keys(m))
 }

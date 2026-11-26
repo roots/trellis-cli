@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash c54aad2f0e121cd075e400f369d746eeb0ad9bbfafa3a8222c6dd2b02dc84660
+# hash 0047ccf8451d65cc584759189cfcec46a2107dcd9d08707f0ddadb9fcc34edc9
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -120,23 +120,24 @@ file          /etc/apt/apt.conf.d/20auto-upgrades 0644 root:root
 file          /etc/containers/systemd/meilisearch.container 0644 root:root
               ↳ run systemctl daemon-reload
               ↳ restart meilisearch.service
-    │ # Managed by Trellis.
     │ [Unit]
-    │ Description=Trellis service meilisearch
+    │ Description=Meilisearch
     │ 
     │ [Container]
-    │ ContainerName=meilisearch
-    │ Image=getmeili/meilisearch:v1.11@sha256:4f3c5a1e0c0b7a8a1d2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7081
+    │ Image=docker.io/getmeili/meilisearch:v1.11
     │ PublishPort=127.0.0.1:7700:7700
     │ Volume=meili-data:/meili_data
-    │ EnvironmentFile=/etc/trellis/services/meilisearch.env
-    │ PodmanArgs=--memory=512M
+    │ EnvironmentFile=/etc/trellis/meilisearch.env
+    │ HealthCmd=curl -fsS http://127.0.0.1:7700/health
     │ 
     │ [Service]
+    │ MemoryMax=512M
     │ Restart=always
     │ 
     │ [Install]
     │ WantedBy=multi-user.target
+file          /etc/cron.d/example-reindex 0644 root:root
+    │ 0 3 * * * web cd /srv/www/example.com/current && wp search-index rebuild --quiet
 file          /etc/fail2ban/filter.d/wordpress-wp-login.conf 0644 root:root
               ↳ restart fail2ban.service (check: fail2ban-client -t)
     │ # Managed by Trellis.
@@ -740,11 +741,29 @@ file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
 file          /etc/sudoers.d/90-trellis 0440 root:root
     │ # Managed by Trellis.
     │ web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.4-fpm.service, /usr/sbin/service php8.4-fpm reload
+file          /etc/sysctl.d/90-tuning.conf 0644 root:root
+              ↳ run sysctl --system
+    │ net.core.somaxconn = 4096
 file          /etc/systemd/journald.conf.d/50-trellis.conf 0644 root:root
               ↳ restart systemd-journald.service
     │ # Managed by Trellis.
     │ [Journal]
     │ SystemMaxUse=512M
+file          /etc/systemd/system/example-actions.service 0644 root:root
+              ↳ run systemctl daemon-reload
+              ↳ restart example-actions.service
+    │ [Unit]
+    │ Description=Action Scheduler worker for example.com
+    │ 
+    │ [Service]
+    │ User=web
+    │ WorkingDirectory=/srv/www/example.com/current
+    │ ExecStart=/usr/local/bin/wp action-scheduler run --batches=100
+    │ Restart=always
+    │ RestartSec=5
+    │ 
+    │ [Install]
+    │ WantedBy=multi-user.target
 file          /etc/systemd/system/swapfile.swap 0644 root:root
               ↳ run systemctl daemon-reload
     │ # Managed by Trellis.
@@ -811,7 +830,7 @@ file          /etc/systemd/system/wp-cron-shop-example-com.timer 0644 root:root
     │ 
     │ [Install]
     │ WantedBy=timers.target
-file          /etc/trellis/services/meilisearch.env 0600 root:root
+file          /etc/trellis/meilisearch.env 0600 root:root
               ↳ restart meilisearch.service
     │ <sensitive: 51 bytes>
 file          /home/admin/.ssh/authorized_keys 0600 admin:admin
@@ -825,6 +844,8 @@ file          /srv/www/example.com/shared/.env 0640 web:www-data
     │ <sensitive: 426 bytes>
 file          /srv/www/shop.example.com/shared/.env 0640 web:www-data
     │ <sensitive: 426 bytes>
+file          /usr/local/share/fonts/Inter.ttf 0644 root:root
+    │ font-placeholder
 
 == certs
 cert          example.com letsencrypt [example.com www.example.com]
@@ -839,6 +860,7 @@ database_user example_com@localhost → example_com_production
 database_user shop_example_com@localhost → shop_example_com_production
 
 == services
+service       example-actions.service enabled active
 service       fail2ban.service enabled active
 service       mariadb.service enabled active
 service       meilisearch.service active
@@ -859,4 +881,5 @@ if [ ! -e /swapfile ] && [ -z "$(swapon --noheadings --show=NAME)" ]; then
 fi
 if [ -e /swapfile ]; then systemctl enable --now swapfile.swap; fi
 
-exec          user:rebuild-font-cache: /bin/sh -c fc-cache -f
+exec          user:fc-cache-f: /bin/sh -c fc-cache -f
+exec          user:tailscale-up: /bin/sh -c tailscale up --auth-key="$TS_AUTHKEY" --ssh=false
