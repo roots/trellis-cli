@@ -30,13 +30,6 @@ func TestParseDpkg(t *testing.T) {
 	}
 }
 
-func TestParseGPG(t *testing.T) {
-	out := "pub:-:255:22:B188E2B695BD4743:::::::\nfpr:::::::::15058500A0235D97F5D10063B188E2B695BD4743:\nsub:...\nfpr:::::::::AAAA:\n"
-	if diff := cmp.Diff([]string{"15058500A0235D97F5D10063B188E2B695BD4743", "AAAA"}, parseGPGFingerprints([]byte(out))); diff != "" {
-		t.Error(diff)
-	}
-}
-
 func TestSQLQuoting(t *testing.T) {
 	u := &manifest.DatabaseUser{User: "o'brien", Host: "localhost", Password: `p'w\x`, Databases: []string{"we`ird"}}
 	sql := userSQL(u)

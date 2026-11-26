@@ -446,12 +446,12 @@ func (r *run) download(d *manifest.Download) error {
 		}
 	}
 	if d.GPGFingerprint != "" {
-		out, err := r.h.Run(r.ctx, gpgShowKeysCmd(data))
+		fprs, err := keyFingerprints(data)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %w", d.URL, err)
 		}
-		if !slices.ContainsFunc(parseGPGFingerprints(out), func(f string) bool { return strings.EqualFold(f, d.GPGFingerprint) }) {
-			return fmt.Errorf("%s does not contain key %s", d.URL, d.GPGFingerprint)
+		if !slices.ContainsFunc(fprs, func(f string) bool { return strings.EqualFold(f, d.GPGFingerprint) }) {
+			return fmt.Errorf("%s does not contain key %s (has %s)", d.URL, d.GPGFingerprint, strings.Join(fprs, ", "))
 		}
 	}
 	return r.h.WriteFile(d.Path, data, d.Mode, "root", "root", nil)

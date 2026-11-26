@@ -1,6 +1,6 @@
 // Package hosttest provides Fake, an in-memory host.Host that simulates the
 // slice of Ubuntu the engine drives (files, dpkg/apt, systemctl, MariaDB,
-// gpg, certbot). It lets the whole observe → plan → apply loop run in unit
+// certbot). It lets the whole observe → plan → apply loop run in unit
 // tests, including convergence ("a second plan is empty"), rollback and
 // pruning, without a VM.
 package hosttest
@@ -8,6 +8,7 @@ package hosttest
 import (
 	"context"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
@@ -44,8 +45,6 @@ type Fake struct {
 	DBUsers   map[string]string // "user@host" → password
 	// URLs served by Fetch.
 	URLs map[string][]byte
-	// GPG maps key content to the fingerprint gpg reports for it.
-	GPG map[string]string
 	// Fail makes commands whose argv (joined by spaces) has this prefix
 	// fail with the given message.
 	Fail map[string]string
@@ -74,7 +73,8 @@ func New() *Fake {
 		Units:     map[string]*Unit{},
 		Databases: map[string]bool{"information_schema": true, "mysql": true},
 		DBUsers:   map[string]string{"root@localhost": ""},
-		URLs:      map[string][]byte{},
+		// The real Sury signing key, so downloads are verified for real.
+		URLs: map[string][]byte{"https://packages.sury.org/php/apt.gpg": suryKey},
 		PackageFiles: map[string][]string{
 			"nginx":      {"/etc/nginx/conf.d/default.conf"},
 			"php8.4-fpm": {"/etc/php/8.4/fpm/pool.d/www.conf"},
@@ -87,10 +87,13 @@ func New() *Fake {
 			"fail2ban":       "fail2ban.service",
 			"redis-server":   "redis-server.service",
 		},
-		GPG:  map[string]string{},
+
 		Fail: map[string]string{},
 	}
 }
+
+//go:embed testdata/sury-php.gpg
+var suryKey []byte
 
 var _ host.Host = (*Fake)(nil)
 
@@ -203,9 +206,6 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 		}
 	}
 	argv := c.Argv
-	if argv[0] == "/bin/sh" && len(argv) == 3 && strings.Contains(argv[2], "gpg --homedir") {
-		argv = []string{"gpg"} // fingerprint check in a throwaway GnuPG home
-	}
 	switch argv[0] {
 	case "dpkg-query":
 		return f.dpkgQuery(argv), nil
@@ -215,11 +215,6 @@ func (f *Fake) Run(_ context.Context, c host.Cmd) ([]byte, error) {
 		return f.systemctl(argv)
 	case "mariadb":
 		return f.mariadb(string(c.Stdin))
-	case "gpg":
-		if fpr, ok := f.GPG[string(c.Stdin)]; ok {
-			return []byte("pub:-:255:22:ABC:::::::\nfpr:::::::::" + fpr + ":\n"), nil
-		}
-		return []byte("pub:-:255:22:ABC:::::::\nfpr:::::::::0000000000000000000000000000000000000000:\n"), nil
 	case "certbot":
 		return nil, f.certbot(argv)
 	}

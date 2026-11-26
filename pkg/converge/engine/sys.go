@@ -13,7 +13,7 @@ import (
 )
 
 // This file holds the command builders and output parsers for the system
-// tools the engine drives (dpkg, apt, systemctl, mariadb, gpg, openssl,
+// tools the engine drives (dpkg, apt, systemctl, mariadb, openssl,
 // certbot). They are pure, so they are unit tested without a host.
 
 var aptEnv = []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a"}
@@ -97,26 +97,6 @@ func parseSystemctlShow(out []byte) map[string]state.Unit {
 	}
 	flush()
 	return units
-}
-
-// parseGPGFingerprints extracts fingerprints from `gpg --with-colons`.
-func parseGPGFingerprints(out []byte) []string {
-	var fprs []string
-	sc := bufio.NewScanner(bytes.NewReader(out))
-	for sc.Scan() {
-		f := strings.Split(sc.Text(), ":")
-		if len(f) > 9 && f[0] == "fpr" {
-			fprs = append(fprs, f[9])
-		}
-	}
-	return fprs
-}
-
-// gpgShowKeysCmd reads a key's fingerprints with a throwaway GnuPG home,
-// so nothing is left in /root/.gnupg.
-func gpgShowKeysCmd(key []byte) host.Cmd {
-	script := `d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT && gpg --homedir "$d" --batch --show-keys --with-colons --with-fingerprint`
-	return host.Cmd{Argv: []string{"/bin/sh", "-c", script}, Stdin: key}
 }
 
 // quoteIdent quotes a MariaDB identifier.

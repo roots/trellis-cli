@@ -117,6 +117,16 @@ Users and directories are not resource kinds: the compiler writes
 `apply` sends the hash of the plan you reviewed. The agent refuses to apply
 if the plan it computes differs.
 
+## Operating systems
+
+`os:` (in `defaults` or per environment): `ubuntu-24.04` (default),
+`ubuntu-26.04`, `debian-12` or `debian-13`. Manifests record it and the agent
+refuses to run on a server whose `/etc/os-release` says otherwise, so
+upgrading a server's OS is a deliberate config change. All four are tested
+end to end on VMs (provision, no-op re-run, deploy, admin sudo with a
+password, including Ubuntu 26.04's sudo-rs). Signing keys are verified in Go
+(OpenPGP fingerprints), so nothing depends on `gpg` being installed.
+
 ## One server per environment
 
 An environment is one server (`host:`, optional `user:`/`port:`), running

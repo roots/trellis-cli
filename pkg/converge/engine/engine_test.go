@@ -18,11 +18,7 @@ import (
 
 const suryFingerprint = "15058500A0235D97F5D10063B188E2B695BD4743"
 
-func newFake() *hosttest.Fake {
-	f := hosttest.New()
-	f.GPG["content of https://packages.sury.org/php/apt.gpg"] = suryFingerprint
-	return f
-}
+func newFake() *hosttest.Fake { return hosttest.New() }
 
 // compileEnv compiles a test project environment, letting mutate edit the
 // resolved environment first (to simulate trellis.yml changes).
@@ -357,7 +353,11 @@ func TestExecRerunsOnlyWhenInputsChange(t *testing.T) {
 
 func TestDownloadVerification(t *testing.T) {
 	h := newFake()
-	h.GPG["content of https://packages.sury.org/php/apt.gpg"] = "DEADBEEF"
+	// A different (valid) key than the pinned one: the Sury key with one
+	// byte of the key material changed.
+	key := slices.Clone(h.URLs["https://packages.sury.org/php/apt.gpg"])
+	key[20] ^= 0xff
+	h.URLs["https://packages.sury.org/php/apt.gpg"] = key
 	m := compileEnv(t, "minimal", "production", nil)
 	p, obs := plan(t, h, m)
 	_, err := engine.Apply(context.Background(), h, m, p, obs.Previous, engine.Options{})
