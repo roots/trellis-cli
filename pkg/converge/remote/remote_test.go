@@ -88,8 +88,22 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 	switch {
 	case cmd == "true":
 		return nil
-	case cmd == "uname -m":
-		_, _ = io.WriteString(stdout, "x86_64\n")
+	case strings.HasPrefix(cmd, "uname -m; "): // the connect probe
+		access := "root"
+		if !root {
+			access = "nopasswd"
+			if f.sudoPassword != "" {
+				access = "password"
+			}
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		_, _ = io.WriteString(stdout, "x86_64\n"+access+"\n")
+		for p := range f.installed {
+			if a, ok := strings.CutPrefix(p, addr); ok && strings.HasPrefix(a, "/usr/local/lib/trellis/agent-") {
+				_, _ = io.WriteString(stdout, a+"\n")
+			}
+		}
 		return nil
 	case strings.HasPrefix(cmd, "test -f "):
 		f.mu.Lock()
@@ -178,6 +192,10 @@ func TestEndToEndOverFakeSSH(t *testing.T) {
 	}
 	if f.uploads != 1 {
 		t.Errorf("agent uploaded %d times, want 1 (content-addressed)", f.uploads)
+	}
+	// One round trip before the agent runs: the probe, then the upload.
+	if len(f.calls) != 3 || !strings.Contains(f.calls[0], "admin@") || !strings.Contains(f.calls[1], "root@203.0.113.10 uname -m; ") {
+		t.Errorf("setup calls = %q", f.calls)
 	}
 
 	m := manifest.New("n", nil)

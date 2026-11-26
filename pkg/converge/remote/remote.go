@@ -47,6 +47,41 @@ type Target struct {
 	User string
 	// sudoPassword is set by Elevate when the user's sudo needs a password.
 	sudoPassword string
+	// node is what Connect's probe learned, so the steps after it don't
+	// each need a round trip.
+	node *node
+}
+
+// node is what one round trip learns about a server.
+type node struct {
+	arch   string          // uname -m
+	access string          // how the user gets root: root, nopasswd or password
+	agents map[string]bool // installed agent paths
+}
+
+// probeScript reports the architecture, how the login user gets root, and
+// the installed agents, one per line. It always succeeds once logged in.
+const probeScript = `uname -m; ` +
+	`if [ "$(id -u)" = 0 ]; then echo root; elif sudo -n true 2>/dev/null; then echo nopasswd; else echo password; fi; ` +
+	`for f in /usr/local/lib/trellis/agent-*; do [ -x "$f" ] && echo "$f"; done; true`
+
+func (s *SSH) probe(ctx context.Context, t Target) (*node, error) {
+	if t.node != nil {
+		return t.node, nil
+	}
+	out, err := s.output(ctx, t, probeScript)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(out, "\n")
+	if len(lines) < 2 {
+		return nil, fmt.Errorf("%s: unexpected probe output %q", t, out)
+	}
+	n := &node{arch: lines[0], access: lines[1], agents: map[string]bool{}}
+	for _, p := range lines[2:] {
+		n.agents[p] = true
+	}
+	return n, nil
 }
 
 func (t Target) String() string { return t.User + "@" + t.Host }
@@ -98,21 +133,23 @@ func (s *SSH) Connect(ctx context.Context, host string, port int, users []string
 	var errs []error
 	for _, u := range users {
 		t := Target{Host: host, Port: port, User: u}
-		if _, err := s.output(ctx, t, "true"); err == nil {
+		n, err := s.probe(ctx, t)
+		if err == nil {
+			t.node = n
 			return t, nil
-		} else {
-			errs = append(errs, err)
 		}
+		errs = append(errs, err)
 	}
 	return Target{}, fmt.Errorf("can't connect to %s as %s:\n%w", host, strings.Join(users, " or "), errors.Join(errs...))
 }
 
 // Arch returns the node's GOARCH.
 func (s *SSH) Arch(ctx context.Context, t Target) (string, error) {
-	out, err := s.output(ctx, t, "uname -m")
+	n, err := s.probe(ctx, t)
 	if err != nil {
 		return "", err
 	}
+	out := n.arch
 	switch out {
 	case "x86_64":
 		return "amd64", nil
@@ -165,10 +202,11 @@ func FindBinary(explicit, arch string) (Binary, error) {
 // exactly that line; `-k` makes it always ask, so the line is never left
 // for the command to read).
 func (s *SSH) Elevate(ctx context.Context, t *Target, password string) error {
-	if t.User == "root" {
-		return nil
+	n, err := s.probe(ctx, *t)
+	if err != nil {
+		return err
 	}
-	if _, err := s.output(ctx, *t, "sudo -n true"); err == nil {
+	if n.access == "root" || n.access == "nopasswd" {
 		return nil
 	}
 	if password == "" {
@@ -204,7 +242,11 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'"'"
 // EnsureAgent uploads b unless the node already has it.
 func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
 	p := b.RemotePath()
-	if _, err := s.output(ctx, t, "test -x "+p); err == nil {
+	n, err := s.probe(ctx, t)
+	if err != nil {
+		return err
+	}
+	if n.agents[p] {
 		return nil
 	}
 	recv := "cat"
@@ -215,7 +257,11 @@ func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
 	// binary on stdin.
 	script := fmt.Sprintf(`set -e; t=$(mktemp); trap 'rm -f "$t"' EXIT; %s > "$t"; echo "%s  $t" | sha256sum -c --quiet; install -D -m 0755 "$t" %s`,
 		recv, b.SHA256, p)
-	return s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(b.Data)), io.Discard)
+	if err := s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(b.Data)), io.Discard); err != nil {
+		return err
+	}
+	n.agents[p] = true
+	return nil
 }
 
 // Call runs the agent with req and passes each streamed message to onMsg.
