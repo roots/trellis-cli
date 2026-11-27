@@ -1,5 +1,5 @@
 # server 198.51.100.7 (web, debian-13)
-# hash 31c0e799e8141a6cc2982e29856af7db31e088ed8b59039ce159fa474f7128e3
+# hash 0f5b94424994e419a059c1a294100a83af6da1a1c930550f0d545cd3de2deac4
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
 
@@ -538,6 +538,8 @@ file          /etc/systemd/system/php8.4-fpm.service.d/50-trellis-sandbox.conf 0
     │ # files, the deploy agent), use sudo, or write system directories. Files
     │ # under /srv/www and /tmp work exactly as before.
     │ ProtectHome=yes
+    │ # Trellis's state, and the lock deploys take.
+    │ InaccessiblePaths=-/var/lib/trellis
     │ ProtectSystem=full
     │ NoNewPrivileges=yes
     │ PrivateDevices=yes
@@ -581,6 +583,8 @@ file          /etc/systemd/system/wp-cron-example-com.service 0644 root:root
     │ # files, the deploy agent), use sudo, or write system directories. Files
     │ # under /srv/www and /tmp work exactly as before.
     │ ProtectHome=yes
+    │ # Trellis's state, and the lock deploys take.
+    │ InaccessiblePaths=-/var/lib/trellis
     │ ProtectSystem=full
     │ NoNewPrivileges=yes
     │ PrivateDevices=yes

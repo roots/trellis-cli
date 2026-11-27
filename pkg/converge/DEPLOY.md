@@ -124,8 +124,17 @@ credentials, Composer on servers, and non-reproducible builds.
     is linked and before the switch (cache warmup, checks; failing aborts
     the deploy).
   - `deploy-hooks/after.sh` runs on the server as `web`, after the switch.
-- **Safety:** one deploy or provision at a time per server (the agent's
-  lock). Any failure before the switch (unpacking, the PHP platform check,
+- **As web, without secrets:** deploys and rollbacks log in as `web` with an
+  `access.deploy` key and run the agent as `web` (a Lima VM's user, or
+  `--user`, reaches it through sudo). They read only `trellis.yml`, never the
+  secrets, and need no sudo beyond web's one rule (reloading PHP-FPM). So CI
+  needs exactly one secret, a deploy key. The agent is the one apply
+  installed, or for a different trellis-cli version, web's own copy in
+  `~/.local/lib/trellis`; artifacts upload to `~/.cache/trellis`. Both are
+  in web's home, which the PHP sandbox hides.
+- **Safety:** one deploy or provision at a time per server: deploys take
+  `/var/lib/trellis/deploy.lock`, which apply also holds (PHP can't reach
+  it). Any failure before the switch (unpacking, the PHP platform check,
   `release.sh`) removes the new release and leaves `current` untouched; an
   existing release directory is never reused or removed.
 - **Agent protocol:** a `deploy` request referencing an uploaded artifact

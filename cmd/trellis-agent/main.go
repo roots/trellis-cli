@@ -23,10 +23,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "trellis-agent (protocol %d) takes no arguments; it is run by `trellis converge`\n", agent.Protocol)
 		os.Exit(2)
 	}
-	if os.Geteuid() != 0 {
-		fmt.Fprintln(os.Stderr, "trellis-agent must run as root")
-		os.Exit(1)
-	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	// Errors are reported to the client in the stream; the exit status

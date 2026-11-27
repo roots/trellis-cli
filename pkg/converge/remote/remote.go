@@ -45,6 +45,9 @@ type Target struct {
 	Host string
 	Port int
 	User string
+	// RunAs runs commands as this user instead of root (deploys run as
+	// web): directly when logged in as it, otherwise through sudo -u.
+	RunAs string
 	// sudoPassword is set by Elevate when the user's sudo needs a password.
 	sudoPassword string
 	// node is what Connect's probe learned, so the steps after it don't
@@ -59,11 +62,18 @@ type node struct {
 	agents map[string]bool // installed agent paths
 }
 
+// Agent directories: the one apply installs into (root-owned), and web's
+// own for deploys from a trellis-cli whose agent isn't installed yet.
+const (
+	systemAgentDir = "/usr/local/lib/trellis"
+	webAgentDir    = "/home/web/.local/lib/trellis"
+)
+
 // probeScript reports the architecture, how the login user gets root, and
 // the installed agents, one per line. It always succeeds once logged in.
 const probeScript = `uname -m; ` +
 	`if [ "$(id -u)" = 0 ]; then echo root; elif sudo -n true 2>/dev/null; then echo nopasswd; else echo password; fi; ` +
-	`for f in /usr/local/lib/trellis/agent-*; do [ -x "$f" ] && echo "$f"; done; true`
+	`for f in ` + systemAgentDir + `/agent-* ` + webAgentDir + `/agent-*; do [ -x "$f" ] && echo "$f"; done; true`
 
 func (s *SSH) probe(ctx context.Context, t Target) (*node, error) {
 	if t.node != nil {
@@ -170,7 +180,17 @@ type Binary struct {
 }
 
 // RemotePath is the content-addressed location on the node.
-func (b Binary) RemotePath() string { return "/usr/local/lib/trellis/agent-" + b.SHA256[:16] }
+func (b Binary) RemotePath() string { return systemAgentDir + "/agent-" + b.SHA256[:16] }
+
+// agentPath is where t runs b from: the installed agent when there is one
+// (web can run it too), else, for a deploy, web's own copy.
+func agentPath(t Target, n *node, b Binary) string {
+	p := b.RemotePath()
+	if t.RunAs == "" || n.agents[p] {
+		return p
+	}
+	return webAgentDir + "/agent-" + b.SHA256[:16]
+}
 
 // FindBinary returns the linux agent for arch: an explicit path, then
 // $TRELLIS_AGENT_DIR/trellis-agent-linux-<arch>, then the agent embedded in
@@ -219,19 +239,29 @@ func (s *SSH) Elevate(ctx context.Context, t *Target, password string) error {
 	return nil
 }
 
+// sudo is the prefix that runs a command as root, or as t.RunAs.
 func sudo(t Target) string {
 	switch {
+	case t.RunAs != "" && t.RunAs == t.User:
+		return ""
+	case t.RunAs != "" && t.User == "root":
+		return "runuser -u " + t.RunAs + " -- "
 	case t.User == "root":
 		return ""
-	case t.sudoPassword != "":
-		return "sudo -k -S -p '' "
 	}
-	return "sudo -n "
+	p := "sudo -n "
+	if t.sudoPassword != "" {
+		p = "sudo -k -S -p '' "
+	}
+	if t.RunAs != "" {
+		p += "-u " + t.RunAs + " "
+	}
+	return p
 }
 
 // elevated prefixes stdin with the sudo password when one is needed.
 func elevated(t Target, stdin io.Reader) io.Reader {
-	if t.sudoPassword == "" || t.User == "root" {
+	if !strings.HasPrefix(sudo(t), "sudo -k -S") {
 		return stdin
 	}
 	return io.MultiReader(strings.NewReader(t.sudoPassword+"\n"), stdin)
@@ -241,11 +271,11 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'"'"
 
 // EnsureAgent uploads b unless the node already has it.
 func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
-	p := b.RemotePath()
 	n, err := s.probe(ctx, t)
 	if err != nil {
 		return err
 	}
+	p := agentPath(t, n, b)
 	if n.agents[p] {
 		return nil
 	}
@@ -253,7 +283,7 @@ func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
 	if b.Gzipped {
 		recv = "gzip -dc"
 	}
-	// The whole script runs as root, so a sudo password can precede the
+	// The whole script runs elevated, so a sudo password can precede the
 	// binary on stdin.
 	script := fmt.Sprintf(`set -e; t=$(mktemp); trap 'rm -f "$t"' EXIT; %s > "$t"; echo "%s  $t" | sha256sum -c --quiet; install -D -m 0755 "$t" %s`,
 		recv, b.SHA256, p)
@@ -291,7 +321,11 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 		_, _ = io.Copy(io.Discard, pr)
 		done <- sc.Err()
 	}()
-	runErr := s.Run(ctx, t, sudo(t)+b.RemotePath(), elevated(t, bytes.NewReader(body)), pw)
+	n, err := s.probe(ctx, t)
+	if err != nil {
+		return err
+	}
+	runErr := s.Run(ctx, t, sudo(t)+agentPath(t, n, b), elevated(t, bytes.NewReader(body)), pw)
 	_ = pw.Close()
 	scanErr := <-done
 	if agentErr != nil {
@@ -304,7 +338,7 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 // content-addressed (they contain data's sha256), so an existing file is
 // the same file. The upload is verified and moved into place atomically.
 func (s *SSH) Upload(ctx context.Context, t Target, data []byte, sha256hex, path string) error {
-	if _, err := s.output(ctx, t, "test -f "+shellQuote(path)); err == nil {
+	if err := s.Run(ctx, t, sudo(t)+"test -f "+shellQuote(path), elevated(t, strings.NewReader("")), io.Discard); err == nil {
 		return nil
 	}
 	script := fmt.Sprintf(`set -e; d=$(dirname %[1]s); mkdir -p "$d"; f=$(mktemp "$d/.upload-XXXXXX"); trap 'rm -f "$f"' EXIT; cat > "$f"; echo "%[2]s  $f" | sha256sum -c --quiet; chmod 0644 "$f"; mv "$f" %[1]s`,

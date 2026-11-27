@@ -15,7 +15,9 @@ import (
 	"github.com/hashicorp/cli"
 
 	"github.com/roots/trellis-cli/app_paths"
+	"github.com/roots/trellis-cli/pkg/converge/config"
 	"github.com/roots/trellis-cli/pkg/converge/lock"
+	"github.com/roots/trellis-cli/pkg/converge/manifest"
 	"github.com/roots/trellis-cli/pkg/converge/project"
 	"github.com/roots/trellis-cli/pkg/converge/remote"
 	"github.com/roots/trellis-cli/pkg/converge/secrets"
@@ -194,19 +196,31 @@ func (c *connection) register(fs *flag.FlagSet) {
 
 const connectionHelp = `  --host          Override the environment's host (e.g. a VM)
   --lima          Target a local Lima VM by name
-  --user          SSH user (default: admin, falling back to root)
+  --user          SSH user (default: admin, falling back to root; web for deploys)
   --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
   --agent-binary  Linux trellis-agent binary (default: embedded)
 `
 
-// session connects to compiled's server and makes sure the agent is there.
+// session connects to compiled's server as root and makes sure the agent
+// is there.
 func (c *connection) session(ctx context.Context, out io.Writer, compiled *project.Compiled) (*remote.Session, *remote.Server, error) {
-	ssh := remote.NewSSH()
-	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
 	users := []string{"admin", "root"}
 	if compiled.Env.User != "" {
 		users = []string{compiled.Env.User}
 	}
+	return c.connect(ctx, out, compiled.Env, compiled.Manifest, users, compiled.SudoPassword, "")
+}
+
+// deploySession connects to env's server for a deploy or rollback, which
+// run as web and need no secrets: logged in as web with an access.deploy
+// key, or (a Lima VM, --user) through that user's sudo.
+func (c *connection) deploySession(ctx context.Context, out io.Writer, env *config.Environment) (*remote.Session, *remote.Server, error) {
+	return c.connect(ctx, out, env, nil, []string{"web"}, "", "web")
+}
+
+func (c *connection) connect(ctx context.Context, out io.Writer, env *config.Environment, m *manifest.Manifest, users []string, sudoPassword, runAs string) (*remote.Session, *remote.Server, error) {
+	ssh := remote.NewSSH()
+	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
 	host, port := c.host, 0
 	if c.lima != "" {
 		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)
@@ -225,12 +239,13 @@ func (c *connection) session(ctx context.Context, out io.Writer, compiled *proje
 		Host:         host,
 		Port:         port,
 		Users:        users,
-		SudoPassword: compiled.SudoPassword,
+		SudoPassword: sudoPassword,
+		RunAs:        runAs,
 		FindBinary: func(arch string) (remote.Binary, error) {
 			return remote.FindBinary(c.agentBinary, arch)
 		},
 	}
-	srv, err := s.Connect(ctx, compiled.Env, compiled.Manifest)
+	srv, err := s.Connect(ctx, env, m)
 	return s, srv, err
 }
 

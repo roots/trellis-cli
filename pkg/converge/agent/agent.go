@@ -19,7 +19,7 @@ import (
 )
 
 // Protocol version; bump on incompatible changes.
-const Protocol = 3 // 2: deploy and rollback; 3: upgrade
+const Protocol = 4 // 2: deploy and rollback; 3: upgrade; 4: deploys as web
 
 type Mode string
 
@@ -65,8 +65,9 @@ type Message struct {
 	Error   string                `json:"error,omitempty"`
 }
 
-// Locker serialises concurrent runs on a host.
-type Locker func() (unlock func(), err error)
+// Locker serialises concurrent runs on a host. release is true for
+// deploys and rollbacks, which run as web.
+type Locker func(release bool) (unlock func(), err error)
 
 // Serve handles one request.
 func Serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, out io.Writer) error {
@@ -99,7 +100,7 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 	req.Manifest.Finalize()
 
 	if lock != nil {
-		unlock, err := lock()
+		unlock, err := lock(false)
 		if err != nil {
 			return err
 		}
@@ -144,11 +145,11 @@ func serve(ctx context.Context, h host.Host, lock Locker, in io.Reader, send fun
 	return nil
 }
 
-// serveRelease handles deploy and rollback. They take the same lock as
-// apply, so a deploy never runs during provisioning.
+// serveRelease handles deploy and rollback, as web. They share a lock
+// with apply, so a deploy never runs during provisioning.
 func serveRelease(ctx context.Context, h host.Host, lock Locker, req Request, send func(Message)) error {
 	if lock != nil {
-		unlock, err := lock()
+		unlock, err := lock(true)
 		if err != nil {
 			return err
 		}

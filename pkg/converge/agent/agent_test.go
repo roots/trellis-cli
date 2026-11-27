@@ -138,3 +138,25 @@ func TestRefusesADifferentOS(t *testing.T) {
 		t.Errorf("OSRelease = %q", got)
 	}
 }
+
+// Deploys take the deploy lock (as web); everything else takes the full
+// provisioning lock (as root).
+func TestLockKinds(t *testing.T) {
+	var got []bool
+	lock := func(release bool) (func(), error) {
+		got = append(got, release)
+		return func() {}, nil
+	}
+	h := hosttest.New()
+	var out bytes.Buffer
+	if err := agent.Serve(context.Background(), h, lock, request(t, agent.ModePlan, testManifest(), ""), &out); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(agent.Request{Protocol: agent.Protocol, Mode: agent.ModeRollback,
+		Rollback: &agent.RollbackRequest{Site: "example.com", PHPUnit: "php8.4-fpm.service"}})
+	_ = agent.Serve(context.Background(), h, lock, &buf, &out)
+	if len(got) != 2 || got[0] || !got[1] {
+		t.Errorf("locks taken (release?) = %v, want [false true]", got)
+	}
+}

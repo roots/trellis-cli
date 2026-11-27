@@ -1,5 +1,6 @@
 // Package release activates a built release on a server. It runs inside
-// trellis-agent, so it depends only on host and the standard library.
+// trellis-agent as the web user (deploys never need root), so it depends
+// only on host and the standard library.
 //
 // A deploy is a fixed sequence of steps (Steps is a pure function of the
 // Spec): unpack the uploaded artifact into releases/<id>, link shared
@@ -45,7 +46,7 @@ type Link struct {
 	Target string `json:"target"`
 }
 
-// Hooks are shell scripts run as the web user from the release directory.
+// Hooks are shell scripts run (as web) from the release directory.
 type Hooks struct {
 	Release string `json:"release,omitempty"` // before the switch; failure aborts
 	After   string `json:"after,omitempty"`   // after the switch
@@ -85,8 +86,13 @@ func (s Spec) Validate() error {
 	return nil
 }
 
-func asWeb(dir string, env []string, argv ...string) host.Cmd {
-	return host.Cmd{Argv: append([]string{"runuser", "-u", "web", "--"}, argv...), Dir: dir, Env: env}
+func in(dir string, env []string, argv ...string) host.Cmd {
+	return host.Cmd{Argv: argv, Dir: dir, Env: env}
+}
+
+// reload reloads PHP-FPM through the one sudo rule web has.
+func reload(unit string) host.Cmd {
+	return host.Cmd{Argv: []string{"sudo", "-n", "/usr/bin/systemctl", "reload", unit}}
 }
 
 // Steps is the deploy sequence for s.
@@ -96,23 +102,23 @@ func Steps(s Spec) []Step {
 	env := append([]string{"TRELLIS_SITE=" + s.Site, "TRELLIS_RELEASE=" + rel, "TRELLIS_CURRENT=" + current}, s.Env...)
 	steps := []Step{
 		// mkdir (not install -d) so an existing release is an error, not reused.
-		{Name: "create " + rel, Cmd: host.Cmd{Argv: []string{"/bin/sh", "-c", `mkdir -m 0755 "$1" && chown web:www-data "$1"`, "sh", rel}}},
-		{Name: "unpack", Cmd: asWeb(rel, nil, "tar", "-xzf", s.Artifact, "-C", rel)},
+		{Name: "create " + rel, Cmd: host.Cmd{Argv: []string{"mkdir", "-m", "0755", rel}}},
+		{Name: "unpack", Cmd: in(rel, nil, "tar", "-xzf", s.Artifact, "-C", rel)},
 	}
 	for _, l := range s.Shared {
 		link, target := path.Join(rel, l.Path), path.Join(site, l.Target)
 		steps = append(steps, Step{Name: "link " + l.Path + " → " + l.Target,
-			Cmd: asWeb(rel, nil, "/bin/sh", "-c", `rm -rf "$1" && mkdir -p "$(dirname "$1")" && ln -s "$2" "$1"`, "sh", link, target)})
+			Cmd: in(rel, nil, "/bin/sh", "-c", `rm -rf "$1" && mkdir -p "$(dirname "$1")" && ln -s "$2" "$1"`, "sh", link, target)})
 	}
 	// Composer's platform check: the build ran without platform checks
 	// (the laptop's PHP isn't the server's), so verify against this PHP.
 	steps = append(steps, Step{Name: "check PHP platform",
-		Cmd: asWeb(rel, nil, "php", "-r", `if (is_file("vendor/composer/platform_check.php")) { require "vendor/composer/platform_check.php"; }`)})
+		Cmd: in(rel, nil, "php", "-r", `if (is_file("vendor/composer/platform_check.php")) { require "vendor/composer/platform_check.php"; }`)})
 	if s.Hooks.Release != "" {
-		steps = append(steps, Step{Name: "release hook", Cmd: asWeb(rel, env, "/bin/sh", "-ec", s.Hooks.Release)})
+		steps = append(steps, Step{Name: "release hook", Cmd: in(rel, env, "/bin/sh", "-ec", s.Hooks.Release)})
 	}
 	steps = append(steps, Step{Name: "switch current → " + s.ID,
-		Cmd: asWeb(site, nil, "/bin/sh", "-c", `ln -sfn "releases/$1" current.new && mv -T current.new current`, "sh", s.ID)})
+		Cmd: in(site, nil, "/bin/sh", "-c", `ln -sfn "releases/$1" current.new && mv -T current.new current`, "sh", s.ID)})
 
 	network := ""
 	if s.Multisite {
@@ -124,16 +130,16 @@ func Steps(s Spec) []Step {
 	}
 	if s.UpdateDB {
 		steps = append(steps, Step{Name: "update database", Live: true, Optional: true,
-			Cmd: asWeb(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; wp core update-db"+network)})
+			Cmd: in(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; wp core update-db"+network)})
 	}
 	steps = append(steps,
 		// Theme paths are cached with the old release's absolute path.
 		Step{Name: "clear theme roots cache", Live: true, Optional: true,
-			Cmd: asWeb(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; "+transient+" >/dev/null 2>&1 || true")},
-		Step{Name: "reload " + s.PHPUnit, Live: true, Cmd: host.Cmd{Argv: []string{"systemctl", "reload", s.PHPUnit}}},
+			Cmd: in(current, nil, "/bin/sh", "-c", "wp core is-installed"+network+" 2>/dev/null || exit 0; "+transient+" >/dev/null 2>&1 || true")},
+		Step{Name: "reload " + s.PHPUnit, Live: true, Cmd: reload(s.PHPUnit)},
 	)
 	if s.Hooks.After != "" {
-		steps = append(steps, Step{Name: "after hook", Live: true, Optional: true, Cmd: asWeb(current, env, "/bin/sh", "-ec", s.Hooks.After)})
+		steps = append(steps, Step{Name: "after hook", Live: true, Optional: true, Cmd: in(current, env, "/bin/sh", "-ec", s.Hooks.After)})
 	}
 	keep := s.Keep
 	if keep < 1 {
@@ -141,8 +147,11 @@ func Steps(s Spec) []Step {
 	}
 	steps = append(steps,
 		Step{Name: "prune releases (keep " + strconv.Itoa(keep) + ")", Live: true, Optional: true,
-			Cmd: asWeb(path.Join(site, "releases"), nil, "/bin/sh", "-c", `ls -1 | sort -r | tail -n +$(($1 + 1)) | xargs -r rm -rf --`, "sh", strconv.Itoa(keep))},
-		Step{Name: "remove artifact", Live: true, Optional: true, Cmd: host.Cmd{Argv: []string{"rm", "-f", s.Artifact}}},
+			Cmd: in(path.Join(site, "releases"), nil, "/bin/sh", "-c", `ls -1 | sort -r | tail -n +$(($1 + 1)) | xargs -r rm -rf --`, "sh", strconv.Itoa(keep))},
+		// Also artifacts failed deploys left behind (an hour old, so never
+		// one a deploy is uploading).
+		Step{Name: "remove artifacts", Live: true, Optional: true, Cmd: host.Cmd{Argv: []string{"/bin/sh", "-c",
+			`rm -f "$1" && find . -maxdepth 1 -name '*.tar.gz' -mmin +60 -delete`, "sh", s.Artifact}, Dir: path.Dir(s.Artifact)}},
 	)
 	return steps
 }
@@ -224,8 +233,8 @@ func Rollback(ctx context.Context, h host.Host, site, phpUnit string, log func(s
 		return from, "", err
 	}
 	for _, st := range []Step{
-		{Name: "switch current → " + to, Cmd: asWeb(dir, nil, "/bin/sh", "-c", `ln -sfn "releases/$1" current.new && mv -T current.new current`, "sh", to)},
-		{Name: "reload " + phpUnit, Cmd: host.Cmd{Argv: []string{"systemctl", "reload", phpUnit}}},
+		{Name: "switch current → " + to, Cmd: in(dir, nil, "/bin/sh", "-c", `ln -sfn "releases/$1" current.new && mv -T current.new current`, "sh", to)},
+		{Name: "reload " + phpUnit, Cmd: reload(phpUnit)},
 	} {
 		log(st.Name, "")
 		if out, err := h.Run(ctx, st.Cmd); err != nil {

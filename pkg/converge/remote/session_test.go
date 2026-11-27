@@ -98,13 +98,18 @@ func TestDevelopmentNeedsAHost(t *testing.T) {
 func TestSessionDeployAndRollback(t *testing.T) {
 	ctx := context.Background()
 	h := hosttest.New()
-	f := &fakeSSH{host: h, users: map[string]bool{"root": true}, installed: map[string]bool{}}
+	// web logs in with a deploy key and has no sudo; admin's needs a
+	// password, which a deploy doesn't have.
+	f := &fakeSSH{host: h, users: map[string]bool{"web": true}, installed: map[string]bool{}, sudoPassword: "secret"}
 	var out bytes.Buffer
-	s := &remote.Session{Out: &out, Users: []string{"root"}}
+	s := &remote.Session{Out: &out, Users: []string{"web"}, RunAs: "web"}
 	_, srv := session(t, "minimal", "production", s, f)
 	uploadsBefore := f.uploads // the agent binary
+	if !f.installed["203.0.113.10/home/web/.local/lib/trellis/agent-"+srv.Binary.SHA256[:16]] {
+		t.Errorf("agent not installed in web's home: %v", f.installed)
+	}
 
-	art := remote.Artifact{Data: []byte("tarball"), SHA256: "abc123", Path: "/var/cache/trellis/abc123.tar.gz"}
+	art := remote.Artifact{Data: []byte("tarball"), SHA256: "abc123", Path: "/home/web/.cache/trellis/abc123.tar.gz"}
 	spec := release.Spec{Site: "example.com", ID: "20261125120000-0123456", Artifact: art.Path, PHPUnit: "php8.4-fpm.service",
 		Shared: []release.Link{{Path: ".env", Target: "shared/.env"}}}
 	if err := s.Deploy(ctx, srv, art, spec); err != nil {
@@ -113,7 +118,7 @@ func TestSessionDeployAndRollback(t *testing.T) {
 	if f.uploads != uploadsBefore+1 {
 		t.Errorf("artifact uploads = %d, want 1", f.uploads-uploadsBefore)
 	}
-	if len(h.Commands("runuser -u web -- tar -xzf /var/cache/trellis/abc123.tar.gz")) != 1 {
+	if len(h.Commands("tar -xzf /home/web/.cache/trellis/abc123.tar.gz")) != 1 {
 		t.Error("release not unpacked")
 	}
 	if !strings.Contains(out.String(), "✓ 20261125120000-0123456 is live") {
@@ -138,5 +143,37 @@ func TestSessionDeployAndRollback(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "rolled back 20261125120000-0123456 → 20261120000000-aaaaaaa") {
 		t.Errorf("output:\n%s", out.String())
+	}
+	for _, u := range f.agentUsers {
+		if u != "web" {
+			t.Errorf("a deploy ran the agent as %s", u)
+		}
+	}
+	if f.passwords != 0 {
+		t.Errorf("a deploy used the sudo password %d times", f.passwords)
+	}
+}
+
+// A user with passwordless sudo (a Lima VM's) deploys through sudo -u web,
+// with the agent apply installed.
+func TestDeployThroughSudo(t *testing.T) {
+	ctx := context.Background()
+	h := hosttest.New()
+	f := &fakeSSH{host: h, users: map[string]bool{"lima": true}, installed: map[string]bool{}}
+	bin := binary(t)
+	f.installed["203.0.113.10"+bin.RemotePath()] = true
+	var out bytes.Buffer
+	s := &remote.Session{Out: &out, Users: []string{"lima"}, RunAs: "web"}
+	_, srv := session(t, "minimal", "production", s, f)
+	if f.uploads != 0 {
+		t.Errorf("uploaded the agent although apply installed it")
+	}
+	art := remote.Artifact{Data: []byte("tarball"), SHA256: "abc123", Path: "/home/web/.cache/trellis/abc123.tar.gz"}
+	spec := release.Spec{Site: "example.com", ID: "20261125120000-0123456", Artifact: art.Path, PHPUnit: "php8.4-fpm.service"}
+	if err := s.Deploy(ctx, srv, art, spec); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if len(f.agentUsers) != 1 || f.agentUsers[0] != "web" {
+		t.Errorf("agent ran as %v", f.agentUsers)
 	}
 }

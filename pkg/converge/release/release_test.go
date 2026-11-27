@@ -44,14 +44,14 @@ func TestStepsOrder(t *testing.T) {
 		"reload php8.4-fpm.service",
 		"after hook",
 		"prune releases (keep 5)",
-		"remove artifact",
+		"remove artifacts",
 	}, "\n")
 	if got != want {
 		t.Errorf("steps:\n%s\nwant:\n%s", got, want)
 	}
 	for _, s := range release.Steps(spec()) {
 		live := s.Name == "update database" || s.Name == "clear theme roots cache" || strings.HasPrefix(s.Name, "reload") || s.Name == "after hook" ||
-			strings.HasPrefix(s.Name, "prune") || s.Name == "remove artifact"
+			strings.HasPrefix(s.Name, "prune") || s.Name == "remove artifacts"
 		if s.Live != live {
 			t.Errorf("%s: live = %v", s.Name, s.Live)
 		}
@@ -65,12 +65,12 @@ func activate(t *testing.T, h *hosttest.Fake) error {
 
 func TestFailureBeforeSwitchLeavesSiteUnchanged(t *testing.T) {
 	h := hosttest.New()
-	h.Fail["runuser -u web -- php -r"] = "Composer detected issues in your platform: PHP >= 8.5 required"
+	h.Fail["php -r"] = "Composer detected issues in your platform: PHP >= 8.5 required"
 	err := activate(t, h)
 	if err == nil || !strings.Contains(err.Error(), "unchanged") || !strings.Contains(err.Error(), "PHP >= 8.5") {
 		t.Fatalf("err = %v", err)
 	}
-	if len(h.Commands("runuser -u web -- /bin/sh -c ln -sfn")) != 0 {
+	if len(h.Commands("/bin/sh -c ln -sfn")) != 0 {
 		t.Error("switched despite the failed check")
 	}
 	if len(h.Commands("rm -rf /srv/www/example.com/releases/20261125120000-abc1234")) != 1 {
@@ -80,18 +80,18 @@ func TestFailureBeforeSwitchLeavesSiteUnchanged(t *testing.T) {
 
 func TestOptionalFailuresDontFailTheDeploy(t *testing.T) {
 	h := hosttest.New()
-	h.Fail["runuser -u web -- /bin/sh -c wp core is-installed"] = "database error"
+	h.Fail["/bin/sh -c wp core is-installed"] = "database error"
 	if err := activate(t, h); err != nil {
 		t.Fatal(err)
 	}
-	if len(h.Commands("systemctl reload php8.4-fpm.service")) != 1 {
+	if len(h.Commands("sudo -n /usr/bin/systemctl reload php8.4-fpm.service")) != 1 {
 		t.Error("php-fpm not reloaded")
 	}
 }
 
 func TestFailureAfterSwitchSaysReleaseIsLive(t *testing.T) {
 	h := hosttest.New()
-	h.Fail["systemctl reload"] = "failed"
+	h.Fail["sudo -n /usr/bin/systemctl reload"] = "failed"
 	if err := activate(t, h); err == nil || !strings.Contains(err.Error(), "is live") {
 		t.Fatalf("err = %v", err)
 	}
@@ -123,7 +123,7 @@ func TestRollback(t *testing.T) {
 	if err != nil || from != "20261125120000-bbb" || to != "20261120000000-aaa" {
 		t.Fatalf("rollback %s → %s: %v", from, to, err)
 	}
-	if len(h.Commands("systemctl reload php8.4-fpm.service")) != 1 {
+	if len(h.Commands("sudo -n /usr/bin/systemctl reload php8.4-fpm.service")) != 1 {
 		t.Error("php-fpm not reloaded")
 	}
 	if _, err := release.Previous([]string{"a"}, "a"); err == nil {
@@ -133,11 +133,11 @@ func TestRollback(t *testing.T) {
 
 func TestExistingReleaseIsNotReused(t *testing.T) {
 	h := hosttest.New()
-	h.Fail["/bin/sh -c mkdir -m 0755"] = "mkdir: cannot create directory: File exists"
+	h.Fail["mkdir -m 0755"] = "mkdir: cannot create directory: File exists"
 	if err := activate(t, h); err == nil || !strings.Contains(err.Error(), "File exists") {
 		t.Fatalf("err = %v", err)
 	}
-	if len(h.Commands("runuser -u web -- tar")) != 0 {
+	if len(h.Commands("tar")) != 0 {
 		t.Error("unpacked into an existing release")
 	}
 	if len(h.Commands("rm -rf /srv/www/example.com/releases/")) != 0 {

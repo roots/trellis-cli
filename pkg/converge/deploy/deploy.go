@@ -33,8 +33,9 @@ import (
 // HooksDir holds deploy hooks, relative to the project root.
 const HooksDir = "deploy-hooks"
 
-// ArtifactDir is where artifacts are uploaded on servers.
-const ArtifactDir = "/var/cache/trellis"
+// ArtifactDir is where deploys upload artifacts: web's home, which the
+// PHP sandbox hides.
+const ArtifactDir = "/home/web/.cache/trellis"
 
 // Artifact is a packed release.
 type Artifact struct {

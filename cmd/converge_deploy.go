@@ -34,6 +34,17 @@ func NewConvergeDeployCommand(ui cli.Ui, version string) *ConvergeDeployCommand 
 	return c
 }
 
+// resolveEnv reads env's settings from trellis.yml. Deploys need nothing
+// more: no secrets, no compile.
+func resolveEnv(ui cli.Ui, p *project.Project, env string) *config.Environment {
+	e, err := p.Config.Resolve(env)
+	if err != nil {
+		ui.Error(err.Error())
+		return nil
+	}
+	return e
+}
+
 // findSite returns site name in env.
 func findSite(env *config.Environment, name string) (config.Site, error) {
 	for _, s := range env.Sites {
@@ -62,21 +73,21 @@ func (c *ConvergeDeployCommand) Run(args []string) int {
 	if p == nil {
 		return 1
 	}
-	compiled := compileEnv(c.UI, p, env, c.Version)
-	if compiled == nil {
+	e := resolveEnv(c.UI, p, env)
+	if e == nil {
 		return 1
 	}
-	if err := c.deploy(p, compiled, name); err != nil {
+	if err := c.deploy(p, e, name); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
 	return 0
 }
 
-func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Compiled, name string) error {
+func (c *ConvergeDeployCommand) deploy(p *project.Project, e *config.Environment, name string) error {
 	ctx, cancel := signalContext()
 	defer cancel()
-	site, err := findSite(compiled.Env, name)
+	site, err := findSite(e, name)
 	if err != nil {
 		return err
 	}
@@ -100,7 +111,7 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 		Ref:     ref,
 		Subtree: site.Path,
 		Hook:    local.Build,
-		Env:     []string{"TRELLIS_ENV=" + compiled.Env.Name, "TRELLIS_SITE=" + name},
+		Env:     []string{"TRELLIS_ENV=" + e.Name, "TRELLIS_SITE=" + name},
 		Exclude: site.Deploy.Exclude,
 		Out:     &buildOut,
 	})
@@ -116,8 +127,8 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 	}
 	c.UI.Info("")
 
-	spec := deploy.Spec(compiled.Env, site, art, hooks, time.Now())
-	s, srv, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
+	spec := deploy.Spec(e, site, art, hooks, time.Now())
+	s, srv, err := c.conn.deploySession(ctx, &uiWriter{ui: c.UI}, e)
 	if err != nil {
 		return err
 	}
@@ -126,7 +137,7 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, compiled *project.Com
 	}
 	c.UI.Info(fmt.Sprintf("Deployed %s %s (%s) in %s.", name, spec.ID, ref, time.Since(start).Round(100*time.Millisecond)))
 	if local.Done != "" {
-		env := []string{"TRELLIS_ENV=" + compiled.Env.Name, "TRELLIS_SITE=" + name, "TRELLIS_COMMIT=" + art.Commit, "TRELLIS_RELEASE=" + spec.ID}
+		env := []string{"TRELLIS_ENV=" + e.Name, "TRELLIS_SITE=" + name, "TRELLIS_COMMIT=" + art.Commit, "TRELLIS_RELEASE=" + spec.ID}
 		if err := deploy.RunHook(ctx, local.Done, p.Root, env, &uiWriter{ui: c.UI}); err != nil {
 			return fmt.Errorf("deployed, but deploy-hooks/done.sh failed: %w", err)
 		}
@@ -149,6 +160,9 @@ the server's PHP platform, runs deploy-hooks/release.sh, switches current
 atomically, updates the database and reloads PHP-FPM, then runs
 deploy-hooks/after.sh. A failure before the switch leaves the site unchanged.
 Finally deploy-hooks/done.sh runs locally (notifications, CDN purges).
+
+Deploys log in as web with an access.deploy key and read no secrets, so CI
+needs only a deploy key.
 
 Per site in trellis.yml:
 
@@ -193,19 +207,19 @@ func (c *ConvergeRollbackCommand) Run(args []string) int {
 	if p == nil {
 		return 1
 	}
-	compiled := compileEnv(c.UI, p, env, c.Version)
-	if compiled == nil {
+	e := resolveEnv(c.UI, p, env)
+	if e == nil {
 		return 1
 	}
 	ctx, cancel := signalContext()
 	defer cancel()
-	if _, err := findSite(compiled.Env, name); err != nil {
+	if _, err := findSite(e, name); err != nil {
 		c.UI.Error(err.Error())
 		return 1
 	}
-	s, srv, err := c.conn.session(ctx, &uiWriter{ui: c.UI}, compiled)
+	s, srv, err := c.conn.deploySession(ctx, &uiWriter{ui: c.UI}, e)
 	if err == nil {
-		err = s.Rollback(ctx, srv, name, "php"+compiled.Env.Server.PHP.Version+"-fpm.service")
+		err = s.Rollback(ctx, srv, name, "php"+e.Server.PHP.Version+"-fpm.service")
 	}
 	if err != nil {
 		c.UI.Error(err.Error())
@@ -222,6 +236,7 @@ func (c *ConvergeRollbackCommand) Help() string {
 	return `Usage: trellis converge rollback [options] <environment> <site>
 
 Switches the site's current release to the one before it and reloads PHP-FPM.
+Like deploy, it logs in as web and reads no secrets.
 
 Options:
 ` + connectionHelp

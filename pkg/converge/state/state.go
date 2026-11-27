@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	Dir                = "/var/lib/trellis"
-	CurrentPath        = Dir + "/current.json"
-	GenerationsDir     = Dir + "/generations"
-	LockPath           = Dir + "/lock"
+	Dir            = "/var/lib/trellis"
+	CurrentPath    = Dir + "/current.json"
+	GenerationsDir = Dir + "/generations"
+	LockPath       = Dir + "/lock"
+	// DeployLockPath is the lock deploys (as web) share with provisioning.
+	DeployLockPath     = Dir + "/deploy.lock"
 	RebootRequiredPath = "/var/run/reboot-required"
 )
 

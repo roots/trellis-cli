@@ -232,7 +232,8 @@ exact commit (Composer, then `deploy-hooks/build.sh`), uploads it, and the
 agent activates it: link shared paths, check the PHP platform, run
 `deploy-hooks/release.sh`, switch `current` atomically, update the
 database, reload PHP-FPM, run `deploy-hooks/after.sh`, and keep 5 releases.
-`rollback` switches back. See DEPLOY.md.
+`rollback` switches back. Both run as `web` with an `access.deploy` key and
+read no secrets, so a deploy key is all CI needs. See DEPLOY.md.
 
 ## Comparing with stock Trellis
 

@@ -133,7 +133,7 @@ func TestSpec(t *testing.T) {
 		Deploy: config.SiteDeploy{Keep: 3, UpdateDB: &off}}
 	art := deploy.Artifact{SHA256: "ab12", Commit: "0123456789abcdef"}
 	s := deploy.Spec(env, site, art, release.Hooks{After: "true"}, time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC))
-	if s.ID != "20261125120000-0123456" || s.Artifact != "/var/cache/trellis/ab12.tar.gz" || s.PHPUnit != "php8.4-fpm.service" {
+	if s.ID != "20261125120000-0123456" || s.Artifact != "/home/web/.cache/trellis/ab12.tar.gz" || s.PHPUnit != "php8.4-fpm.service" {
 		t.Errorf("spec = %+v", s)
 	}
 	want := []release.Link{

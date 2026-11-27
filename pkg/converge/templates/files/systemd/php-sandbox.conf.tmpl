@@ -3,6 +3,8 @@
 # files, the deploy agent), use sudo, or write system directories. Files
 # under /srv/www and /tmp work exactly as before.
 ProtectHome=yes
+# Trellis's state, and the lock deploys take.
+InaccessiblePaths=-/var/lib/trellis
 ProtectSystem=full
 NoNewPrivileges=yes
 PrivateDevices=yes

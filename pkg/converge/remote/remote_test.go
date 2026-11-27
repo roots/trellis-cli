@@ -30,12 +30,13 @@ type fakeSSH struct {
 	calls     []string
 	// sudoPassword, if set, is required by sudo for non-root users.
 	sudoPassword string
-	passwords    int // password lines consumed by sudo -S
+	passwords    int      // password lines consumed by sudo -S
+	agentUsers   []string // who each agent run ran as
 }
 
 var (
-	agentPathRe    = regexp.MustCompile(`/usr/local/lib/trellis/agent-[0-9a-f]+`)
-	artifactPathRe = regexp.MustCompile(`/var/cache/trellis/[0-9a-f]+\.tar\.gz`)
+	agentPathRe    = regexp.MustCompile(`(/usr/local/lib/trellis|/home/web/\.local/lib/trellis)/agent-[0-9a-f]+`)
+	artifactPathRe = regexp.MustCompile(`/home/web/\.cache/trellis/[0-9a-f]+\.tar\.gz`)
 )
 
 // readLine reads one line byte by byte, leaving the rest of r unread (as
@@ -68,8 +69,26 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		_, _ = io.WriteString(stderr, "Permission denied (publickey).")
 		return errors.New("exit status 255")
 	}
-	root := user == "root"
+	root, web := user == "root", user == "web"
+	// Run as web: from root, or through sudo -u (a password or not).
+	if c, ok := strings.CutPrefix(cmd, "runuser -u web -- "); ok && root {
+		cmd, root, web = c, false, true
+	}
+	for _, p := range []string{"sudo -n -u web ", "sudo -k -S -p '' -u web "} {
+		c, ok := strings.CutPrefix(cmd, p)
+		if !ok {
+			continue
+		}
+		if strings.Contains(p, "-S") && readLine(stdin) != f.sudoPassword {
+			return errors.New("sudo: incorrect password")
+		}
+		if !strings.Contains(p, "-S") && f.sudoPassword != "" {
+			return errors.New("sudo: a password is required")
+		}
+		cmd, web = c, true
+	}
 	switch {
+	case web:
 	case strings.HasPrefix(cmd, "sudo -n "):
 		if !root && f.sudoPassword != "" {
 			_, _ = io.WriteString(stderr, "sudo: a password is required")
@@ -92,7 +111,7 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		access := "root"
 		if !root {
 			access = "nopasswd"
-			if f.sudoPassword != "" {
+			if f.sudoPassword != "" || web {
 				access = "password"
 			}
 		}
@@ -100,7 +119,7 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		defer f.mu.Unlock()
 		_, _ = io.WriteString(stdout, "x86_64\n"+access+"\n")
 		for p := range f.installed {
-			if a, ok := strings.CutPrefix(p, addr); ok && strings.HasPrefix(a, "/usr/local/lib/trellis/agent-") {
+			if a, ok := strings.CutPrefix(p, addr); ok && agentPathRe.MatchString(a) {
 				_, _ = io.WriteString(stdout, a+"\n")
 			}
 		}
@@ -113,8 +132,8 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		}
 		return errors.New("exit status 1")
 	case strings.Contains(cmd, ".upload-XXXXXX"):
-		if !root {
-			return errors.New("upload needs root")
+		if !web {
+			return errors.New("artifacts are uploaded as web")
 		}
 		_, _ = io.Copy(io.Discard, stdin)
 		f.mu.Lock()
@@ -130,7 +149,7 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		}
 		return errors.New("exit status 1")
 	case strings.Contains(cmd, "install -D -m 0755"):
-		if !root {
+		if !root && (!web || !strings.Contains(cmd, "/home/web/")) {
 			return errors.New("install needs root")
 		}
 		_, _ = io.Copy(io.Discard, stdin)
@@ -139,10 +158,13 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		f.uploads++
 		f.installed[addr+agentPathRe.FindString(cmd)] = true
 		return nil
-	case strings.Contains(cmd, "/usr/local/lib/trellis/agent-"):
-		if !root {
-			return errors.New("agent must run as root")
+	case agentPathRe.MatchString(cmd):
+		if !root && !web {
+			return errors.New("agent must run as root or web")
 		}
+		f.mu.Lock()
+		f.agentUsers = append(f.agentUsers, map[bool]string{true: "web", false: "root"}[web])
+		f.mu.Unlock()
 		return agent.Serve(ctx, h, nil, stdin, stdout)
 	}
 	return errors.New("unexpected command " + cmd)

@@ -35,6 +35,9 @@ type Session struct {
 	Users []string
 	// SudoPassword is the admin user's sudo password (admin_password).
 	SudoPassword string
+	// RunAs runs the agent as this user instead of root: deploys and
+	// rollbacks run as web, and need no sudo password when logged in as it.
+	RunAs string
 }
 
 // Connect logs in to env's server, checks how to get root, and makes sure
@@ -58,8 +61,11 @@ func (s *Session) Connect(ctx context.Context, env *config.Environment, m *manif
 	if err != nil {
 		return nil, err
 	}
-	if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
-		return nil, err
+	t.RunAs = s.RunAs
+	if t.RunAs == "" || (t.User != t.RunAs && t.User != "root") {
+		if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
+			return nil, err
+		}
 	}
 	srv.Target = t
 	arch, err := s.SSH.Arch(ctx, t)
