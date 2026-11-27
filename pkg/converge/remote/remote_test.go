@@ -31,7 +31,10 @@ type fakeSSH struct {
 	// passwordSudo makes sudo ask non-root users for a password (which
 	// Trellis never sends), so sudo -n fails.
 	passwordSudo bool
-	agentUsers   []string // who each agent run ran as
+	// unknownHostKey fails every login as ssh does under
+	// StrictHostKeyChecking=yes without a known_hosts entry.
+	unknownHostKey bool
+	agentUsers     []string // who each agent run ran as
 }
 
 var (
@@ -49,6 +52,10 @@ func (f *fakeSSH) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		h = hh
 	}
 	f.mu.Unlock()
+	if f.unknownHostKey {
+		_, _ = io.WriteString(stderr, "No ED25519 host key is known for "+addr+" and you have requested strict checking.\nHost key verification failed.")
+		return errors.New("exit status 255")
+	}
 	if !f.users[user] {
 		_, _ = io.WriteString(stderr, "Permission denied (publickey).")
 		return errors.New("exit status 255")
@@ -283,5 +290,12 @@ func TestConnectErrors(t *testing.T) {
 	}
 	if _, err := s.Connect(ctx, "h", 22, "root"); err == nil || !strings.Contains(err.Error(), "access.admins") || !strings.Contains(err.Error(), "--user") {
 		t.Errorf("root login refused: %v", err)
+	}
+	f.unknownHostKey = true
+	if _, err := s.Connect(ctx, "h", 22, "web"); err == nil || !strings.Contains(err.Error(), "known_hosts") || !strings.Contains(err.Error(), "ssh-keyscan -t ed25519 h") {
+		t.Errorf("unknown host key: %v", err)
+	}
+	if remote.HostKeyChecking(true) != "StrictHostKeyChecking=yes" || remote.HostKeyChecking(false) != "StrictHostKeyChecking=accept-new" {
+		t.Error("host key checking")
 	}
 }

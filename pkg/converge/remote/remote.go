@@ -135,6 +135,17 @@ func (s *SSH) output(ctx context.Context, t Target, remote string) (string, erro
 	return strings.TrimSpace(out.String()), err
 }
 
+// HostKeyChecking is the ssh option for unknown host keys. A person's
+// first connection to a new server trusts its key (and checks it from then
+// on); CI starts with an empty known_hosts every run, so there an unknown
+// key is refused.
+func HostKeyChecking(ci bool) string {
+	if ci {
+		return "StrictHostKeyChecking=yes"
+	}
+	return "StrictHostKeyChecking=accept-new"
+}
+
 // Connect logs in to host as user and probes the node.
 func (s *SSH) Connect(ctx context.Context, host string, port int, user string) (Target, error) {
 	t := Target{Host: host, Port: port, User: user}
@@ -143,6 +154,9 @@ func (s *SSH) Connect(ctx context.Context, host string, port int, user string) (
 		hint := "use --user for an image whose default user isn't root (e.g. ubuntu)"
 		if user == "root" {
 			hint = "root logs in with an access.admins key (on a fresh server, the key your provider installed); " + hint
+		}
+		if strings.Contains(err.Error(), "Host key verification failed") {
+			hint = "the server's host key isn't in known_hosts (CI checks host keys strictly): add it, e.g. from `ssh-keyscan -t ed25519 " + host + "`, verified against the server"
 		}
 		return Target{}, fmt.Errorf("can't log in to %s as %s (%s):\n%w", host, user, hint, err)
 	}

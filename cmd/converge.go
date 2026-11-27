@@ -220,7 +220,7 @@ func (c *connection) deploySession(ctx context.Context, out io.Writer, env *conf
 
 func (c *connection) connect(ctx context.Context, out io.Writer, env *config.Environment, m *manifest.Manifest, user, runAs string) (*remote.Session, *remote.Server, error) {
 	ssh := remote.NewSSH()
-	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
+	ssh.Options = append([]string{remote.HostKeyChecking(os.Getenv("CI") == "true")}, c.sshOptions...)
 	host, port := c.host, 0
 	if c.lima != "" {
 		vm, err := remote.Lima(ctx, ssh.Exec, c.lima)

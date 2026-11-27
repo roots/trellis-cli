@@ -238,8 +238,9 @@ lost. `user:` or `--user` provisions as another user with passwordless sudo
 ## Deploys
 
 `trellis converge deploy <env> <site>` builds the release locally from an
-exact commit (Composer, then `deploy-hooks/build.sh`), uploads it, and the
-agent activates it: link shared paths, check the PHP platform, run
+exact commit (the site's branch as it is on the remote, `--ref`, or in CI the
+checked-out commit; then Composer and `deploy-hooks/build.sh`), uploads it,
+and the agent activates it: link shared paths, check the PHP platform, run
 `deploy-hooks/release.sh`, switch `current` atomically, update the
 database, reload PHP-FPM, run `deploy-hooks/after.sh`, and keep 5 releases.
 `rollback` switches back. Both run as `web` with an `access.deploy` key and

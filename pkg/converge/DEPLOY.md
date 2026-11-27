@@ -124,6 +124,15 @@ credentials, Composer on servers, and non-reproducible builds.
     is linked and before the switch (cache warmup, checks; failing aborts
     the deploy).
   - `deploy-hooks/after.sh` runs on the server as `web`, after the switch.
+- **Which commit:** `--ref` builds exactly what your clone has (a branch,
+  tag or commit, unpushed ones included). Without it, the site's branch is
+  fetched from the clone's remote and that is built, so a stale local branch
+  is never deployed; local commits that aren't pushed are pointed out. In CI
+  (`CI=true`) it's the checked-out commit, which is right even when the
+  workflow lives in another repository than the site.
+- **Host keys:** checked strictly in CI, where known_hosts starts empty every
+  run (add the server's key, e.g. from `ssh-keyscan`); elsewhere a new
+  server's key is trusted on first connection.
 - **As web, without secrets:** deploys and rollbacks log in as `web` with an
   `access.deploy` key and run the agent as `web` (a Lima VM's user, or
   `--user`, reaches it through sudo). They read only `trellis.yml`, never the

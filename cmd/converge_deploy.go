@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -29,7 +30,7 @@ func NewConvergeDeployCommand(ui cli.Ui, version string) *ConvergeDeployCommand 
 	c := &ConvergeDeployCommand{UI: ui, Version: version}
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.Usage = func() { c.UI.Info(c.Help()) }
-	c.flags.StringVar(&c.ref, "ref", "", "Branch, tag or commit to deploy (default: the site's branch)")
+	c.flags.StringVar(&c.ref, "ref", "", "Branch, tag or commit to deploy, as your clone has it (default: the site's branch on its remote; in CI, the checked-out commit)")
 	c.conn.register(c.flags)
 	return c
 }
@@ -94,21 +95,26 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, e *config.Environment
 	if site.LocalPath == "" {
 		return fmt.Errorf("site %s has no local_path: deploys build from your local clone of the site", name)
 	}
-	ref := c.ref
-	if ref == "" {
-		ref = site.Branch
-	}
 	hooks, local, err := deploy.Hooks(p.Root)
 	if err != nil {
 		return err
 	}
 
 	start := time.Now()
-	c.UI.Info(fmt.Sprintf("Building %s at %s…", name, ref))
+	repo := filepath.Join(p.Root, site.LocalPath)
+	src, err := deploy.Resolve(ctx, repo, c.ref, site.Branch, os.Getenv("CI") == "true")
+	if err != nil {
+		return err
+	}
+	for _, n := range src.Notes {
+		c.UI.Warn("Note: " + n)
+	}
+	ref := src.From
+	c.UI.Info(fmt.Sprintf("Building %s at %s (%s)…", name, src.From, src.Commit[:7]))
 	var buildOut bytes.Buffer
 	art, err := deploy.Build(ctx, deploy.BuildOptions{
-		Repo:    filepath.Join(p.Root, site.LocalPath),
-		Ref:     ref,
+		Repo:    repo,
+		Ref:     src.Commit,
 		Subtree: site.Path,
 		Hook:    local.Build,
 		Env:     []string{"TRELLIS_ENV=" + e.Name, "TRELLIS_SITE=" + name},
@@ -172,7 +178,9 @@ Per site in trellis.yml:
     exclude: ["*.map", "web/app/themes/*/resources"]
 
 Options:
-  --ref           Branch, tag or commit (default: the site's branch)
+  --ref           Branch, tag or commit, as your clone has it (default: the
+                  site's branch, fetched from its remote; in CI (CI=true),
+                  the checked-out commit)
 ` + connectionHelp
 }
 
