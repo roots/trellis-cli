@@ -236,9 +236,12 @@ func (b *builder) firewall() {
 }
 
 func (b *builder) fail2ban() {
-	f := b.env.Server.Security.Fail2ban
+	xmlrpc := false
+	for _, s := range b.env.Sites {
+		xmlrpc = xmlrpc || s.XMLRPC
+	}
 	b.add(m.NewRootFile("/etc/fail2ban/jail.d/trellis.local",
-		b.render("fail2ban/jail.local", map[string]any{"WPLogin": f.WPLogin, "XMLRPC": f.XMLRPC}),
+		b.render("fail2ban/jail.local", map[string]any{"WPLogin": *b.env.Server.Security.Fail2ban.WPLogin, "XMLRPC": xmlrpc}),
 		0o644, fail2banReload))
 	for _, name := range []string{"wordpress-wp-login", "wordpress-xmlrpc"} {
 		b.add(m.NewRootFile("/etc/fail2ban/filter.d/"+name+".conf", b.render("fail2ban/"+name+".conf", nil), 0o644, fail2banReload))

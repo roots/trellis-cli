@@ -54,8 +54,10 @@ func applyDefaults(e *Environment) {
 		s.Security.SSH.AllowFrom = []string{"any"}
 	}
 	if s.Security.SSH.RateLimit == nil {
-		t := true
-		s.Security.SSH.RateLimit = &t
+		s.Security.SSH.RateLimit = ptr(true)
+	}
+	if s.Security.Fail2ban.WPLogin == nil {
+		s.Security.Fail2ban.WPLogin = ptr(true)
 	}
 
 	if e.Port == 0 {
@@ -88,8 +90,11 @@ func applyDefaults(e *Environment) {
 		if site.Writable == nil {
 			site.Writable = []string{"web/app/uploads"}
 		}
+		site.PHP.FPM = site.PHP.FPM.Or(s.PHP.FPM)
 	}
 }
+
+func ptr[T any](v T) *T { return &v }
 
 var (
 	phpVersionRe = regexp.MustCompile(`^\d+\.\d+$`)
@@ -109,6 +114,8 @@ func oneOf(v string, allowed ...string) bool {
 	}
 	return false
 }
+
+var fpmModes = []string{"dynamic", "static", "ondemand"}
 
 var (
 	swapSizeRe = regexp.MustCompile(`^[1-9][0-9]*[MG]$`)
@@ -136,7 +143,7 @@ func validate(e *Environment) error {
 	if s.Swap != "auto" && s.Swap != "off" && !swapSizeRe.MatchString(s.Swap) {
 		add("%s: swap must be auto, off or a size like 1G or 512M", p)
 	}
-	if !oneOf(s.PHP.FPM.PM, "dynamic", "static", "ondemand") {
+	if !oneOf(s.PHP.FPM.PM, fpmModes...) {
 		add("%s: php.fpm.pm must be dynamic, static or ondemand", p)
 	}
 	for k := range s.PHP.INI {
@@ -225,7 +232,7 @@ func validateSites(e *Environment, add func(string, ...any)) {
 		add("%s: no sites", p)
 	}
 	domains := map[string]string{}
-	dbNames := map[string]string{}
+	dbNames, dbUsers := map[string]string{}, map[string]string{}
 	for _, s := range e.Sites {
 		sp := fmt.Sprintf("%s.sites.%s", p, s.Name)
 		// Site names become paths and file names on the server
@@ -260,6 +267,13 @@ func validateSites(e *Environment, add func(string, ...any)) {
 			add("%s: database name %q collides with %s; set db.name", sp, s.DBName(), other)
 		}
 		dbNames[s.DBName()] = s.Name
+		if other, ok := dbUsers[s.DBUser()]; ok {
+			add("%s: database user %q collides with %s; set db.user", sp, s.DBUser(), other)
+		}
+		dbUsers[s.DBUser()] = s.Name
+		if !oneOf(s.PHP.FPM.PM, fpmModes...) {
+			add("%s: php.fpm.pm must be dynamic, static or ondemand", sp)
+		}
 		if e.Name != DevelopmentEnv && s.Repo == "" {
 			add("%s: repo is required", sp)
 		}

@@ -82,6 +82,23 @@ type FPM struct {
 	MaxRequests     int    `yaml:"max_requests,omitempty"`
 }
 
+// Or fills f's unset fields from def.
+func (f FPM) Or(def FPM) FPM {
+	if f.PM == "" {
+		f.PM = def.PM
+	}
+	for _, p := range []struct{ v, d *int }{
+		{&f.MaxChildren, &def.MaxChildren}, {&f.StartServers, &def.StartServers},
+		{&f.MinSpareServers, &def.MinSpareServers}, {&f.MaxSpareServers, &def.MaxSpareServers},
+		{&f.MaxRequests, &def.MaxRequests},
+	} {
+		if *p.v == 0 {
+			*p.v = *p.d
+		}
+	}
+	return f
+}
+
 type Mail struct {
 	SMTP     string `yaml:"smtp"`
 	User     string `yaml:"user,omitempty"`
@@ -99,9 +116,13 @@ type SSH struct {
 	RateLimit *bool    `yaml:"rate_limit,omitempty"`
 }
 
+// Fail2ban tunes the WordPress jails. sshd's is always on, and the
+// xmlrpc.php one follows the sites: on when any site allows XML-RPC
+// (nginx refuses it otherwise).
 type Fail2ban struct {
-	WPLogin bool `yaml:"wp_login,omitempty"`
-	XMLRPC  bool `yaml:"xmlrpc,omitempty"`
+	// WPLogin bans IPs that keep failing WordPress logins (default true).
+	// Turn it off behind a proxy nginx doesn't see real client IPs through.
+	WPLogin *bool `yaml:"wp_login,omitempty"`
 }
 
 // Command is the escape hatch for what files and packages can't express:
@@ -230,6 +251,9 @@ func (d SiteDeploy) UpdatesDB() bool { return d.UpdateDB == nil || *d.UpdateDB }
 
 type SitePHP struct {
 	INI map[string]string `yaml:"ini,omitempty"`
+	// FPM overrides the server's php.fpm for this site's pool; unset
+	// fields come from it.
+	FPM FPM `yaml:"fpm,omitempty"`
 }
 
 type SiteDB struct {
@@ -342,10 +366,8 @@ func (s Site) Domains() []string {
 	return append([]string{s.Domain}, s.Redirects...)
 }
 
-// DBName is the site's database name (default: site name with dots and
-// dashes replaced by underscores).
 // DBName is the site's database: <site>_<environment>, as Trellis has
-// always named it, so existing servers keep their data.
+// always named it, so servers converge takes over keep their data.
 func (s Site) DBName() string {
 	if s.DB.Name != "" {
 		return s.DB.Name
@@ -356,8 +378,8 @@ func (s Site) DBName() string {
 	return identifier(s.Name) + "_" + identifier(s.EnvName)
 }
 
-// DBUser is the site's database user (default: same as DBName, truncated to
-// MariaDB's 80 char limit... in practice 32 for compatibility).
+// DBUser is the site's database user (default: the site name, cut to 32
+// characters, MySQL's limit).
 func (s Site) DBUser() string {
 	if s.DB.User != "" {
 		return s.DB.User

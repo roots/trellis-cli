@@ -244,11 +244,7 @@
       "additionalProperties": false,
       "properties": {
         "wp_login": {
-          "description": "Ban IPs that repeatedly fail WordPress logins.",
-          "type": "boolean"
-        },
-        "xmlrpc": {
-          "description": "Ban IPs that hammer xmlrpc.php.",
+          "description": "Ban IPs that keep failing WordPress logins (default true). Turn it off behind a proxy nginx doesn't see real client IPs through. The xmlrpc.php jail is on when any site allows XML-RPC.",
           "type": "boolean"
         }
       },
@@ -281,7 +277,7 @@
       "properties": {
         "fpm": {
           "$ref": "#/$defs/FPM",
-          "description": "PHP-FPM process manager settings (per site pool)."
+          "description": "PHP-FPM process manager settings for every site's pool (each site can override them under its php.fpm)."
         },
         "ini": {
           "additionalProperties": {
@@ -511,7 +507,7 @@
         },
         "php": {
           "$ref": "#/$defs/SitePHP",
-          "description": "Per-site php.ini settings (PHP-FPM pool)."
+          "description": "Per-site php.ini and PHP-FPM settings (the site's pool)."
         },
         "redirects": {
           "description": "Domains redirected to the canonical domain.",
@@ -576,6 +572,10 @@
     "SitePHP": {
       "additionalProperties": false,
       "properties": {
+        "fpm": {
+          "$ref": "#/$defs/FPM",
+          "description": "PHP-FPM settings for this site's pool; unset fields come from the server's php.fpm."
+        },
         "ini": {
           "additionalProperties": {
             "type": [

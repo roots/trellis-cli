@@ -220,7 +220,7 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 	b.add(
 		m.NewRootFile("/etc/nginx/sites/"+s.Name+".conf", conf, 0o644, nginxReload),
 		m.NewRootFile("/etc/php/"+v+"/fpm/pool.d/"+s.Name+".conf", b.render("php/pool.conf", map[string]any{
-			"Site": s, "FPM": b.env.Server.PHP.FPM, "INI": templates.Sorted(s.PHP.INI),
+			"Site": s, "FPM": s.PHP.FPM, "INI": templates.Sorted(s.PHP.INI),
 		}), 0o644, b.phpReload()),
 		// Only web reads it (PHP-FPM, WP-Cron, deploys); not nginx.
 		m.NewFile(root+"/shared/.env", b.dotenv(s), 0o600, "web", "www-data").AsSensitive(),

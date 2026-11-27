@@ -56,13 +56,12 @@ var schemaDescriptions = map[string]string{
 
 	"PHP.version": "PHP version from packages.sury.org, e.g. \"8.4\".",
 	"PHP.ini":     "php.ini settings for PHP-FPM and the CLI.",
-	"PHP.fpm":     "PHP-FPM process manager settings (per site pool).",
+	"PHP.fpm":     "PHP-FPM process manager settings for every site's pool (each site can override them under its php.fpm).",
 
 	"SSH.allow_from": "IPs or CIDRs allowed to SSH, or [any].",
 	"SSH.rate_limit": "Rate-limit new SSH connections per source IP (default true).",
 
-	"Fail2ban.wp_login": "Ban IPs that repeatedly fail WordPress logins.",
-	"Fail2ban.xmlrpc":   "Ban IPs that hammer xmlrpc.php.",
+	"Fail2ban.wp_login": "Ban IPs that keep failing WordPress logins (default true). Turn it off behind a proxy nginx doesn't see real client IPs through. The xmlrpc.php jail is on when any site allows XML-RPC.",
 
 	"Mail.smtp":     "SMTP server as host:port, e.g. smtp.postmarkapp.com:587.",
 	"Mail.user":     "SMTP user (may be secret:<path>).",
@@ -90,7 +89,7 @@ var schemaDescriptions = map[string]string{
 	"Site.xmlrpc":       "Allow xmlrpc.php (default false: blocked).",
 	"Site.multisite":    "false, true (subdirectories) or {mode: subdomains|subdirectories}.",
 	"Site.writable":     "Release paths shared between releases (default [web/app/uploads]).",
-	"Site.php":          "Per-site php.ini settings (PHP-FPM pool).",
+	"Site.php":          "Per-site php.ini and PHP-FPM settings (the site's pool).",
 	"Site.env":          "Extra .env variables (values may be secret:<path>).",
 	"Site.db":           "Database name and user (default <site>_<env> and <site>).",
 	"Site.deploy":       "Deploy settings.",
@@ -99,6 +98,7 @@ var schemaDescriptions = map[string]string{
 	"SiteDB.user": "Database user (default <site>).",
 
 	"SitePHP.ini": "php.ini settings for this site's PHP-FPM pool.",
+	"SitePHP.fpm": "PHP-FPM settings for this site's pool; unset fields come from the server's php.fpm.",
 
 	"Security.ssh":      "SSH access rules.",
 	"Security.fail2ban": "Extra fail2ban jails for WordPress.",
@@ -126,7 +126,7 @@ var schemaDescriptions = map[string]string{
 var schemaEnums = map[string][]any{
 	"Site.cache":           {CacheOff, CacheFastCGI},
 	"Site.object_cache":    {ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached},
-	"FPM.pm":               {"dynamic", "static", "ondemand"},
+	"FPM.pm":               anys(fpmModes),
 	"ExternalDatabase.tls": {"required"},
 	"Server.os":            anys(SupportedOS()),
 	"Server.auto_updates":  {UpdatesAll, UpdatesDistro, UpdatesOff},

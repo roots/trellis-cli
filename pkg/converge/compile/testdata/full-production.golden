@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 3e7073a0d68059a87bbdb5e89b07810660a3bc0fc7436a1e944c4f631ad09fbc
+# hash 3ea5b0ad7b90a2a90d1954fe4f8bd362dc678a602392b034c6311701cceeb3d7
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -589,8 +589,6 @@ file          /etc/nginx/sites/shop.example.com.conf 0644 root:root
     │   location ~* (?:\.(?:bak|conf|dist|fla|in[ci]|log|psd|sh|sql|sw[op])|~)$ { deny all; }
     │   # Plugin and theme readmes reveal versions.
     │   location ~* /app/(plugins|mu-plugins|themes)/.+\.(txt|md)$ { deny all; }
-    │   # Any path, including Bedrock's /wp/xmlrpc.php.
-    │   location ~* xmlrpc\.php$ { return 444; }
     │ 
     │   location / {
     │     try_files $uri $uri/ /index.php?$args;
@@ -696,8 +694,8 @@ file          /etc/php/8.4/fpm/pool.d/example.com.conf 0644 root:root
     │ listen.group = www-data
     │ listen.mode = 0660
     │ 
-    │ pm = dynamic
-    │ pm.max_children = 40
+    │ pm = ondemand
+    │ pm.max_children = 30
     │ pm.start_servers = 1
     │ pm.min_spare_servers = 1
     │ pm.max_spare_servers = 3

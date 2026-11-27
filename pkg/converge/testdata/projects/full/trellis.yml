@@ -20,7 +20,6 @@ defaults:
       allow_from: [any]
     fail2ban:
       wp_login: true
-      xmlrpc: true
   packages:
     - php8.4-imagick
     - ghostscript
@@ -44,6 +43,7 @@ sites:
     writable: [web/app/uploads, web/app/cache]
     php:
       ini: { max_execution_time: 120 }
+      fpm: { max_children: 30, pm: ondemand }
     env:
       WP_FEATURE_X: "true"
       STRIPE_SECRET_KEY: secret:stripe_secret_key
@@ -52,6 +52,7 @@ sites:
     repo: git@github.com:example/shop.git
     path: site
     multisite: { mode: subdomains }
+    xmlrpc: true # Jetpack
 
 environments:
   staging:

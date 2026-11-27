@@ -222,6 +222,29 @@ environments:
 `,
 			want: []string{`domain "a.com" is also used by a.com`, "cache must be", "https.certificate must be file:", "https.key must be secret:", "php.version"},
 		},
+		"database users cut to the same 32 characters": {
+			yaml: `
+version: 1
+access: { admins: [k] }
+sites:
+  a-very-long-site-name-for-a-client.com: { repo: r, domain: a.com }
+  a-very-long-site-name-for-a-client.org: { repo: r, domain: b.com }
+environments:
+  production: { host: 1.2.3.4 }
+`,
+			want: []string{`database user "a_very_long_site_name_for_a_clie" collides with a-very-long-site-name-for-a-client.com; set db.user`},
+		},
+		"per-site fpm": {
+			yaml: `
+version: 1
+access: { admins: [k] }
+sites:
+  a.com: { repo: r, domain: a.com, php: { fpm: { pm: lazy } } }
+environments:
+  production: { host: 1.2.3.4 }
+`,
+			want: []string{"sites.a.com: php.fpm.pm must be"},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -314,5 +337,42 @@ environments:
 		if err == nil {
 			t.Errorf("accepted %s", bad)
 		}
+	}
+}
+
+// A site's php.fpm overrides the server's field by field, and wp_login
+// bans are on unless turned off.
+func TestPerSiteFPMAndFail2ban(t *testing.T) {
+	c, err := Parse([]byte(`
+version: 1
+access: { admins: [k] }
+defaults:
+  php: { fpm: { max_children: 20, max_requests: 300 } }
+sites:
+  a.com: { repo: r, domain: a.com, php: { fpm: { max_children: 4 } } }
+  b.com: { repo: r, domain: b.com }
+environments:
+  production: { host: 1.2.3.4 }
+  staging:
+    host: 1.2.3.5
+    security: { fail2ban: { wp_login: false } }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := c.Resolve("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b := e.Sites[0].PHP.FPM, e.Sites[1].PHP.FPM
+	if a.MaxChildren != 4 || a.MaxRequests != 300 || a.PM != "dynamic" || b.MaxChildren != 20 {
+		t.Errorf("fpm: a %+v, b %+v", a, b)
+	}
+	if !*e.Server.Security.Fail2ban.WPLogin {
+		t.Error("wp_login bans are off by default")
+	}
+	st, err := c.Resolve("staging")
+	if err != nil || *st.Server.Security.Fail2ban.WPLogin {
+		t.Errorf("wp_login: false ignored: %v", err)
 	}
 }

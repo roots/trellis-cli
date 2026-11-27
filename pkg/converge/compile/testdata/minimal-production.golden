@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 631ab52ccd6d2181c2df9f6ad55af5f4655c9679be049ff70da0ff1bcd41b979
+# hash bb54dc7f1f90c26805a6a0d9049c43a29650ab91272936c0214b8ecfd934fb75
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
 
@@ -132,7 +132,7 @@ file          /etc/fail2ban/jail.d/trellis.local 0644 root:root
     │ enabled = true
     │ 
     │ [wordpress-wp-login]
-    │ enabled = false
+    │ enabled = true
     │ backend = auto
     │ filter = wordpress-wp-login
     │ port = http,https
