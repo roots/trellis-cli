@@ -14,7 +14,6 @@ environments:
     os: debian-13
     database:
       host: staging-db.abc123.us-east-1.rds.amazonaws.com
-      tls: required
       admin:
         user: admin
         password: secret:rds_admin_password

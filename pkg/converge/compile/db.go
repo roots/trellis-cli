@@ -66,7 +66,7 @@ func (b *builder) externalDatabases() {
 		Port:     db.Port,
 		User:     db.Admin.User,
 		Password: b.secret(db.Admin.Password, "database.admin.password"),
-		TLS:      db.TLS == "required",
+		TLS:      db.UsesTLS(),
 	}
 	b.siteDatabases(server, "%")
 }

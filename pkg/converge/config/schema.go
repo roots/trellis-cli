@@ -45,12 +45,13 @@ var schemaDescriptions = map[string]string{
 
 	"Server.os":           "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
 	"Server.timezone":     "IANA time zone, e.g. Etc/UTC or America/Toronto.",
-	"Server.swap":         "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or off.",
-	"Server.auto_updates": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or off (nothing automatic; `trellis converge upgrade` installs what all would).",
+	"Server.swap":         "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or false.",
+	"Server.auto_updates": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or false (nothing automatic; `trellis converge upgrade` installs what all would).",
 	"Server.php":          "PHP version, php.ini settings and PHP-FPM pool settings.",
 	"Server.mariadb":      "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
 	"Server.mail":         "SMTP relay for outgoing mail (msmtp).",
-	"Server.security":     "SSH and fail2ban settings.",
+	"Server.ssh":          "Who can reach SSH.",
+	"Server.fail2ban":     "WordPress fail2ban jails (sshd's is always on).",
 	"Server.packages":     "Extra apt packages to install.",
 	"Server.commands":     "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
 
@@ -74,7 +75,7 @@ var schemaDescriptions = map[string]string{
 
 	"ExternalDatabase.host":  "Database server hostname.",
 	"ExternalDatabase.port":  "Database port (default 3306).",
-	"ExternalDatabase.tls":   "\"required\" to connect over TLS.",
+	"ExternalDatabase.tls":   "Connect over TLS (default true; false for a database on a private network without TLS).",
 	"ExternalDatabase.admin": "Admin credentials used to create databases and users.",
 
 	"Site.repo":         "Git repository (used for the site's identity; deploys build from local_path).",
@@ -84,10 +85,10 @@ var schemaDescriptions = map[string]string{
 	"Site.domain":       "Canonical domain.",
 	"Site.redirects":    "Domains redirected to the canonical domain.",
 	"Site.https":        "HTTPS (default true: an automatic Let's Encrypt certificate, self-signed in development). false serves plain HTTP; self-signed; or the site's own certificate: {certificate: file:<path>, key: secret:<path>}.",
-	"Site.cache":        "off (default) or fastcgi (nginx full-page cache).",
-	"Site.object_cache": "none (default), redis or memcached.",
+	"Site.cache":        "nginx full-page cache (FastCGI; default false).",
+	"Site.object_cache": "redis, memcached or false (default).",
 	"Site.xmlrpc":       "Allow xmlrpc.php (default false: blocked).",
-	"Site.multisite":    "false, true (subdirectories) or {mode: subdomains|subdirectories}.",
+	"Site.multisite":    "false (default), true (subdirectories), subdomains or subdirectories.",
 	"Site.writable":     "Release paths shared between releases (default [web/app/uploads]).",
 	"Site.php":          "Per-site php.ini and PHP-FPM settings (the site's pool).",
 	"Site.env":          "Extra .env variables (values may be secret:<path>).",
@@ -99,9 +100,6 @@ var schemaDescriptions = map[string]string{
 
 	"SitePHP.ini": "php.ini settings for this site's PHP-FPM pool.",
 	"SitePHP.fpm": "PHP-FPM settings for this site's pool; unset fields come from the server's php.fpm.",
-
-	"Security.ssh":      "SSH access rules.",
-	"Security.fail2ban": "Extra fail2ban jails for WordPress.",
 
 	"FPM.pm":                "Process manager: dynamic (default), static or ondemand.",
 	"FPM.max_children":      "Maximum PHP-FPM workers per site (default 10).",
@@ -124,17 +122,15 @@ var schemaDescriptions = map[string]string{
 }
 
 var schemaEnums = map[string][]any{
-	"Site.cache":           {CacheOff, CacheFastCGI},
-	"Site.object_cache":    {ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached},
-	"FPM.pm":               anys(fpmModes),
-	"ExternalDatabase.tls": {"required"},
-	"Server.os":            anys(SupportedOS()),
-	"Server.auto_updates":  {UpdatesAll, UpdatesDistro, UpdatesOff},
-	"File.version":         {1},
+	"Site.object_cache":   {ObjectCacheRedis, ObjectCacheMemcached},
+	"FPM.pm":              anys(fpmModes),
+	"Server.os":           anys(SupportedOS()),
+	"Server.auto_updates": {UpdatesAll, UpdatesDistro},
+	"File.version":        {1},
 }
 
 var schemaPatterns = map[string]string{
-	"Server.swap": `^(auto|off|[1-9][0-9]*[MG])$`,
+	"Server.swap": `^(auto|[1-9][0-9]*[MG])$`,
 	"PHP.version": `^[0-9]+\.[0-9]+$`,
 }
 
@@ -171,9 +167,19 @@ func (g *schemaGen) typ(t reflect.Type, owner, key string) map[string]any {
 	if t == reflect.TypeOf(Multisite{}) {
 		return map[string]any{"description": schemaDescriptions[owner+"."+key], "oneOf": []any{
 			map[string]any{"type": "boolean"},
-			map[string]any{"type": "object", "additionalProperties": false,
-				"properties": map[string]any{"mode": map[string]any{"enum": []string{"subdomains", "subdirectories"}}}},
+			map[string]any{"enum": []string{"subdomains", "subdirectories"}},
 		}}
+	}
+	if t == reflect.TypeOf(Choice("")) {
+		// One of the options (enum or pattern below), or false.
+		str := map[string]any{"type": "string"}
+		if e, ok := schemaEnums[owner+"."+key]; ok {
+			str["enum"] = e
+		}
+		if p, ok := schemaPatterns[owner+"."+key]; ok {
+			str["pattern"] = p
+		}
+		return map[string]any{"description": schemaDescriptions[owner+"."+key], "anyOf": []any{map[string]any{"const": false}, str}}
 	}
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()

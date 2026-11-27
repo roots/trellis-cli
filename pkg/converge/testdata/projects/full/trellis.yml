@@ -15,11 +15,10 @@ defaults:
     user: secret:mail_user
     password: secret:mail_password
     from: admin@example.com
-  security:
-    ssh:
-      allow_from: [any]
-    fail2ban:
-      wp_login: true
+  ssh:
+    allow_from: [any]
+  fail2ban:
+    wp_login: true
   packages:
     - php8.4-imagick
     - ghostscript
@@ -38,7 +37,7 @@ sites:
   example.com:
     repo: git@github.com:example/example.com.git
     path: site
-    cache: fastcgi
+    cache: true
     object_cache: redis
     writable: [web/app/uploads, web/app/cache]
     php:
@@ -51,7 +50,7 @@ sites:
   shop.example.com:
     repo: git@github.com:example/shop.git
     path: site
-    multisite: { mode: subdomains }
+    multisite: subdomains
     xmlrpc: true # Jetpack
 
 environments:

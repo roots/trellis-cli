@@ -184,10 +184,10 @@ server time), and `auto_updates:` decides what it installs:
   the configured `php.version`, since the version is in the package names)
   and MariaDB (within the series in the repository URL).
 - `distro`: the distro's default, its security updates only.
-- `off`: nothing automatic.
+- `false`: nothing automatic.
 
 `trellis converge upgrade <env>` runs unattended-upgrades now, in one
-transaction, installing exactly what `auto_updates` allows (with `off`, what
+transaction, installing exactly what `auto_updates` allows (with `false`, what
 `all` would). Run it after a server's first apply: fresh images are usually
 far behind, and the nightly run installs one package at a time, so its first
 batch would take minutes and only start the next morning. `apply` suggests it.

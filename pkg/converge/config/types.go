@@ -54,17 +54,56 @@ type Server struct {
 	OS       string `yaml:"os,omitempty"`
 	Timezone string `yaml:"timezone,omitempty"`
 	// Swap is "auto" (a swapfile of min(RAM, 2G) if the server has no
-	// swap), a size for /swapfile (e.g. "1G"), or "off".
-	Swap string `yaml:"swap,omitempty"`
+	// swap), a size for /swapfile (e.g. "1G"), or false.
+	Swap Choice `yaml:"swap,omitempty"`
 	// AutoUpdates is what unattended-upgrades installs daily: UpdatesAll
-	// (default), UpdatesDistro or UpdatesOff.
-	AutoUpdates string            `yaml:"auto_updates,omitempty"`
+	// (default), UpdatesDistro or false.
+	AutoUpdates Choice            `yaml:"auto_updates,omitempty"`
 	PHP         PHP               `yaml:"php,omitempty"`
 	MariaDB     map[string]string `yaml:"mariadb,omitempty"`
 	Mail        *Mail             `yaml:"mail,omitempty"`
-	Security    Security          `yaml:"security,omitempty"`
+	SSH         SSH               `yaml:"ssh,omitempty"`
+	Fail2ban    Fail2ban          `yaml:"fail2ban,omitempty"`
 	Packages    []string          `yaml:"packages,omitempty"`
 	Commands    []Command         `yaml:"commands,omitempty"`
+}
+
+// Off is what a Choice holds for false.
+const Off = "off"
+
+// Choice is a setting that names one of a few options, or is false to turn
+// it off (object_cache: redis, swap: false). Words like off and none are
+// refused, so there's one way to say it.
+type Choice string
+
+func (c *Choice) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind != yaml.ScalarNode {
+		return fmt.Errorf("line %d: expected a value or false", n.Line)
+	}
+	if n.ShortTag() == "!!bool" {
+		var on bool
+		if err := n.Decode(&on); err != nil {
+			return err
+		}
+		if on {
+			return fmt.Errorf("line %d: true isn't one of the options here (false turns it off)", n.Line)
+		}
+		*c = Off
+		return nil
+	}
+	switch strings.ToLower(n.Value) {
+	case "off", "none", "no", "disabled":
+		return fmt.Errorf("line %d: use false to turn this off", n.Line)
+	}
+	*c = Choice(n.Value)
+	return nil
+}
+
+func (c Choice) MarshalYAML() (any, error) {
+	if c == Off {
+		return false, nil
+	}
+	return string(c), nil
 }
 
 type PHP struct {
@@ -104,11 +143,6 @@ type Mail struct {
 	User     string `yaml:"user,omitempty"`
 	Password string `yaml:"password,omitempty"`
 	From     string `yaml:"from,omitempty"`
-}
-
-type Security struct {
-	SSH      SSH      `yaml:"ssh,omitempty"`
-	Fail2ban Fail2ban `yaml:"fail2ban,omitempty"`
 }
 
 type SSH struct {
@@ -195,11 +229,16 @@ func (e *Environment) ServerName() string {
 func (e *Environment) LocalDB() bool { return e.Database == nil }
 
 type ExternalDatabase struct {
-	Host  string   `yaml:"host"`
-	Port  int      `yaml:"port,omitempty"`
-	TLS   string   `yaml:"tls,omitempty"` // "required" or ""
+	Host string `yaml:"host"`
+	Port int    `yaml:"port,omitempty"`
+	// TLS encrypts connections (default true: a managed database is
+	// reached over the network).
+	TLS   *bool    `yaml:"tls,omitempty"`
 	Admin *DBAdmin `yaml:"admin,omitempty"`
 }
+
+// UsesTLS reports whether connections to the database use TLS.
+func (d ExternalDatabase) UsesTLS() bool { return d.TLS == nil || *d.TLS }
 
 type DBAdmin struct {
 	User     string `yaml:"user"`
@@ -207,10 +246,6 @@ type DBAdmin struct {
 }
 
 const (
-	CacheOff     = "off"
-	CacheFastCGI = "fastcgi"
-
-	ObjectCacheNone      = "none"
 	ObjectCacheRedis     = "redis"
 	ObjectCacheMemcached = "memcached"
 )
@@ -225,8 +260,8 @@ type Site struct {
 	Domain      string            `yaml:"domain,omitempty"`
 	Redirects   []string          `yaml:"redirects,omitempty"`
 	HTTPS       HTTPS             `yaml:"https,omitempty"`
-	Cache       string            `yaml:"cache,omitempty"`
-	ObjectCache string            `yaml:"object_cache,omitempty"`
+	Cache       bool              `yaml:"cache,omitempty"` // nginx FastCGI page cache
+	ObjectCache Choice            `yaml:"object_cache,omitempty"`
 	XMLRPC      bool              `yaml:"xmlrpc,omitempty"`
 	Multisite   Multisite         `yaml:"multisite,omitempty"`
 	Writable    []string          `yaml:"writable,omitempty"`
@@ -322,8 +357,8 @@ func (h HTTPS) MarshalYAML() (any, error) {
 // On reports whether the site serves HTTPS.
 func (h HTTPS) On() bool { return h.Mode != HTTPSOff }
 
-// Multisite accepts `false`, `true` (subdirectories) or
-// `{mode: subdomains|subdirectories}`.
+// Multisite accepts false, true (subdirectories), subdomains or
+// subdirectories.
 type Multisite struct {
 	Enabled bool
 	Mode    string // "subdomains" | "subdirectories"
@@ -331,34 +366,28 @@ type Multisite struct {
 
 func (m *Multisite) UnmarshalYAML(n *yaml.Node) error {
 	if n.Kind == yaml.ScalarNode {
+		switch n.Value {
+		case "subdomains", "subdirectories":
+			*m = Multisite{Enabled: true, Mode: n.Value}
+			return nil
+		}
 		var b bool
-		if err := n.Decode(&b); err != nil {
-			return fmt.Errorf("line %d: multisite must be a bool or {mode: ...}", n.Line)
+		if err := n.Decode(&b); err == nil {
+			*m = Multisite{Enabled: b}
+			if b {
+				m.Mode = "subdirectories"
+			}
+			return nil
 		}
-		*m = Multisite{Enabled: b}
-		if b {
-			m.Mode = "subdirectories"
-		}
-		return nil
 	}
-	var raw struct {
-		Mode string `yaml:"mode"`
-	}
-	if err := n.Decode(&raw); err != nil {
-		return err
-	}
-	if raw.Mode != "subdomains" && raw.Mode != "subdirectories" {
-		return fmt.Errorf("line %d: multisite.mode must be subdomains or subdirectories", n.Line)
-	}
-	*m = Multisite{Enabled: true, Mode: raw.Mode}
-	return nil
+	return fmt.Errorf("line %d: multisite must be true, false, subdomains or subdirectories", n.Line)
 }
 
 func (m Multisite) MarshalYAML() (any, error) {
 	if !m.Enabled {
 		return false, nil
 	}
-	return map[string]string{"mode": m.Mode}, nil
+	return m.Mode, nil
 }
 
 // Domains returns the canonical domain followed by redirects.
@@ -418,9 +447,9 @@ const (
 	// UpdatesDistro keeps the distro's default: its security updates only
 	// (and Debian's point releases).
 	UpdatesDistro = "distro"
-	// UpdatesOff installs nothing automatically; `trellis converge
-	// upgrade` installs what UpdatesAll would.
-	UpdatesOff = "off"
+	// UpdatesOff (false) installs nothing automatically; `trellis
+	// converge upgrade` installs what UpdatesAll would.
+	UpdatesOff = Off
 )
 
 // OS is a supported operating system. Name is what trellis.yml's os: says

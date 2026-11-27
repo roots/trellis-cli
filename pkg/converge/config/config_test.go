@@ -36,7 +36,7 @@ func TestMinimalDefaults(t *testing.T) {
 		t.Fatalf("server = %s:%d local db %v", e.Host, e.Port, e.LocalDB())
 	}
 	s := e.Sites[0]
-	if s.HTTPS.Mode != HTTPSLetsEncrypt || s.Branch != "main" || s.Cache != CacheOff {
+	if s.HTTPS.Mode != HTTPSLetsEncrypt || s.Branch != "main" || s.Cache || s.ObjectCache != Off {
 		t.Errorf("site defaults not applied: %+v", s)
 	}
 	if diff := cmp.Diff([]string{"example.com", "www.example.com"}, s.Domains()); diff != "" {
@@ -80,10 +80,10 @@ func TestMergeRule(t *testing.T) {
 		t.Errorf("prod sites = %v", siteNames(prod))
 	}
 	// Site fields merge with env overrides.
-	if staging.Sites[0].Branch != "develop" || staging.Sites[0].Cache != CacheFastCGI {
+	if staging.Sites[0].Branch != "develop" || !staging.Sites[0].Cache {
 		t.Errorf("staging site = %+v", staging.Sites[0])
 	}
-	// Multisite object form.
+	// multisite: subdomains.
 	shop := prod.Sites[1]
 	if !shop.Multisite.Enabled || shop.Multisite.Mode != "subdomains" {
 		t.Errorf("multisite = %+v", shop.Multisite)
@@ -210,7 +210,7 @@ environments:
 version: 1
 access: { admins: [k] }
 sites:
-  a.com: { repo: r, cache: redis }
+  a.com: { repo: r, object_cache: memcache }
   b.com: { repo: r, https: { certificate: certs/b.pem, key: plain-key } }
 environments:
   production:
@@ -220,7 +220,7 @@ environments:
       a.com: { domain: a.com }
       b.com: { domain: a.com }
 `,
-			want: []string{`domain "a.com" is also used by a.com`, "cache must be", "https.certificate must be file:", "https.key must be secret:", "php.version"},
+			want: []string{`domain "a.com" is also used by a.com`, "object_cache must be redis, memcached or false", "https.certificate must be file:", "https.key must be secret:", "php.version"},
 		},
 		"database users cut to the same 32 characters": {
 			yaml: `
@@ -355,7 +355,7 @@ environments:
   production: { host: 1.2.3.4 }
   staging:
     host: 1.2.3.5
-    security: { fail2ban: { wp_login: false } }
+    fail2ban: { wp_login: false }
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -368,11 +368,44 @@ environments:
 	if a.MaxChildren != 4 || a.MaxRequests != 300 || a.PM != "dynamic" || b.MaxChildren != 20 {
 		t.Errorf("fpm: a %+v, b %+v", a, b)
 	}
-	if !*e.Server.Security.Fail2ban.WPLogin {
+	if !*e.Server.Fail2ban.WPLogin {
 		t.Error("wp_login bans are off by default")
 	}
 	st, err := c.Resolve("staging")
-	if err != nil || *st.Server.Security.Fail2ban.WPLogin {
+	if err != nil || *st.Server.Fail2ban.WPLogin {
 		t.Errorf("wp_login: false ignored: %v", err)
+	}
+}
+
+// Anything that can be turned off takes false, and only false.
+func TestOffIsFalse(t *testing.T) {
+	c, err := Parse([]byte(`
+version: 1
+access: { admins: [k] }
+defaults: { swap: false, auto_updates: false }
+sites:
+  a.com: { repo: r, domain: a.com, object_cache: false, multisite: subdomains, cache: true }
+environments:
+  production:
+    host: 1.2.3.4
+    database: { host: db.internal }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := c.Resolve("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := e.Sites[0]
+	if e.Server.Swap != Off || e.Server.AutoUpdates != UpdatesOff || a.ObjectCache != Off || !a.Cache ||
+		a.Multisite.Mode != "subdomains" || !e.Database.UsesTLS() {
+		t.Errorf("server %+v, site %+v", e.Server, a)
+	}
+	for _, bad := range []string{"swap: off", "auto_updates: none", "swap: true"} {
+		_, err := Parse([]byte("version: 1\ndefaults: { " + bad + " }\n"))
+		if err == nil || !strings.Contains(err.Error(), "false") {
+			t.Errorf("%s: err = %v", bad, err)
+		}
 	}
 }

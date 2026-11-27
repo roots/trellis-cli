@@ -208,7 +208,7 @@ func (b *builder) ssh() {
 }
 
 func (b *builder) firewall() {
-	ssh := b.env.Server.Security.SSH
+	ssh := b.env.Server.SSH
 	data := map[string]any{
 		"SSHRateLimit": ssh.RateLimit != nil && *ssh.RateLimit,
 		"SSHAny":       false,
@@ -241,7 +241,7 @@ func (b *builder) fail2ban() {
 		xmlrpc = xmlrpc || s.XMLRPC
 	}
 	b.add(m.NewRootFile("/etc/fail2ban/jail.d/trellis.local",
-		b.render("fail2ban/jail.local", map[string]any{"WPLogin": *b.env.Server.Security.Fail2ban.WPLogin, "XMLRPC": xmlrpc}),
+		b.render("fail2ban/jail.local", map[string]any{"WPLogin": *b.env.Server.Fail2ban.WPLogin, "XMLRPC": xmlrpc}),
 		0o644, fail2banReload))
 	for _, name := range []string{"wordpress-wp-login", "wordpress-xmlrpc"} {
 		b.add(m.NewRootFile("/etc/fail2ban/filter.d/"+name+".conf", b.render("fail2ban/"+name+".conf", nil), 0o644, fail2banReload))
@@ -286,8 +286,8 @@ const swapUnit = "/etc/systemd/system/swapfile.swap"
 // the server's memory, so the script decides it there; it only creates
 // /swapfile when missing and never resizes one.
 func (b *builder) swap() {
-	size := b.env.Server.Swap
-	if size == "off" {
+	size := string(b.env.Server.Swap)
+	if size == config.Off {
 		return
 	}
 	create := `mem=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo); s=$(( mem < 2048 ? mem : 2048 )); [ "$s" -ge 512 ] || s=512; size="${s}M"`
@@ -335,7 +335,8 @@ func (b *builder) autoUpdates() {
 		"// Managed by Trellis.\nAPT::Periodic::Update-Package-Lists \"1\";\nAPT::Periodic::Unattended-Upgrade \""+upgrade+"\";\n", 0o644))
 
 	var c strings.Builder
-	fmt.Fprintf(&c, "// Managed by Trellis (auto_updates: %s).\n", mode)
+	label, _ := mode.MarshalYAML()
+	fmt.Fprintf(&c, "// Managed by Trellis (auto_updates: %v).\n", label)
 	if mode != config.UpdatesDistro {
 		c.WriteString("Unattended-Upgrade::Origins-Pattern {\n")
 		if b.distro == "ubuntu" {

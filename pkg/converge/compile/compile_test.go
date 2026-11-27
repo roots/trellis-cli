@@ -167,7 +167,7 @@ func TestAutoUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 	const conf = "/etc/apt/apt.conf.d/52trellis-unattended-upgrades"
-	build := func(mode string, pins map[string]string) *manifest.Manifest {
+	build := func(mode config.Choice, pins map[string]string) *manifest.Manifest {
 		t.Helper()
 		e, err := p.Config.Resolve("production")
 		if err != nil {

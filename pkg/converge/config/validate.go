@@ -50,14 +50,14 @@ func applyDefaults(e *Environment) {
 	if f.MaxRequests == 0 {
 		f.MaxRequests = 500
 	}
-	if len(s.Security.SSH.AllowFrom) == 0 {
-		s.Security.SSH.AllowFrom = []string{"any"}
+	if len(s.SSH.AllowFrom) == 0 {
+		s.SSH.AllowFrom = []string{"any"}
 	}
-	if s.Security.SSH.RateLimit == nil {
-		s.Security.SSH.RateLimit = ptr(true)
+	if s.SSH.RateLimit == nil {
+		s.SSH.RateLimit = ptr(true)
 	}
-	if s.Security.Fail2ban.WPLogin == nil {
-		s.Security.Fail2ban.WPLogin = ptr(true)
+	if s.Fail2ban.WPLogin == nil {
+		s.Fail2ban.WPLogin = ptr(true)
 	}
 
 	if e.Port == 0 {
@@ -81,11 +81,8 @@ func applyDefaults(e *Environment) {
 				site.HTTPS.Mode = HTTPSSelfSigned
 			}
 		}
-		if site.Cache == "" {
-			site.Cache = CacheOff
-		}
 		if site.ObjectCache == "" {
-			site.ObjectCache = ObjectCacheNone
+			site.ObjectCache = Off
 		}
 		if site.Writable == nil {
 			site.Writable = []string{"web/app/uploads"}
@@ -137,11 +134,11 @@ func validate(e *Environment) error {
 	if _, err := time.LoadLocation(s.Timezone); err != nil || s.Timezone == "Local" {
 		add("%s: timezone %q is not a known time zone (e.g. Etc/UTC, America/Toronto)", p, s.Timezone)
 	}
-	if !slices.Contains([]string{UpdatesAll, UpdatesDistro, UpdatesOff}, s.AutoUpdates) {
-		add("%s: auto_updates must be %s, %s or %s", p, UpdatesAll, UpdatesDistro, UpdatesOff)
+	if !slices.Contains([]Choice{UpdatesAll, UpdatesDistro, UpdatesOff}, s.AutoUpdates) {
+		add("%s: auto_updates must be %s, %s or false", p, UpdatesAll, UpdatesDistro)
 	}
-	if s.Swap != "auto" && s.Swap != "off" && !swapSizeRe.MatchString(s.Swap) {
-		add("%s: swap must be auto, off or a size like 1G or 512M", p)
+	if s.Swap != "auto" && s.Swap != Off && !swapSizeRe.MatchString(string(s.Swap)) {
+		add("%s: swap must be auto, false or a size like 1G or 512M", p)
 	}
 	if !oneOf(s.PHP.FPM.PM, fpmModes...) {
 		add("%s: php.fpm.pm must be dynamic, static or ondemand", p)
@@ -156,12 +153,12 @@ func validate(e *Environment) error {
 			add("%s: mariadb key %q is invalid", p, k)
 		}
 	}
-	for _, a := range s.Security.SSH.AllowFrom {
+	for _, a := range s.SSH.AllowFrom {
 		if a == "any" {
 			continue
 		}
 		if _, _, err := net.ParseCIDR(a); err != nil && net.ParseIP(a) == nil {
-			add("%s: security.ssh.allow_from %q must be an IP, CIDR or \"any\"", p, a)
+			add("%s: ssh.allow_from %q must be an IP, CIDR or \"any\"", p, a)
 		}
 	}
 	for _, pkg := range s.Packages {
@@ -219,9 +216,6 @@ func validateServer(e *Environment, add func(string, ...any)) {
 	if e.Database != nil {
 		if e.Database.Host == "" {
 			add("%s: database.host is required", p)
-		}
-		if e.Database.TLS != "" && e.Database.TLS != "required" {
-			add("%s: database.tls must be \"required\" or omitted", p)
 		}
 	}
 }
@@ -285,11 +279,8 @@ func validateSites(e *Environment, add func(string, ...any)) {
 				add("%s: https.key must be secret:<path>: private keys belong in the encrypted secrets", sp)
 			}
 		}
-		if !oneOf(s.Cache, CacheOff, CacheFastCGI) {
-			add("%s: cache must be off or fastcgi", sp)
-		}
-		if !oneOf(s.ObjectCache, ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached) {
-			add("%s: object_cache must be none, redis or memcached", sp)
+		if !slices.Contains([]Choice{Off, ObjectCacheRedis, ObjectCacheMemcached}, s.ObjectCache) {
+			add("%s: object_cache must be redis, memcached or false", sp)
 		}
 		for k := range s.Env {
 			if !envKeyRe.MatchString(k) {

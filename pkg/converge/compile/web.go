@@ -106,7 +106,7 @@ func (b *builder) webStack() {
 	anySSL := false
 	letsencrypt := false
 	for _, s := range b.env.Sites {
-		fastcgi = fastcgi || s.Cache == config.CacheFastCGI
+		fastcgi = fastcgi || s.Cache
 		anySSL = anySSL || s.HTTPS.On()
 		letsencrypt = letsencrypt || s.HTTPS.Mode == config.HTTPSLetsEncrypt
 	}
@@ -212,7 +212,7 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 		"Scheme":            scheme(ssl),
 		"CertPath":          certPath,
 		"KeyPath":           keyPath,
-		"FastCGICache":      s.Cache == config.CacheFastCGI,
+		"FastCGICache":      s.Cache,
 		"Subdomains":        s.Multisite.Enabled && s.Multisite.Mode == "subdomains",
 		"Development":       b.env.Name == config.DevelopmentEnv,
 		"ClientMaxBodySize": strings.ToLower(postMax),

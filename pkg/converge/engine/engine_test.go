@@ -254,7 +254,7 @@ func TestFailedCheckRollsBackFiles(t *testing.T) {
 	good := string(h.Files["/etc/nginx/sites/example.com.conf"].Data)
 
 	changed := compileEnv(t, "minimal", "production", func(e *config.Environment) {
-		e.Sites[0].Cache = config.CacheFastCGI
+		e.Sites[0].Cache = true
 	})
 	h.Fail["nginx -t"] = "nginx: [emerg] bad config"
 	h.ResetLog()

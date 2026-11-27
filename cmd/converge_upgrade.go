@@ -78,7 +78,7 @@ func (c *ConvergeUpgradeCommand) Help() string {
 
 Runs unattended-upgrades on the server now instead of waiting for its
 nightly run, in one transaction. It installs exactly what auto_updates
-allows (with auto_updates: off, what "all" would), keeps Trellis's config
+allows (with auto_updates: false, what "all" would), keeps Trellis's config
 files and skips packages pinned in trellis.lock. Services restart as the
 packages ask (PHP-FPM and MariaDB for a few seconds).
 
