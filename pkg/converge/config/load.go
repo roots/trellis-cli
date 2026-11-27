@@ -70,10 +70,10 @@ func checkRemovedKeys(doc map[string]any) error {
 			}
 		}
 	}
-	check("defaults", doc["defaults"])
+	check("server", doc["server"])
 	envs, _ := doc["environments"].(map[string]any)
 	for _, name := range slices.Sorted(maps.Keys(envs)) {
-		check("environments."+name, envs[name])
+		check("environments."+name+".server", asMap(envs[name])["server"])
 	}
 	return errors.Join(errs...)
 }
@@ -107,8 +107,6 @@ func (c *Config) EnvironmentNames() []string {
 	return slices.Sorted(maps.Keys(c.File.Environments))
 }
 
-var serverOnlyEnvKeys = []string{"host", "user", "port", "sites", "database", "access"}
-
 // Resolve merges, defaults and validates environment env.
 func (c *Config) Resolve(env string) (*Environment, error) {
 	if _, ok := c.File.Environments[env]; !ok {
@@ -116,13 +114,8 @@ func (c *Config) Resolve(env string) (*Environment, error) {
 	}
 	envDoc := asMap(asMap(c.doc["environments"])[env])
 
-	// Server settings: defaults → environment (minus the env-only keys).
-	envServer := maps.Clone(envDoc)
-	for _, k := range serverOnlyEnvKeys {
-		delete(envServer, k)
-	}
 	var e Environment
-	if err := decodeInto(merge(asMap(c.doc["defaults"]), envServer), &e.Server); err != nil {
+	if err := decodeInto(merge(asMap(c.doc["server"]), asMap(envDoc["server"])), &e.Server); err != nil {
 		return nil, fmt.Errorf("environments.%s: %w", env, err)
 	}
 	if err := decodeInto(merge(asMap(c.doc["access"]), asMap(envDoc["access"])), &e.Access); err != nil {

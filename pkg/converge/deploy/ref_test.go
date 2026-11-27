@@ -107,3 +107,26 @@ func TestResolveFetchFailureSuggestsRef(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestLocate(t *testing.T) {
+	ctx := context.Background()
+	_, local := clone(t)
+	site := filepath.Join(local, "site")
+	write(t, filepath.Join(site, "composer.json"), "{}")
+
+	clone, sub, err := deploy.Locate(ctx, site, "")
+	if err != nil || sub != "site" || rev(t, clone, "--show-toplevel") != rev(t, local, "--show-toplevel") {
+		t.Errorf("subdirectory: %q %q %v", clone, sub, err)
+	}
+	if _, sub, err := deploy.Locate(ctx, local, ""); err != nil || sub != "" {
+		t.Errorf("clone root: %q %v", sub, err)
+	}
+	_, _, err = deploy.Locate(ctx, filepath.Join(local, "nope"), "git@github.com:example/site.git")
+	if err == nil || !strings.Contains(err.Error(), "clone git@github.com:example/site.git") {
+		t.Errorf("missing: %v", err)
+	}
+	_, _, err = deploy.Locate(ctx, t.TempDir(), "")
+	if err == nil || !strings.Contains(err.Error(), "isn't in a git clone") {
+		t.Errorf("not git: %v", err)
+	}
+}

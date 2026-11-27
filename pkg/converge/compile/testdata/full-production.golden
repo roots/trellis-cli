@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 3ea5b0ad7b90a2a90d1954fe4f8bd362dc678a602392b034c6311701cceeb3d7
+# hash def5fcdf1cda56b801fc9799658a28869c6ed274e6053f938f53656a3d45d752
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -248,6 +248,8 @@ file          /etc/nftables.conf 0755 root:root
     │ 
     │     tcp dport { 80, 443 } accept
     │     udp dport 443 accept
+    │     tcp dport { 8443 } accept
+    │     udp dport { 41641 } accept
     │   }
     │ 
     │   chain output {

@@ -84,7 +84,7 @@ are rejected with a pointer to their drop-in directory or `eject`.
 ## Commands
 
 ```yaml
-defaults:            # or per environment
+server:              # or an environment's server:
   commands:
     - run: fc-cache -f
       on: [/usr/local/share/fonts/]
@@ -195,11 +195,14 @@ server/files/etc/apt/keyrings/tailscale.gpg          (committed: no network fetc
 server/files/etc/apt/sources.list.d/tailscale.sources
 ```
 ```yaml
-packages: [tailscale]
-commands:
-  - name: tailscale-up
-    run: tailscale up --auth-key="$TS_AUTHKEY" --ssh=false
-    env: { TS_AUTHKEY: secret:tailscale_authkey }
+server:
+  packages: [tailscale]
+  firewall:
+    allow: [41641/udp] # direct connections instead of relays
+  commands:
+    - name: tailscale-up
+      run: tailscale up --auth-key="$TS_AUTHKEY" --ssh=false
+      env: { TS_AUTHKEY: secret:tailscale_authkey }
 ```
 
 The repository lands before packages install; the package starts its own
@@ -211,6 +214,29 @@ repository's `Release` file):
 # server/files/etc/apt/apt.conf.d/53-tailscale-upgrades
 Unattended-Upgrade::Origins-Pattern { "origin=Tailscale"; };
 ```
+
+### SSH only over Tailscale (or another VPN)
+
+Taking SSH off the internet is the strongest hardening there is, at the cost
+of depending on the VPN (and, in CI, joining it, e.g. with
+`tailscale/github-action`). Do it in two applies, so a failed `tailscale up`
+can't lock you out:
+
+1. Apply the Tailscale setup above with SSH still public, and check the
+   server shows up in the tailnet. Turn off key expiry for it in the admin
+   console (node keys expire after 180 days by default).
+2. Restrict SSH to the tailnet and apply over it:
+
+   ```yaml
+   environments:
+     production:
+       host: example-prod   # its tailnet name (MagicDNS) or 100.x address
+       server:
+         ssh:
+           allow_from: [100.64.0.0/10, fd7a:115c:a1e0::/48]
+   ```
+
+If the VPN is ever unavailable, the provider's web console still gets you in.
 
 ### Update schedule
 

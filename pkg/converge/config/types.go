@@ -1,10 +1,12 @@
 // Package config loads trellis.yml and resolves it into a fully merged,
 // defaulted and validated Environment.
 //
-// There is exactly one merge rule:
+// There is exactly one merge rule: an environment overrides the top level,
+// key for key.
 //
-//	defaults → environments.<env>            (server settings)
-//	sites.<site> → environments.<env>.sites.<site>  (site settings)
+//	server → environments.<env>.server
+//	access → environments.<env>.access
+//	sites.<site> → environments.<env>.sites.<site>
 //
 // Maps deep-merge, lists replace, and an explicit null removes a key (or,
 // for a site under an environment, excludes the site from it).
@@ -12,6 +14,8 @@ package config
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -21,7 +25,7 @@ import (
 // keys are errors) before merging, so typos are reported with line numbers.
 type File struct {
 	Version      int                     `yaml:"version"`
-	Defaults     Server                  `yaml:"defaults"`
+	Server       Server                  `yaml:"server"`
 	Access       Access                  `yaml:"access"`
 	Sites        map[string]Site         `yaml:"sites"`
 	Environments map[string]*Environment `yaml:"environments"`
@@ -31,7 +35,7 @@ type File struct {
 // fully merged result.
 type Environment struct {
 	Name   string `yaml:"-"`
-	Server Server `yaml:",inline"` // server settings override `defaults`
+	Server Server `yaml:"server,omitempty"` // overrides the top-level server
 	Access Access `yaml:"access,omitempty"`
 	// Host is the server (one per environment). Development may omit it
 	// and target a VM with --lima or --host.
@@ -63,6 +67,7 @@ type Server struct {
 	MariaDB     map[string]string `yaml:"mariadb,omitempty"`
 	Mail        *Mail             `yaml:"mail,omitempty"`
 	SSH         SSH               `yaml:"ssh,omitempty"`
+	Firewall    Firewall          `yaml:"firewall,omitempty"`
 	Fail2ban    Fail2ban          `yaml:"fail2ban,omitempty"`
 	Packages    []string          `yaml:"packages,omitempty"`
 	Commands    []Command         `yaml:"commands,omitempty"`
@@ -148,6 +153,48 @@ type Mail struct {
 type SSH struct {
 	AllowFrom []string `yaml:"allow_from,omitempty"`
 	RateLimit *bool    `yaml:"rate_limit,omitempty"`
+}
+
+// Firewall opens ports beyond SSH (ssh.allow_from), 80 and 443.
+type Firewall struct {
+	// Allow lists ports open to everyone: "41641/udp", "8443", or a range
+	// "60000-61000/udp" (tcp when no protocol is given).
+	Allow []string `yaml:"allow,omitempty"`
+}
+
+// Port is an entry of firewall.allow, parsed.
+type Port struct {
+	Proto string // tcp or udp
+	Ports string // "8443" or "60000-61000"
+}
+
+var portRe = regexp.MustCompile(`^([0-9]+)(?:-([0-9]+))?(?:/(tcp|udp))?$`)
+
+// ParsePort parses a firewall.allow entry.
+func ParsePort(s string) (Port, error) {
+	m := portRe.FindStringSubmatch(s)
+	if m == nil {
+		return Port{}, fmt.Errorf("%q must be a port or range with an optional /tcp or /udp, e.g. 41641/udp", s)
+	}
+	lo, _ := strconv.Atoi(m[1])
+	hi := lo
+	if m[2] != "" {
+		hi, _ = strconv.Atoi(m[2])
+	}
+	if lo < 1 || hi > 65535 || lo > hi {
+		return Port{}, fmt.Errorf("%q is not a valid port or range (1-65535)", s)
+	}
+	p := Port{Proto: m[3], Ports: m[1]}
+	if p.Proto == "" {
+		p.Proto = "tcp"
+	}
+	if m[2] != "" {
+		p.Ports += "-" + m[2]
+	}
+	if p.Proto == "tcp" && lo <= 22 && 22 <= hi {
+		return Port{}, fmt.Errorf("%q includes SSH's port 22: use ssh.allow_from", s)
+	}
+	return p, nil
 }
 
 // Fail2ban tunes the WordPress jails. sshd's is always on, and the
@@ -253,10 +300,14 @@ const (
 type Site struct {
 	Name        string            `yaml:"-"`
 	EnvName     string            `yaml:"-"` // the environment it was resolved for
+	// Source is the site's Bedrock directory in a local git clone,
+	// relative to trellis.yml (default ../site). It may be a subdirectory
+	// of the clone. Deploys build from it.
+	Source string `yaml:"source,omitempty"`
+	// Repo is the site's git URL, only for telling people how to clone it
+	// to Source.
 	Repo        string            `yaml:"repo,omitempty"`
-	Path        string            `yaml:"path,omitempty"`
 	Branch      string            `yaml:"branch,omitempty"`
-	LocalPath   string            `yaml:"local_path,omitempty"`
 	Domain      string            `yaml:"domain,omitempty"`
 	Redirects   []string          `yaml:"redirects,omitempty"`
 	HTTPS       HTTPS             `yaml:"https,omitempty"`

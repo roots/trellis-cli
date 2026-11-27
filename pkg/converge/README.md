@@ -127,7 +127,7 @@ if the plan it computes differs.
 
 ## Operating systems
 
-`os:` (in `defaults` or per environment): `ubuntu-24.04` (default),
+`os:` (in `server:`, or an environment's `server:`): `ubuntu-24.04` (default),
 `ubuntu-26.04` or `debian-13`, listed once in `config.OSes`. Manifests record
 it and the agent refuses to run on a server whose `/etc/os-release` says
 otherwise, so upgrading a server's OS is a deliberate config change. Each has
@@ -237,9 +237,10 @@ lost. `user:` or `--user` provisions as another user with passwordless sudo
 
 ## Deploys
 
-`trellis converge deploy <env> <site>` builds the release locally from an
-exact commit (the site's branch as it is on the remote, `--ref`, or in CI the
-checked-out commit; then Composer and `deploy-hooks/build.sh`), uploads it,
+`trellis converge deploy <env> <site>` builds the release locally from the
+site's `source` (its Bedrock directory in a git clone; default `../site`), at
+an exact commit (the site's branch as it is on the remote, `--ref`, or in CI
+the checked-out commit; then Composer and `deploy-hooks/build.sh`), uploads it,
 and the agent activates it: link shared paths, check the PHP platform, run
 `deploy-hooks/release.sh`, switch `current` atomically, update the
 database, reload PHP-FPM, run `deploy-hooks/after.sh`, and keep 5 releases.

@@ -92,16 +92,20 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, e *config.Environment
 	if err != nil {
 		return err
 	}
-	if site.LocalPath == "" {
-		return fmt.Errorf("site %s has no local_path: deploys build from your local clone of the site", name)
-	}
 	hooks, local, err := deploy.Hooks(p.Root)
 	if err != nil {
 		return err
 	}
 
 	start := time.Now()
-	repo := filepath.Join(p.Root, site.LocalPath)
+	source := site.Source
+	if !filepath.IsAbs(source) {
+		source = filepath.Join(p.Root, source)
+	}
+	repo, subtree, err := deploy.Locate(ctx, source, site.Repo)
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
 	src, err := deploy.Resolve(ctx, repo, c.ref, site.Branch, os.Getenv("CI") == "true")
 	if err != nil {
 		return err
@@ -115,7 +119,7 @@ func (c *ConvergeDeployCommand) deploy(p *project.Project, e *config.Environment
 	art, err := deploy.Build(ctx, deploy.BuildOptions{
 		Repo:    repo,
 		Ref:     src.Commit,
-		Subtree: site.Path,
+		Subtree: subtree,
 		Hook:    local.Build,
 		Env:     []string{"TRELLIS_ENV=" + e.Name, "TRELLIS_SITE=" + name},
 		Exclude: site.Deploy.Exclude,
@@ -158,7 +162,7 @@ func (c *ConvergeDeployCommand) Synopsis() string {
 func (c *ConvergeDeployCommand) Help() string {
 	return `Usage: trellis converge deploy [options] <environment> <site>
 
-Builds the site locally from an exact commit of its local_path repository
+Builds the site locally from an exact commit of the clone holding its source
 (never uncommitted changes): composer install with your own credentials, then
 deploy-hooks/build.sh if present (e.g. theme assets). The packed release is
 uploaded to the server, which links shared paths (.env, uploads), checks

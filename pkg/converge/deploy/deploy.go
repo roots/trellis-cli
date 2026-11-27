@@ -52,9 +52,9 @@ func (a Artifact) RemotePath() string { return ArtifactDir + "/" + a.SHA256 + ".
 
 // BuildOptions configures a build.
 type BuildOptions struct {
-	Repo    string // local git repository (the site's local_path)
+	Repo    string // the local git clone (see Locate)
 	Ref     string // branch, tag or commit
-	Subtree string // path of the site within the repo (site.path)
+	Subtree string // the site's directory within the clone
 	Hook    string // build hook script, if any
 	Env     []string
 	// Exclude are patterns kept out of the artifact (see config.SiteDeploy).

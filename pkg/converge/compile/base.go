@@ -231,6 +231,16 @@ func (b *builder) firewall() {
 		}
 	}
 	data["SSHAllow4"], data["SSHAllow6"] = v4, v6
+	var tcp, udp []string
+	for _, a := range b.env.Server.Firewall.Allow {
+		p, _ := config.ParsePort(a) // validated
+		if p.Proto == "udp" {
+			udp = append(udp, p.Ports)
+		} else {
+			tcp = append(tcp, p.Ports)
+		}
+	}
+	data["AllowTCP"], data["AllowUDP"] = tcp, udp
 
 	b.add(m.NewRootFile("/etc/nftables.conf", b.render("nftables/nftables.conf", data), 0o755, nftReload))
 }

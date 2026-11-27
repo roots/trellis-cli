@@ -18,8 +18,8 @@ func Schema() map[string]any {
 	root["$schema"] = "https://json-schema.org/draft/2020-12/schema"
 	root["$id"] = SchemaID
 	root["title"] = "trellis.yml"
-	root["description"] = "Trellis project config: server settings (defaults), access, sites and environments. " +
-		"Merge rule: defaults → environments.<env>, sites.<name> → environments.<env>.sites.<name>; " +
+	root["description"] = "Trellis project config: server settings, access, sites and environments. " +
+		"Merge rule: each environment overrides the top level (server, access, sites.<name>); " +
 		"maps merge, lists replace, null removes. Values like `secret:<path>` come from secrets/<env>.yml(.age)."
 	root["required"] = []string{"version"}
 	root["$defs"] = g.defs
@@ -31,7 +31,7 @@ type schemaGen struct{ defs map[string]any }
 // descriptions are keyed by "<Type>.<yaml key>".
 var schemaDescriptions = map[string]string{
 	"File.version":      "Config format version. Must be 1.",
-	"File.defaults":     "Server settings shared by every environment (each environment can override them).",
+	"File.server":       "Server settings for every environment (each environment's server overrides them).",
 	"File.access":       "Who can log in and decrypt secrets, for every environment.",
 	"File.sites":        "Sites, keyed by name (usually the domain). Environments override per site.",
 	"File.environments": "Environments, e.g. development, staging, production. One server each.",
@@ -40,6 +40,7 @@ var schemaDescriptions = map[string]string{
 	"Environment.user":     "SSH user for provisioning (default: root). Any other user needs passwordless sudo.",
 	"Environment.port":     "SSH port (default 22).",
 	"Environment.database": "An external database (e.g. RDS). Without it, MariaDB runs on the server.",
+	"Environment.server":   "Overrides the top-level server settings for this environment.",
 	"Environment.access":   "Overrides top-level access for this environment.",
 	"Environment.sites":    "Per-environment site overrides, keyed by site name. null excludes a site from this environment.",
 
@@ -52,8 +53,11 @@ var schemaDescriptions = map[string]string{
 	"Server.mail":         "SMTP relay for outgoing mail (msmtp).",
 	"Server.ssh":          "Who can reach SSH.",
 	"Server.fail2ban":     "WordPress fail2ban jails (sshd's is always on).",
-	"Server.packages":     "Extra apt packages to install.",
-	"Server.commands":     "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
+	"Server.firewall":     "Ports to open beyond SSH (ssh.allow_from), 80 and 443.",
+
+	"Firewall.allow":  "Ports open to everyone: 41641/udp, 8443, or a range like 60000-61000/udp (tcp without a protocol).",
+	"Server.packages": "Extra apt packages to install.",
+	"Server.commands": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
 
 	"PHP.version": "PHP version from packages.sury.org, e.g. \"8.4\".",
 	"PHP.ini":     "php.ini settings for PHP-FPM and the CLI.",
@@ -78,10 +82,9 @@ var schemaDescriptions = map[string]string{
 	"ExternalDatabase.tls":   "Connect over TLS (default true; false for a database on a private network without TLS).",
 	"ExternalDatabase.admin": "Admin credentials used to create databases and users.",
 
-	"Site.repo":         "Git repository (used for the site's identity; deploys build from local_path).",
-	"Site.path":         "Subdirectory of the repo containing the Bedrock site (repo subtree).",
+	"Site.source":       "The site's Bedrock directory in a local git clone, relative to trellis.yml (default ../site); it may be a subdirectory of the clone. Deploys build from it (in CI, from the workflow's checkout).",
+	"Site.repo":         "The site's git URL, for cloning it to source (deploys don't need it).",
 	"Site.branch":       "Branch deployed by default (default main).",
-	"Site.local_path":   "Local clone of the site, relative to trellis.yml. Deploys build from it.",
 	"Site.domain":       "Canonical domain.",
 	"Site.redirects":    "Domains redirected to the canonical domain.",
 	"Site.https":        "HTTPS (default true: an automatic Let's Encrypt certificate, self-signed in development). false serves plain HTTP; self-signed; or the site's own certificate: {certificate: file:<path>, key: secret:<path>}.",
@@ -130,8 +133,9 @@ var schemaEnums = map[string][]any{
 }
 
 var schemaPatterns = map[string]string{
-	"Server.swap": `^(auto|[1-9][0-9]*[MG])$`,
-	"PHP.version": `^[0-9]+\.[0-9]+$`,
+	"Server.swap":    `^(auto|[1-9][0-9]*[MG])$`,
+	"PHP.version":    `^[0-9]+\.[0-9]+$`,
+	"Firewall.allow": `^[0-9]+(-[0-9]+)?(/(tcp|udp))?$`,
 }
 
 func yamlKey(f reflect.StructField) (key string, inline, skip bool) {
@@ -219,7 +223,11 @@ func (g *schemaGen) typ(t reflect.Type, owner, key string) map[string]any {
 			s["enum"] = e
 		}
 		if p, ok := schemaPatterns[id]; ok {
-			s["pattern"] = p
+			if items, ok := s["items"].(map[string]any); ok {
+				items["pattern"] = p // each entry of a list
+			} else {
+				s["pattern"] = p
+			}
 		}
 	}
 	return s

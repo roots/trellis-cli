@@ -3,7 +3,6 @@ version: 1
 sites:
   example.com:
     repo: git@github.com:example/example.com.git
-    path: site
 
 access:
   admins: [github:example-admin]

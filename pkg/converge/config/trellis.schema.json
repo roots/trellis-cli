@@ -80,78 +80,21 @@
           "$ref": "#/$defs/Access",
           "description": "Overrides top-level access for this environment."
         },
-        "auto_updates": {
-          "anyOf": [
-            {
-              "const": false
-            },
-            {
-              "enum": [
-                "all",
-                "distro"
-              ],
-              "type": "string"
-            }
-          ],
-          "description": "What unattended-upgrades installs daily (around 6:00 server time): all (default: the distro's security and bugfix updates, plus bugfix and security releases of nginx, PHP and MariaDB within its series), distro (the distro's default: its security updates only) or false (nothing automatic; `trellis converge upgrade` installs what all would)."
-        },
-        "commands": {
-          "description": "Escape hatch: shell commands run as root, last, re-run when run, env or a watched file (on) changes. Files go in server/files/.",
-          "items": {
-            "$ref": "#/$defs/Command"
-          },
-          "type": "array"
-        },
         "database": {
           "$ref": "#/$defs/ExternalDatabase",
           "description": "An external database (e.g. RDS). Without it, MariaDB runs on the server."
-        },
-        "fail2ban": {
-          "$ref": "#/$defs/Fail2ban",
-          "description": "WordPress fail2ban jails (sshd's is always on)."
         },
         "host": {
           "description": "The server's address (one server per environment). Optional in development (use --lima or --host).",
           "type": "string"
         },
-        "mail": {
-          "$ref": "#/$defs/Mail",
-          "description": "SMTP relay for outgoing mail (msmtp)."
-        },
-        "mariadb": {
-          "additionalProperties": {
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
-          },
-          "description": "MariaDB [mysqld] settings (e.g. innodb_buffer_pool_size: 512M).",
-          "type": "object"
-        },
-        "os": {
-          "description": "The server's operating system (default ubuntu-24.04). Plans refuse to run on a server with a different OS.",
-          "enum": [
-            "ubuntu-24.04",
-            "ubuntu-26.04",
-            "debian-13"
-          ],
-          "type": "string"
-        },
-        "packages": {
-          "description": "Extra apt packages to install.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "php": {
-          "$ref": "#/$defs/PHP",
-          "description": "PHP version, php.ini settings and PHP-FPM pool settings."
-        },
         "port": {
           "description": "SSH port (default 22).",
           "type": "integer"
+        },
+        "server": {
+          "$ref": "#/$defs/Server",
+          "description": "Overrides the top-level server settings for this environment."
         },
         "sites": {
           "additionalProperties": {
@@ -169,26 +112,6 @@
             "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
           },
           "type": "object"
-        },
-        "ssh": {
-          "$ref": "#/$defs/SSH",
-          "description": "Who can reach SSH."
-        },
-        "swap": {
-          "anyOf": [
-            {
-              "const": false
-            },
-            {
-              "pattern": "^(auto|[1-9][0-9]*[MG])$",
-              "type": "string"
-            }
-          ],
-          "description": "auto (a swapfile of min(RAM, 2G) if the server has no swap), a size like 1G, or false."
-        },
-        "timezone": {
-          "description": "IANA time zone, e.g. Etc/UTC or America/Toronto.",
-          "type": "string"
         },
         "user": {
           "description": "SSH user for provisioning (default: root). Any other user needs passwordless sudo.",
@@ -260,6 +183,20 @@
         "wp_login": {
           "description": "Ban IPs that keep failing WordPress logins (default true). Turn it off behind a proxy nginx doesn't see real client IPs through. The xmlrpc.php jail is on when any site allows XML-RPC.",
           "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "Firewall": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "description": "Ports open to everyone: 41641/udp, 8443, or a range like 60000-61000/udp (tcp without a protocol).",
+          "items": {
+            "pattern": "^[0-9]+(-[0-9]+)?(/(tcp|udp))?$",
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -357,6 +294,10 @@
         "fail2ban": {
           "$ref": "#/$defs/Fail2ban",
           "description": "WordPress fail2ban jails (sshd's is always on)."
+        },
+        "firewall": {
+          "$ref": "#/$defs/Firewall",
+          "description": "Ports to open beyond SSH (ssh.allow_from), 80 and 443."
         },
         "mail": {
           "$ref": "#/$defs/Mail",
@@ -481,10 +422,6 @@
             }
           ]
         },
-        "local_path": {
-          "description": "Local clone of the site, relative to trellis.yml. Deploys build from it.",
-          "type": "string"
-        },
         "multisite": {
           "description": "false (default), true (subdirectories), subdomains or subdirectories.",
           "oneOf": [
@@ -514,10 +451,6 @@
           ],
           "description": "redis, memcached or false (default)."
         },
-        "path": {
-          "description": "Subdirectory of the repo containing the Bedrock site (repo subtree).",
-          "type": "string"
-        },
         "php": {
           "$ref": "#/$defs/SitePHP",
           "description": "Per-site php.ini and PHP-FPM settings (the site's pool)."
@@ -530,7 +463,11 @@
           "type": "array"
         },
         "repo": {
-          "description": "Git repository (used for the site's identity; deploys build from local_path).",
+          "description": "The site's git URL, for cloning it to source (deploys don't need it).",
+          "type": "string"
+        },
+        "source": {
+          "description": "The site's Bedrock directory in a local git clone, relative to trellis.yml (default ../site); it may be a subdirectory of the clone. Deploys build from it (in CI, from the workflow's checkout).",
           "type": "string"
         },
         "writable": {
@@ -607,15 +544,11 @@
   "$id": "https://raw.githubusercontent.com/roots/trellis-cli/converge-engine/pkg/converge/config/trellis.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Trellis project config: server settings (defaults), access, sites and environments. Merge rule: defaults → environments.\u003cenv\u003e, sites.\u003cname\u003e → environments.\u003cenv\u003e.sites.\u003cname\u003e; maps merge, lists replace, null removes. Values like `secret:\u003cpath\u003e` come from secrets/\u003cenv\u003e.yml(.age).",
+  "description": "Trellis project config: server settings, access, sites and environments. Merge rule: each environment overrides the top level (server, access, sites.\u003cname\u003e); maps merge, lists replace, null removes. Values like `secret:\u003cpath\u003e` come from secrets/\u003cenv\u003e.yml(.age).",
   "properties": {
     "access": {
       "$ref": "#/$defs/Access",
       "description": "Who can log in and decrypt secrets, for every environment."
-    },
-    "defaults": {
-      "$ref": "#/$defs/Server",
-      "description": "Server settings shared by every environment (each environment can override them)."
     },
     "environments": {
       "additionalProperties": {
@@ -623,6 +556,10 @@
       },
       "description": "Environments, e.g. development, staging, production. One server each.",
       "type": "object"
+    },
+    "server": {
+      "$ref": "#/$defs/Server",
+      "description": "Server settings for every environment (each environment's server overrides them)."
     },
     "sites": {
       "additionalProperties": {

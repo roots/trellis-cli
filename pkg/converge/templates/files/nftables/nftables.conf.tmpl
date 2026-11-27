@@ -38,6 +38,12 @@ table inet trellis {
 {{- if .HTTP3 }}
     udp dport 443 accept
 {{- end }}
+{{- if .AllowTCP }}
+    tcp dport { {{ join .AllowTCP ", " }} } accept
+{{- end }}
+{{- if .AllowUDP }}
+    udp dport { {{ join .AllowUDP ", " }} } accept
+{{- end }}
   }
 
   chain output {

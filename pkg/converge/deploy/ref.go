@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -83,6 +84,27 @@ func remoteFor(ctx context.Context, repo, branch string) (string, error) {
 		return remotes[0], nil
 	}
 	return "", errors.New("the clone has several git remotes and " + branch + " tracks none of them: set its upstream, or deploy with --ref")
+}
+
+// Locate finds the git clone that holds source (the site's Bedrock
+// directory) and source's path inside it.
+func Locate(ctx context.Context, source, repoURL string) (clone, subtree string, err error) {
+	if fi, err := os.Stat(source); err != nil || !fi.IsDir() {
+		hint := ""
+		if repoURL != "" {
+			hint = fmt.Sprintf(" (clone %s so the site is there, or set source)", repoURL)
+		}
+		return "", "", fmt.Errorf("the site's source %s isn't a directory%s", source, hint)
+	}
+	top, err := output(ctx, source, "git", "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", "", fmt.Errorf("the site's source %s isn't in a git clone (deploys build from commits)", source)
+	}
+	prefix, err := output(ctx, source, "git", "rev-parse", "--show-prefix")
+	if err != nil {
+		return "", "", err
+	}
+	return top, strings.TrimSuffix(prefix, "/"), nil
 }
 
 func commitOf(ctx context.Context, repo, ref string) (string, error) {

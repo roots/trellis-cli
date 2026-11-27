@@ -188,7 +188,7 @@ sites: { "../../etc/evil": { repo: r, domain: a.com } }
 environments:
   production:
     host: 1.2.3.4
-    timezone: Mars/Olympus
+    server: { timezone: Mars/Olympus }
 `,
 			want: []string{"site name must be lowercase", `timezone "Mars/Olympus" is not a known time zone`},
 		},
@@ -200,7 +200,7 @@ sites: { a.com: { repo: r } }
 environments:
   production:
     host: 1.2.3.4
-    os: debian-12
+    server: { os: debian-12 }
     sites: { a.com: { domain: a.com } }
 `,
 			want: []string{`os "debian-12" is not supported (supported: ubuntu-24.04, ubuntu-26.04, debian-13)`},
@@ -215,7 +215,7 @@ sites:
 environments:
   production:
     host: 1.2.3.4
-    php: { version: eight }
+    server: { php: { version: eight } }
     sites:
       a.com: { domain: a.com }
       b.com: { domain: a.com }
@@ -346,7 +346,7 @@ func TestPerSiteFPMAndFail2ban(t *testing.T) {
 	c, err := Parse([]byte(`
 version: 1
 access: { admins: [k] }
-defaults:
+server:
   php: { fpm: { max_children: 20, max_requests: 300 } }
 sites:
   a.com: { repo: r, domain: a.com, php: { fpm: { max_children: 4 } } }
@@ -355,7 +355,7 @@ environments:
   production: { host: 1.2.3.4 }
   staging:
     host: 1.2.3.5
-    fail2ban: { wp_login: false }
+    server: { fail2ban: { wp_login: false } }
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -382,7 +382,7 @@ func TestOffIsFalse(t *testing.T) {
 	c, err := Parse([]byte(`
 version: 1
 access: { admins: [k] }
-defaults: { swap: false, auto_updates: false }
+server: { swap: false, auto_updates: false }
 sites:
   a.com: { repo: r, domain: a.com, object_cache: false, multisite: subdomains, cache: true }
 environments:
@@ -403,9 +403,27 @@ environments:
 		t.Errorf("server %+v, site %+v", e.Server, a)
 	}
 	for _, bad := range []string{"swap: off", "auto_updates: none", "swap: true"} {
-		_, err := Parse([]byte("version: 1\ndefaults: { " + bad + " }\n"))
+		_, err := Parse([]byte("version: 1\nserver: { " + bad + " }\n"))
 		if err == nil || !strings.Contains(err.Error(), "false") {
 			t.Errorf("%s: err = %v", bad, err)
 		}
+	}
+}
+
+func TestFirewallAllow(t *testing.T) {
+	for in, want := range map[string]Port{
+		"41641/udp": {"udp", "41641"}, "8443": {"tcp", "8443"}, "60000-61000/udp": {"udp", "60000-61000"},
+	} {
+		if got, err := ParsePort(in); err != nil || got != want {
+			t.Errorf("%s: %+v %v", in, got, err)
+		}
+	}
+	for _, bad := range []string{"22", "20-30/tcp", "0", "70000", "9-8", "80/sctp", "http"} {
+		if _, err := ParsePort(bad); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+	if _, err := ParsePort("22/udp"); err != nil {
+		t.Errorf("22/udp isn't SSH: %v", err)
 	}
 }

@@ -33,7 +33,7 @@ func newProject(t *testing.T) (p *project.Project, aliceKey, ciKey string) {
 		"keys/alice.pub": string(ssh.MarshalAuthorizedKey(sp)),
 		"trellis.yml": `version: 1
 sites:
-  example.com: { repo: git@github.com:example/example.com.git, path: site }
+  example.com: { repo: git@github.com:example/example.com.git }
 access:
   admins: [file:keys/alice.pub]
   recipients: [` + ciPub + `]

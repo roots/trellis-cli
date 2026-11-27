@@ -1,6 +1,6 @@
 version: 1
 
-defaults:
+server:
   timezone: America/Toronto
   php:
     version: "8.4"
@@ -17,6 +17,8 @@ defaults:
     from: admin@example.com
   ssh:
     allow_from: [any]
+  firewall:
+    allow: [41641/udp, 8443] # Tailscale direct connections, a webhook receiver
   fail2ban:
     wp_login: true
   packages:
@@ -36,7 +38,6 @@ access:
 sites:
   example.com:
     repo: git@github.com:example/example.com.git
-    path: site
     cache: true
     object_cache: redis
     writable: [web/app/uploads, web/app/cache]
@@ -49,7 +50,6 @@ sites:
 
   shop.example.com:
     repo: git@github.com:example/shop.git
-    path: site
     multisite: subdomains
     xmlrpc: true # Jetpack
 
@@ -62,8 +62,9 @@ environments:
 
   production:
     host: 203.0.113.10
-    php:
-      fpm: { max_children: 40 }
+    server:
+      php:
+        fpm: { max_children: 40 }
     sites:
       example.com: { domain: example.com, redirects: [www.example.com] }
       shop.example.com: { domain: shop.example.com }
