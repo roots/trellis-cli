@@ -25,7 +25,7 @@ expected:
   - key: '^sshd/(acceptenv|printlastlog|printmotd)$'
     reason: Ubuntu defaults; no security effect
   - key: '^sshd/permitrootlogin$'
-    reason: Root login disabled; admin uses sudo with a password
+    reason: Root logs in with admins' keys only (prohibit-password); the CLI provisions as root, and a sudo password would be bypassed by it
   - key: '^sshd/clientaliveinterval$'
     reason: 300s keepalive (Trellis 600s)
 
@@ -57,7 +57,7 @@ expected:
   - key: '^(users/admin|tree//home/admin.*)$'
     reason: admin's primary group is its own (Trellis uses sudo); sudo membership is the same
   - key: '^sudo/admin$'
-    reason: "Ubuntu's legacy %admin sudoers rule also matches admin's own group; same rights, password required"
+    reason: "admin's sudo is passwordless (root login with the same keys makes a password moot); Ubuntu's legacy %admin rule also matches admin's group"
   - key: '^sudo/web$'
     reason: Exactly the PHP-FPM reload deploys need, not `service php-fpm *`
   - key: '^tree//srv/www(/acme)?$'

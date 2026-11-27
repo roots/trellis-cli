@@ -37,7 +37,7 @@ var schemaDescriptions = map[string]string{
 	"File.environments": "Environments, e.g. development, staging, production. One server each.",
 
 	"Environment.host":     "The server's address (one server per environment). Optional in development (use --lima or --host).",
-	"Environment.user":     "SSH user (default: admin, falling back to root on fresh servers).",
+	"Environment.user":     "SSH user for provisioning (default: root). Any other user needs passwordless sudo.",
 	"Environment.port":     "SSH port (default 22).",
 	"Environment.database": "An external database (e.g. RDS). Without it, MariaDB runs on the server.",
 	"Environment.access":   "Overrides top-level access for this environment.",
@@ -69,7 +69,7 @@ var schemaDescriptions = map[string]string{
 	"Mail.password": "SMTP password (use secret:<path>).",
 	"Mail.from":     "From address for all mail sent by the server.",
 
-	"Access.admins":     "Admins: sudo (with admin_password) and can decrypt secrets. github:<user>, file:<path> or a public key.",
+	"Access.admins":     "Admins log in as admin (passwordless sudo) or root, and can decrypt secrets. github:<user>, file:<path> or a public key.",
 	"Access.deploy":     "Keys that can log in as the web user (default: admins).",
 	"Access.recipients": "Extra age public keys (age1…) that can decrypt secrets, e.g. CI.",
 

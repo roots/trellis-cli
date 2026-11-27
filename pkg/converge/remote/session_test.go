@@ -40,7 +40,7 @@ func TestSessionPlanApplyWithExternalDatabase(t *testing.T) {
 	h.Files["/etc/os-release"].Data = []byte("ID=debian\nVERSION_ID=\"13\"\n") // the fixture says os: debian-13
 	f := &fakeSSH{host: h, users: map[string]bool{"root": true}, installed: map[string]bool{}}
 	var out bytes.Buffer
-	s := &remote.Session{Out: &out, Users: []string{"admin", "root"}}
+	s := &remote.Session{Out: &out, User: "root"}
 	_, srv := session(t, "external-db", "production", s, f)
 	if srv.Target.User != "root" || srv.Target.Host != "198.51.100.7" {
 		t.Fatalf("target = %+v", srv.Target)
@@ -73,7 +73,7 @@ func TestSessionPlanApplyWithExternalDatabase(t *testing.T) {
 
 func TestHostOverride(t *testing.T) {
 	f := &fakeSSH{host: hosttest.New(), users: map[string]bool{"root": true}, installed: map[string]bool{}}
-	s := &remote.Session{Out: &bytes.Buffer{}, Users: []string{"root"}, Host: "10.0.0.9", Port: 2222}
+	s := &remote.Session{Out: &bytes.Buffer{}, User: "root", Host: "10.0.0.9", Port: 2222}
 	_, srv := session(t, "minimal", "production", s, f)
 	if srv.Target.Host != "10.0.0.9" || srv.Target.Port != 2222 {
 		t.Errorf("target = %+v", srv.Target)
@@ -98,11 +98,11 @@ func TestDevelopmentNeedsAHost(t *testing.T) {
 func TestSessionDeployAndRollback(t *testing.T) {
 	ctx := context.Background()
 	h := hosttest.New()
-	// web logs in with a deploy key and has no sudo; admin's needs a
-	// password, which a deploy doesn't have.
-	f := &fakeSSH{host: h, users: map[string]bool{"web": true}, installed: map[string]bool{}, sudoPassword: "secret"}
+	// web logs in with a deploy key and has no sudo (beyond its PHP-FPM
+	// reload rule, which sudo -n true doesn't match).
+	f := &fakeSSH{host: h, users: map[string]bool{"web": true}, installed: map[string]bool{}, passwordSudo: true}
 	var out bytes.Buffer
-	s := &remote.Session{Out: &out, Users: []string{"web"}, RunAs: "web"}
+	s := &remote.Session{Out: &out, User: "web", RunAs: "web"}
 	_, srv := session(t, "minimal", "production", s, f)
 	uploadsBefore := f.uploads // the agent binary
 	if !f.installed["203.0.113.10/home/web/.local/lib/trellis/agent-"+srv.Binary.SHA256[:16]] {
@@ -149,9 +149,6 @@ func TestSessionDeployAndRollback(t *testing.T) {
 			t.Errorf("a deploy ran the agent as %s", u)
 		}
 	}
-	if f.passwords != 0 {
-		t.Errorf("a deploy used the sudo password %d times", f.passwords)
-	}
 }
 
 // A user with passwordless sudo (a Lima VM's) deploys through sudo -u web,
@@ -163,7 +160,7 @@ func TestDeployThroughSudo(t *testing.T) {
 	bin := binary(t)
 	f.installed["203.0.113.10"+bin.RemotePath()] = true
 	var out bytes.Buffer
-	s := &remote.Session{Out: &out, Users: []string{"lima"}, RunAs: "web"}
+	s := &remote.Session{Out: &out, User: "lima", RunAs: "web"}
 	_, srv := session(t, "minimal", "production", s, f)
 	if f.uploads != 0 {
 		t.Errorf("uploaded the agent although apply installed it")

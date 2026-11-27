@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 388e850e2e3d6c10174ddf3cc6748078cc6c4ba9b5250f29c834d63f65ac0ace
+# hash 3e7073a0d68059a87bbdb5e89b07810660a3bc0fc7436a1e944c4f631ad09fbc
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -110,7 +110,6 @@ file          /etc/tmpfiles.d/trellis.conf 0644 root:root
 == files
 download      /usr/local/bin/composer ← https://getcomposer.org/download/latest-2.x/composer.phar (unpinned)
 download      /usr/local/bin/wp ← https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar (unpinned)
-exec          admin-password: chpasswd
 exec          skel:admin: runuser -u admin -- /bin/sh -c for f in .bashrc .profile .bash_logout; do [ -e "/home/admin/$f" ] || cp "/etc/skel/$f" "/home/admin/$f"; done
 exec          skel:web: runuser -u web -- /bin/sh -c for f in .bashrc .profile .bash_logout; do [ -e "/home/web/$f" ] || cp "/etc/skel/$f" "/home/web/$f"; done
 file          /etc/apt/apt.conf.d/20auto-upgrades 0644 root:root
@@ -732,7 +731,8 @@ file          /etc/php/8.4/fpm/pool.d/www.conf (absent)
 file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
               ↳ reload ssh.service (check: sshd -t)
     │ # Managed by Trellis.
-    │ PermitRootLogin no
+    │ # Keys only (access.admins, like admin's). The CLI provisions as root.
+    │ PermitRootLogin prohibit-password
     │ PasswordAuthentication no
     │ KbdInteractiveAuthentication no
     │ PubkeyAuthentication yes
@@ -754,6 +754,7 @@ file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
     │ MACs -*sha1*,umac-64*
 file          /etc/sudoers.d/90-trellis 0440 root:root
     │ # Managed by Trellis.
+    │ admin ALL=(ALL) NOPASSWD:ALL
     │ web ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.4-fpm.service, /usr/sbin/service php8.4-fpm reload
 file          /etc/sysctl.d/90-tuning.conf 0644 root:root
               ↳ run sysctl --system
@@ -919,6 +920,10 @@ file          /home/admin/.ssh/authorized_keys 0600 admin:admin
 file          /home/web/.ssh/authorized_keys 0600 web:www-data
     │ # Managed by Trellis.
     │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+file          /root/.ssh/authorized_keys 0600 root:root
+    │ # Managed by Trellis.
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAliceKey alice@example
 file          /srv/www/example.com/shared/.env 0600 web:www-data
     │ <sensitive: 426 bytes>
 file          /srv/www/shop.example.com/shared/.env 0600 web:www-data

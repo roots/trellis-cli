@@ -31,12 +31,11 @@ type Session struct {
 	// Host and Port override the environment's address (e.g. a local VM).
 	Host string
 	Port int
-	// Users to try, in order.
-	Users []string
-	// SudoPassword is the admin user's sudo password (admin_password).
-	SudoPassword string
+	// User logs in: root to provision, web to deploy, or another user
+	// with passwordless sudo (a Lima VM's, --user).
+	User string
 	// RunAs runs the agent as this user instead of root: deploys and
-	// rollbacks run as web, and need no sudo password when logged in as it.
+	// rollbacks run as web.
 	RunAs string
 }
 
@@ -57,13 +56,13 @@ func (s *Session) Connect(ctx context.Context, env *config.Environment, m *manif
 	if srv.Name != host {
 		srv.Name += " " + host
 	}
-	t, err := s.SSH.Connect(ctx, host, port, s.Users)
+	t, err := s.SSH.Connect(ctx, host, port, s.User)
 	if err != nil {
 		return nil, err
 	}
 	t.RunAs = s.RunAs
-	if t.RunAs == "" || (t.User != t.RunAs && t.User != "root") {
-		if err := s.SSH.Elevate(ctx, &t, s.SudoPassword); err != nil {
+	if t.User != t.RunAs && t.User != "root" {
+		if err := s.SSH.CheckSudo(ctx, t); err != nil {
 			return nil, err
 		}
 	}

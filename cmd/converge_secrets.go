@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/cli"
 
 	"github.com/roots/trellis-cli/app_paths"
-	"github.com/roots/trellis-cli/pkg/converge/config"
 	"github.com/roots/trellis-cli/pkg/converge/project"
 	"github.com/roots/trellis-cli/pkg/converge/secrets"
 )
@@ -96,15 +95,6 @@ func NewConvergeSecretsInitCommand(ui cli.Ui) cli.Command {
 				return err
 			}
 			var added []string
-			if env != config.DevelopmentEnv {
-				ok, err := doc.EnsureAdmin()
-				if err != nil {
-					return err
-				}
-				if ok {
-					added = append(added, "admin_password")
-				}
-			}
 			for _, s := range e.Sites {
 				a, err := doc.EnsureSite(s.Name)
 				if err != nil {

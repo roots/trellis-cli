@@ -189,14 +189,14 @@ type connection struct {
 func (c *connection) register(fs *flag.FlagSet) {
 	fs.StringVar(&c.host, "host", "", "Override the environment's host (e.g. a VM)")
 	fs.StringVar(&c.lima, "lima", "", "Target a local Lima VM by name")
-	fs.StringVar(&c.user, "user", "", "SSH user (default: admin, falling back to root)")
+	fs.StringVar(&c.user, "user", "", "SSH user (default: root; web for deploys)")
 	fs.Var(&c.sshOptions, "ssh-option", "Extra ssh -o option (repeatable), e.g. ProxyJump=bastion")
 	fs.StringVar(&c.agentBinary, "agent-binary", "", "Path to a linux trellis-agent binary (default: the one embedded in trellis-cli)")
 }
 
 const connectionHelp = `  --host          Override the environment's host (e.g. a VM)
   --lima          Target a local Lima VM by name
-  --user          SSH user (default: admin, falling back to root; web for deploys)
+  --user          SSH user (default: root; web for deploys)
   --ssh-option    Extra ssh -o option, repeatable (e.g. Port=2222)
   --agent-binary  Linux trellis-agent binary (default: embedded)
 `
@@ -204,21 +204,21 @@ const connectionHelp = `  --host          Override the environment's host (e.g. 
 // session connects to compiled's server as root and makes sure the agent
 // is there.
 func (c *connection) session(ctx context.Context, out io.Writer, compiled *project.Compiled) (*remote.Session, *remote.Server, error) {
-	users := []string{"admin", "root"}
+	user := "root"
 	if compiled.Env.User != "" {
-		users = []string{compiled.Env.User}
+		user = compiled.Env.User
 	}
-	return c.connect(ctx, out, compiled.Env, compiled.Manifest, users, compiled.SudoPassword, "")
+	return c.connect(ctx, out, compiled.Env, compiled.Manifest, user, "")
 }
 
 // deploySession connects to env's server for a deploy or rollback, which
 // run as web and need no secrets: logged in as web with an access.deploy
 // key, or (a Lima VM, --user) through that user's sudo.
 func (c *connection) deploySession(ctx context.Context, out io.Writer, env *config.Environment) (*remote.Session, *remote.Server, error) {
-	return c.connect(ctx, out, env, nil, []string{"web"}, "", "web")
+	return c.connect(ctx, out, env, nil, "web", "web")
 }
 
-func (c *connection) connect(ctx context.Context, out io.Writer, env *config.Environment, m *manifest.Manifest, users []string, sudoPassword, runAs string) (*remote.Session, *remote.Server, error) {
+func (c *connection) connect(ctx context.Context, out io.Writer, env *config.Environment, m *manifest.Manifest, user, runAs string) (*remote.Session, *remote.Server, error) {
 	ssh := remote.NewSSH()
 	ssh.Options = append([]string{"StrictHostKeyChecking=accept-new"}, c.sshOptions...)
 	host, port := c.host, 0
@@ -227,20 +227,19 @@ func (c *connection) connect(ctx context.Context, out io.Writer, env *config.Env
 		if err != nil {
 			return nil, nil, err
 		}
-		host, port, users = "127.0.0.1", vm.Port, []string{vm.User}
+		host, port, user = "127.0.0.1", vm.Port, vm.User
 		ssh.Options = append(vm.Options(), c.sshOptions...)
 	}
 	if c.user != "" {
-		users = []string{c.user}
+		user = c.user
 	}
 	s := &remote.Session{
-		SSH:          ssh,
-		Out:          out,
-		Host:         host,
-		Port:         port,
-		Users:        users,
-		SudoPassword: sudoPassword,
-		RunAs:        runAs,
+		SSH:   ssh,
+		Out:   out,
+		Host:  host,
+		Port:  port,
+		User:  user,
+		RunAs: runAs,
 		FindBinary: func(arch string) (remote.Binary, error) {
 			return remote.FindBinary(c.agentBinary, arch)
 		},

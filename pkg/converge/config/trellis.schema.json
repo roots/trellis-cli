@@ -4,7 +4,7 @@
       "additionalProperties": false,
       "properties": {
         "admins": {
-          "description": "Admins: sudo (with admin_password) and can decrypt secrets. github:\u003cuser\u003e, file:\u003cpath\u003e or a public key.",
+          "description": "Admins log in as admin (passwordless sudo) or root, and can decrypt secrets. github:\u003cuser\u003e, file:\u003cpath\u003e or a public key.",
           "items": {
             "type": "string"
           },
@@ -174,7 +174,7 @@
           "type": "string"
         },
         "user": {
-          "description": "SSH user (default: admin, falling back to root on fresh servers).",
+          "description": "SSH user for provisioning (default: root). Any other user needs passwordless sudo.",
           "type": "string"
         }
       },

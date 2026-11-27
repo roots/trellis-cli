@@ -131,8 +131,7 @@ if the plan it computes differs.
 `ubuntu-26.04` or `debian-13`, listed once in `config.OSes`. Manifests record
 it and the agent refuses to run on a server whose `/etc/os-release` says
 otherwise, so upgrading a server's OS is a deliberate config change. Each has
-been tested by hand on VMs (provision, no-op re-run, deploy, admin sudo with a
-password, including Ubuntu 26.04's sudo-rs). Signing keys are verified in Go
+been tested by hand on VMs (provision, no-op re-run, deploy). Signing keys are verified in Go
 (OpenPGP fingerprints), so nothing depends on `gpg` being installed.
 
 Adding an OS is one row in `config.OSes`, once nginx.org, packages.sury.org
@@ -208,6 +207,17 @@ An environment is one server (`host:`, optional `user:`/`port:`), running
 nginx, PHP and MariaDB, or nginx and PHP with an external database
 (`database:`, e.g. RDS), whose databases and users converge creates over the
 network. Separate web and database servers aren't supported.
+
+## Server access
+
+SSH accepts keys only. `access.admins` keys log in as `admin` (passwordless
+sudo; the login to use by hand) and as root, which is how the CLI provisions:
+the same login on a fresh server (the key your provider installed) and after.
+A sudo password would protect nothing that root login with the same keys
+doesn't bypass, and providers' web consoles are the way back in if SSH is
+lost. `user:` or `--user` provisions as another user with passwordless sudo
+(e.g. `ubuntu` on images without root login). Deploys log in as `web`
+(`access.deploy` keys, default: the admins).
 
 ## Editors, CI and agents
 

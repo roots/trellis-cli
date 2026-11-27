@@ -36,7 +36,7 @@ type Environment struct {
 	// Host is the server (one per environment). Development may omit it
 	// and target a VM with --lima or --host.
 	Host     string            `yaml:"host,omitempty"`
-	User     string            `yaml:"user,omitempty"` // SSH user (default: admin, falling back to root)
+	User     string            `yaml:"user,omitempty"` // SSH user for provisioning (default: root)
 	Port     int               `yaml:"port,omitempty"` // SSH port (default 22)
 	Database *ExternalDatabase `yaml:"database,omitempty"`
 
@@ -151,8 +151,9 @@ func (c Command) CommandName() string {
 // Access lists SSH key references: "github:<user>", "file:<path>" or a
 // literal public key.
 type Access struct {
-	// Admins get a sudo login and can decrypt the environment's secrets
-	// (their ed25519/RSA SSH keys are the age recipients).
+	// Admins log in as admin (passwordless sudo) or root, and can decrypt
+	// the environment's secrets (their ed25519/RSA SSH keys are the age
+	// recipients).
 	Admins []string `yaml:"admins,omitempty"`
 	Deploy []string `yaml:"deploy,omitempty"`
 	// Recipients are extra age public keys (age1…) or key references that

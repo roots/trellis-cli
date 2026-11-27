@@ -1,5 +1,5 @@
 # server development (web + db, ubuntu-24.04)
-# hash 97e049dd0a4b7c16732d642942ca917338a6dfd551d0e5a6e1a8c303b88bf477
+# hash 0b18051ceb4db94e84febd6db75ac6d35a896c63a3ef983872ec4d3f6d682265
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
 
@@ -509,7 +509,8 @@ file          /etc/php/8.4/fpm/pool.d/www.conf (absent)
 file          /etc/ssh/sshd_config.d/10-trellis.conf 0644 root:root
               ↳ reload ssh.service (check: sshd -t)
     │ # Managed by Trellis.
-    │ PermitRootLogin no
+    │ # Keys only (access.admins, like admin's). The CLI provisions as root.
+    │ PermitRootLogin prohibit-password
     │ PasswordAuthentication no
     │ KbdInteractiveAuthentication no
     │ PubkeyAuthentication yes
@@ -626,6 +627,9 @@ file          /home/admin/.ssh/authorized_keys 0600 admin:admin
     │ # Managed by Trellis.
     │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
 file          /home/web/.ssh/authorized_keys 0600 web:www-data
+    │ # Managed by Trellis.
+    │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
+file          /root/.ssh/authorized_keys 0600 root:root
     │ # Managed by Trellis.
     │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
 file          /srv/www/example.com/shared/.env 0600 web:www-data

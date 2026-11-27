@@ -48,8 +48,6 @@ type Target struct {
 	// RunAs runs commands as this user instead of root (deploys run as
 	// web): directly when logged in as it, otherwise through sudo -u.
 	RunAs string
-	// sudoPassword is set by Elevate when the user's sudo needs a password.
-	sudoPassword string
 	// node is what Connect's probe learned, so the steps after it don't
 	// each need a round trip.
 	node *node
@@ -137,20 +135,19 @@ func (s *SSH) output(ctx context.Context, t Target, remote string) (string, erro
 	return strings.TrimSpace(out.String()), err
 }
 
-// Connect returns the first of users that can log in. Trellis disables
-// root login, so after the first run the admin user is the way in.
-func (s *SSH) Connect(ctx context.Context, host string, port int, users []string) (Target, error) {
-	var errs []error
-	for _, u := range users {
-		t := Target{Host: host, Port: port, User: u}
-		n, err := s.probe(ctx, t)
-		if err == nil {
-			t.node = n
-			return t, nil
+// Connect logs in to host as user and probes the node.
+func (s *SSH) Connect(ctx context.Context, host string, port int, user string) (Target, error) {
+	t := Target{Host: host, Port: port, User: user}
+	n, err := s.probe(ctx, t)
+	if err != nil {
+		hint := "use --user for an image whose default user isn't root (e.g. ubuntu)"
+		if user == "root" {
+			hint = "root logs in with an access.admins key (on a fresh server, the key your provider installed); " + hint
 		}
-		errs = append(errs, err)
+		return Target{}, fmt.Errorf("can't log in to %s as %s (%s):\n%w", host, user, hint, err)
 	}
-	return Target{}, fmt.Errorf("can't connect to %s as %s:\n%w", host, strings.Join(users, " or "), errors.Join(errs...))
+	t.node = n
+	return t, nil
 }
 
 // Arch returns the node's GOARCH.
@@ -216,26 +213,16 @@ func FindBinary(explicit, arch string) (Binary, error) {
 	return Binary{}, fmt.Errorf("this trellis-cli has no embedded linux/%s agent; build them with\n  go generate ./pkg/converge/agentbin\nand rebuild trellis-cli, or pass --agent-binary / set TRELLIS_AGENT_DIR", arch)
 }
 
-// Elevate checks how t's user gets root. Root needs nothing; passwordless
-// sudo is used as is; otherwise password is verified once and then sent as
-// the first line of stdin on every elevated command (`sudo -S` consumes
-// exactly that line; `-k` makes it always ask, so the line is never left
-// for the command to read).
-func (s *SSH) Elevate(ctx context.Context, t *Target, password string) error {
-	n, err := s.probe(ctx, *t)
+// CheckSudo makes sure t's user can get root: it is root, or has
+// passwordless sudo.
+func (s *SSH) CheckSudo(ctx context.Context, t Target) error {
+	n, err := s.probe(ctx, t)
 	if err != nil {
 		return err
 	}
-	if n.access == "root" || n.access == "nopasswd" {
-		return nil
+	if n.access == "password" {
+		return fmt.Errorf("%s: sudo needs a password; connect as root, or as a user with passwordless sudo", t)
 	}
-	if password == "" {
-		return fmt.Errorf("%s: sudo needs a password and none is configured (admin_password in the secrets file)", t)
-	}
-	if err := s.Run(ctx, *t, "sudo -k -S -p '' true", strings.NewReader(password+"\n"), io.Discard); err != nil {
-		return fmt.Errorf("%s: sudo rejected admin_password from the secrets file", t)
-	}
-	t.sudoPassword = password
 	return nil
 }
 
@@ -250,21 +237,10 @@ func sudo(t Target) string {
 		return ""
 	}
 	p := "sudo -n "
-	if t.sudoPassword != "" {
-		p = "sudo -k -S -p '' "
-	}
 	if t.RunAs != "" {
 		p += "-u " + t.RunAs + " "
 	}
 	return p
-}
-
-// elevated prefixes stdin with the sudo password when one is needed.
-func elevated(t Target, stdin io.Reader) io.Reader {
-	if !strings.HasPrefix(sudo(t), "sudo -k -S") {
-		return stdin
-	}
-	return io.MultiReader(strings.NewReader(t.sudoPassword+"\n"), stdin)
 }
 
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'" }
@@ -283,11 +259,9 @@ func (s *SSH) EnsureAgent(ctx context.Context, t Target, b Binary) error {
 	if b.Gzipped {
 		recv = "gzip -dc"
 	}
-	// The whole script runs elevated, so a sudo password can precede the
-	// binary on stdin.
 	script := fmt.Sprintf(`set -e; t=$(mktemp); trap 'rm -f "$t"' EXIT; %s > "$t"; echo "%s  $t" | sha256sum -c --quiet; install -D -m 0755 "$t" %s`,
 		recv, b.SHA256, p)
-	if err := s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(b.Data)), io.Discard); err != nil {
+	if err := s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), bytes.NewReader(b.Data), io.Discard); err != nil {
 		return err
 	}
 	n.agents[p] = true
@@ -325,7 +299,7 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 	if err != nil {
 		return err
 	}
-	runErr := s.Run(ctx, t, sudo(t)+agentPath(t, n, b), elevated(t, bytes.NewReader(body)), pw)
+	runErr := s.Run(ctx, t, sudo(t)+agentPath(t, n, b), bytes.NewReader(body), pw)
 	_ = pw.Close()
 	scanErr := <-done
 	if agentErr != nil {
@@ -338,10 +312,10 @@ func (s *SSH) Call(ctx context.Context, t Target, b Binary, req agent.Request, o
 // content-addressed (they contain data's sha256), so an existing file is
 // the same file. The upload is verified and moved into place atomically.
 func (s *SSH) Upload(ctx context.Context, t Target, data []byte, sha256hex, path string) error {
-	if err := s.Run(ctx, t, sudo(t)+"test -f "+shellQuote(path), elevated(t, strings.NewReader("")), io.Discard); err == nil {
+	if err := s.Run(ctx, t, sudo(t)+"test -f "+shellQuote(path), nil, io.Discard); err == nil {
 		return nil
 	}
 	script := fmt.Sprintf(`set -e; d=$(dirname %[1]s); mkdir -p "$d"; f=$(mktemp "$d/.upload-XXXXXX"); trap 'rm -f "$f"' EXIT; cat > "$f"; echo "%[2]s  $f" | sha256sum -c --quiet; chmod 0644 "$f"; mv "$f" %[1]s`,
 		shellQuote(path), sha256hex)
-	return s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), elevated(t, bytes.NewReader(data)), io.Discard)
+	return s.Run(ctx, t, sudo(t)+"sh -c "+shellQuote(script), bytes.NewReader(data), io.Discard)
 }

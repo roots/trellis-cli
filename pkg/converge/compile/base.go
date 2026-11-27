@@ -122,17 +122,15 @@ func (b *builder) users() {
 	}
 
 	admins := b.keys(b.env.Access.Admins, "access.admins")
-	b.add(m.NewFile("/home/admin/.ssh/authorized_keys", admins, 0o600, "admin", "admin"))
+	b.add(
+		m.NewFile("/home/admin/.ssh/authorized_keys", admins, 0o600, "admin", "admin"),
+		m.NewFile("/root/.ssh/authorized_keys", admins, 0o600, "root", "root"),
+	)
 
-	// admin's sudo rights come from the sudo group. Outside development it
-	// needs its password (generated in secrets; the CLI supplies it to run
-	// the agent), so a stolen SSH key alone doesn't give root.
-	sudoers := "# Managed by Trellis.\n"
-	if b.env.Name == config.DevelopmentEnv {
-		sudoers += "admin ALL=(ALL) NOPASSWD:ALL\n"
-	} else if pw := b.required("admin_password"); pw != "" {
-		b.add(m.NewExec("admin-password", []string{"chpasswd"}, "").WithStdin("admin:" + pw + "\n").InPhase(m.PhaseFiles))
-	}
+	// Admins log in as admin (passwordless sudo) or as root, with the same
+	// keys: a sudo password would protect nothing that root login doesn't
+	// bypass. The CLI provisions as root.
+	sudoers := "# Managed by Trellis.\nadmin ALL=(ALL) NOPASSWD:ALL\n"
 	deploy := b.env.Access.Deploy
 	if len(deploy) == 0 {
 		deploy = b.env.Access.Admins
@@ -203,7 +201,7 @@ func ResolveKeys(refs []string, l *lock.Lock, project fs.FS) ([]string, []error)
 }
 
 func (b *builder) ssh() {
-	conf := b.render("ssh/sshd.conf", map[string]any{"PermitRoot": false})
+	conf := b.render("ssh/sshd.conf", nil)
 	// 10- sorts before cloud-init's 50-cloud-init.conf; sshd uses the first
 	// value it sees for each keyword.
 	b.add(m.NewRootFile("/etc/ssh/sshd_config.d/10-trellis.conf", conf, 0o644, sshReload))
