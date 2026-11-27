@@ -73,10 +73,10 @@ func applyDefaults(e *Environment) {
 		if site.Branch == "" {
 			site.Branch = "main"
 		}
-		if site.SSL == "" {
-			site.SSL = SSLLetsEncrypt
+		if site.HTTPS.Mode == "" {
+			site.HTTPS.Mode = HTTPSLetsEncrypt
 			if e.Name == DevelopmentEnv {
-				site.SSL = SSLSelfSigned
+				site.HTTPS.Mode = HTTPSSelfSigned
 			}
 		}
 		if site.Cache == "" {
@@ -263,8 +263,13 @@ func validateSites(e *Environment, add func(string, ...any)) {
 		if e.Name != DevelopmentEnv && s.Repo == "" {
 			add("%s: repo is required", sp)
 		}
-		if !oneOf(s.SSL, SSLLetsEncrypt, SSLSelfSigned, SSLNone) {
-			add("%s: ssl must be letsencrypt, self-signed or none", sp)
+		if h := s.HTTPS; h.Mode == HTTPSCustom {
+			if !strings.HasPrefix(h.Certificate, "file:") {
+				add("%s: https.certificate must be file:<path> (a PEM file in the project, with any intermediates)", sp)
+			}
+			if !strings.HasPrefix(h.Key, "secret:") {
+				add("%s: https.key must be secret:<path>: private keys belong in the encrypted secrets", sp)
+			}
 		}
 		if !oneOf(s.Cache, CacheOff, CacheFastCGI) {
 			add("%s: cache must be off or fastcgi", sp)

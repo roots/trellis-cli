@@ -36,7 +36,7 @@ func TestMinimalDefaults(t *testing.T) {
 		t.Fatalf("server = %s:%d local db %v", e.Host, e.Port, e.LocalDB())
 	}
 	s := e.Sites[0]
-	if s.SSL != SSLLetsEncrypt || s.Branch != "main" || s.Cache != CacheOff {
+	if s.HTTPS.Mode != HTTPSLetsEncrypt || s.Branch != "main" || s.Cache != CacheOff {
 		t.Errorf("site defaults not applied: %+v", s)
 	}
 	if diff := cmp.Diff([]string{"example.com", "www.example.com"}, s.Domains()); diff != "" {
@@ -52,8 +52,8 @@ func TestDevelopmentNeedsNoHostAndIsSelfSigned(t *testing.T) {
 	if e.Host != "" || e.ServerName() != DevelopmentEnv {
 		t.Fatalf("host = %q, name = %q", e.Host, e.ServerName())
 	}
-	if e.Sites[0].SSL != SSLSelfSigned {
-		t.Errorf("ssl = %q", e.Sites[0].SSL)
+	if e.Sites[0].HTTPS.Mode != HTTPSSelfSigned {
+		t.Errorf("https = %q", e.Sites[0].HTTPS.Mode)
 	}
 }
 
@@ -211,7 +211,7 @@ version: 1
 access: { admins: [k] }
 sites:
   a.com: { repo: r, cache: redis }
-  b.com: { repo: r, ssl: maybe }
+  b.com: { repo: r, https: { certificate: certs/b.pem, key: plain-key } }
 environments:
   production:
     host: 1.2.3.4
@@ -220,7 +220,7 @@ environments:
       a.com: { domain: a.com }
       b.com: { domain: a.com }
 `,
-			want: []string{`domain "a.com" is also used by a.com`, "cache must be", "ssl must be", "php.version"},
+			want: []string{`domain "a.com" is also used by a.com`, "cache must be", "https.certificate must be file:", "https.key must be secret:", "php.version"},
 		},
 	}
 	for name, tc := range cases {
@@ -239,6 +239,34 @@ environments:
 				}
 			}
 		})
+	}
+}
+
+// https: accepts true, false, self-signed or the site's own certificate.
+func TestHTTPSForms(t *testing.T) {
+	for in, want := range map[string]HTTPS{
+		"":                   {Mode: HTTPSLetsEncrypt},
+		"https: true":        {Mode: HTTPSLetsEncrypt},
+		"https: false":       {Mode: HTTPSOff},
+		"https: self-signed": {Mode: HTTPSSelfSigned},
+		"https: { certificate: file:certs/a.pem, key: secret:certs/a_key }": {Mode: HTTPSCustom, Certificate: "file:certs/a.pem", Key: "secret:certs/a_key"},
+	} {
+		c, err := Parse([]byte("version: 1\naccess: { admins: [k] }\nsites: { a.com: { repo: r, " + strings.TrimSpace(in+" ") + " } }\nenvironments: { production: { host: 1.2.3.4, sites: { a.com: { domain: a.com } } } }\n"))
+		if err != nil {
+			t.Fatalf("%q: %v", in, err)
+		}
+		e, err := c.Resolve("production")
+		if err != nil {
+			t.Fatalf("%q: %v", in, err)
+		}
+		if got := e.Sites[0].HTTPS; got != want {
+			t.Errorf("%q: got %+v, want %+v", in, got, want)
+		}
+	}
+	for _, bad := range []string{"https: letsencrypt", "https: none"} {
+		if _, err := Parse([]byte("version: 1\nsites: { a.com: { repo: r, " + bad + " } }\n")); err == nil || !strings.Contains(err.Error(), "https must be true, false, self-signed") {
+			t.Errorf("%q: err = %v", bad, err)
+		}
 	}
 }
 

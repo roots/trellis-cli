@@ -185,10 +185,6 @@ type DBAdmin struct {
 }
 
 const (
-	SSLLetsEncrypt = "letsencrypt"
-	SSLSelfSigned  = "self-signed"
-	SSLNone        = "none"
-
 	CacheOff     = "off"
 	CacheFastCGI = "fastcgi"
 
@@ -206,7 +202,7 @@ type Site struct {
 	LocalPath   string            `yaml:"local_path,omitempty"`
 	Domain      string            `yaml:"domain,omitempty"`
 	Redirects   []string          `yaml:"redirects,omitempty"`
-	SSL         string            `yaml:"ssl,omitempty"`
+	HTTPS       HTTPS             `yaml:"https,omitempty"`
 	Cache       string            `yaml:"cache,omitempty"`
 	ObjectCache string            `yaml:"object_cache,omitempty"`
 	XMLRPC      bool              `yaml:"xmlrpc,omitempty"`
@@ -239,6 +235,67 @@ type SiteDB struct {
 	Name string `yaml:"name,omitempty"`
 	User string `yaml:"user,omitempty"`
 }
+
+// HTTPS modes, after resolving (see HTTPS).
+const (
+	HTTPSLetsEncrypt = "letsencrypt"
+	HTTPSSelfSigned  = "self-signed"
+	HTTPSOff         = "off"
+	HTTPSCustom      = "custom"
+)
+
+// HTTPS is a site's `https:` setting. Omitted or true is an automatic
+// certificate (Let's Encrypt; self-signed in development), false serves
+// plain HTTP, "self-signed" a self-signed certificate, and
+// {certificate: file:<path>, key: secret:<path>} the site's own.
+type HTTPS struct {
+	// Mode is "" until resolved (automatic), then one of the HTTPS* modes.
+	Mode        string
+	Certificate string // file:<path> in the project (HTTPSCustom)
+	Key         string // secret:<path> (HTTPSCustom)
+}
+
+func (h *HTTPS) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		if n.Value == HTTPSSelfSigned {
+			*h = HTTPS{Mode: HTTPSSelfSigned}
+			return nil
+		}
+		var on bool
+		if err := n.Decode(&on); err != nil {
+			return fmt.Errorf("line %d: https must be true, false, self-signed or {certificate: file:<path>, key: secret:<path>}", n.Line)
+		}
+		*h = HTTPS{}
+		if !on {
+			h.Mode = HTTPSOff
+		}
+		return nil
+	}
+	var raw struct {
+		Certificate string `yaml:"certificate"`
+		Key         string `yaml:"key"`
+	}
+	if err := n.Decode(&raw); err != nil {
+		return err
+	}
+	*h = HTTPS{Mode: HTTPSCustom, Certificate: raw.Certificate, Key: raw.Key}
+	return nil
+}
+
+func (h HTTPS) MarshalYAML() (any, error) {
+	switch h.Mode {
+	case "", HTTPSLetsEncrypt:
+		return true, nil
+	case HTTPSOff:
+		return false, nil
+	case HTTPSCustom:
+		return map[string]string{"certificate": h.Certificate, "key": h.Key}, nil
+	}
+	return h.Mode, nil
+}
+
+// On reports whether the site serves HTTPS.
+func (h HTTPS) On() bool { return h.Mode != HTTPSOff }
 
 // Multisite accepts `false`, `true` (subdirectories) or
 // `{mode: subdomains|subdirectories}`.

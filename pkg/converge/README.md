@@ -139,6 +139,29 @@ Adding an OS is one row in `config.OSes`, once nginx.org, packages.sury.org
 and the MariaDB mirror publish for its codename. Debian 12 isn't supported:
 it's past regular security support, and its Podman has no Quadlet.
 
+## HTTPS
+
+Sites serve HTTPS by default, with nothing to configure:
+
+```yaml
+sites:
+  example.com: {}                 # automatic: Let's Encrypt (self-signed in development)
+  internal.example.com:
+    https: self-signed            # e.g. no public DNS
+  legacy.example.com:
+    https:                        # the site's own certificate (e.g. Cloudflare Origin CA)
+      certificate: file:certs/legacy.pem
+      key: secret:certs/legacy_key
+  plain.example.com:
+    https: false                  # plain HTTP
+```
+
+Let's Encrypt certificates cover the domain and its redirects, are issued
+with certbot (webroot) at the end of an apply, and renew with certbot's own
+timer. Until one is issued the site serves a self-signed placeholder, and a
+failed issuance is retried by the next apply. A site's own certificate is
+checked against its key when compiling.
+
 ## Updates
 
 Converge installs missing packages; it doesn't upgrade installed ones.

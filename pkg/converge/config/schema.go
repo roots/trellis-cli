@@ -84,7 +84,7 @@ var schemaDescriptions = map[string]string{
 	"Site.local_path":   "Local clone of the site, relative to trellis.yml. Deploys build from it.",
 	"Site.domain":       "Canonical domain.",
 	"Site.redirects":    "Domains redirected to the canonical domain.",
-	"Site.ssl":          "letsencrypt (default), self-signed (default in development) or none.",
+	"Site.https":        "HTTPS (default true: an automatic Let's Encrypt certificate, self-signed in development). false serves plain HTTP; self-signed; or the site's own certificate: {certificate: file:<path>, key: secret:<path>}.",
 	"Site.cache":        "off (default) or fastcgi (nginx full-page cache).",
 	"Site.object_cache": "none (default), redis or memcached.",
 	"Site.xmlrpc":       "Allow xmlrpc.php (default false: blocked).",
@@ -124,7 +124,6 @@ var schemaDescriptions = map[string]string{
 }
 
 var schemaEnums = map[string][]any{
-	"Site.ssl":             {SSLLetsEncrypt, SSLSelfSigned, SSLNone},
 	"Site.cache":           {CacheOff, CacheFastCGI},
 	"Site.object_cache":    {ObjectCacheNone, ObjectCacheRedis, ObjectCacheMemcached},
 	"FPM.pm":               {"dynamic", "static", "ondemand"},
@@ -158,6 +157,17 @@ func yamlKey(f reflect.StructField) (key string, inline, skip bool) {
 var scalarish = map[string]any{"type": []string{"string", "number", "boolean"}}
 
 func (g *schemaGen) typ(t reflect.Type, owner, key string) map[string]any {
+	if t == reflect.TypeOf(HTTPS{}) {
+		return map[string]any{"description": schemaDescriptions[owner+"."+key], "oneOf": []any{
+			map[string]any{"type": "boolean"},
+			map[string]any{"const": HTTPSSelfSigned},
+			map[string]any{"type": "object", "additionalProperties": false, "required": []string{"certificate", "key"},
+				"properties": map[string]any{
+					"certificate": map[string]any{"type": "string", "pattern": "^file:", "description": "PEM certificate (with intermediates) in the project: file:<path>."},
+					"key":         map[string]any{"type": "string", "pattern": "^secret:", "description": "Private key: secret:<path>."},
+				}},
+		}}
+	}
 	if t == reflect.TypeOf(Multisite{}) {
 		return map[string]any{"description": schemaDescriptions[owner+"."+key], "oneOf": []any{
 			map[string]any{"type": "boolean"},

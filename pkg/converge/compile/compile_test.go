@@ -2,11 +2,20 @@ package compile_test
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
+	"io/fs"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
+	"time"
 
 	"github.com/roots/trellis-cli/pkg/converge/compile"
 	"github.com/roots/trellis-cli/pkg/converge/config"
@@ -201,6 +210,80 @@ func TestAutoUpdates(t *testing.T) {
 	periodic := get(t, off, manifest.KindFile, "/etc/apt/apt.conf.d/20auto-upgrades").File.Content
 	if !strings.Contains(periodic, `Update-Package-Lists "1"`) || !strings.Contains(periodic, `Unattended-Upgrade "0"`) {
 		t.Errorf("off: 20auto-upgrades:\n%s", periodic)
+	}
+}
+
+// overlay adds files to a project directory.
+type overlay struct {
+	fs.FS
+	extra fstest.MapFS
+}
+
+func (o overlay) Open(name string) (fs.File, error) {
+	if _, ok := o.extra[name]; ok {
+		return o.extra.Open(name)
+	}
+	return o.FS.Open(name)
+}
+
+func testCertificate(t *testing.T) (certPEM, keyPEM string) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), DNSNames: []string{"example.com"}, NotAfter: time.Now().AddDate(1, 0, 0)}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})),
+		string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: k}))
+}
+
+// A site's own certificate is installed as plain files; a key that doesn't
+// match fails compilation.
+func TestOwnCertificate(t *testing.T) {
+	dir := filepath.Join("..", "testdata", "projects", "minimal")
+	p, err := project.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, key := testCertificate(t)
+	_, otherKey := testCertificate(t)
+	build := func(key string) (*manifest.Manifest, error) {
+		e, err := p.Config.Resolve("production")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.Sites[0].HTTPS = config.HTTPS{Mode: config.HTTPSCustom, Certificate: "file:certs/site.pem", Key: "secret:certs/site_key"}
+		sec := loadSecrets(t, p, "production")
+		sec["certs"] = map[string]any{"site_key": key}
+		return compile.Compile(compile.Input{
+			Env: e, Lock: p.Lock, Secrets: sec,
+			Project: overlay{os.DirFS(dir), fstest.MapFS{"certs/site.pem": {Data: []byte(cert)}}},
+		})
+	}
+
+	m, err := build(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crt := get(t, m, manifest.KindFile, "/etc/nginx/ssl/example.com.crt")
+	k := get(t, m, manifest.KindFile, "/etc/nginx/ssl/example.com.key")
+	if crt.File.Content != cert || k.File.Content != key || !k.File.Sensitive || k.File.Mode != 0o600 {
+		t.Errorf("certificate files: crt %v, key sensitive %v mode %o", crt.File.Content == cert, k.File.Sensitive, k.File.Mode)
+	}
+	if m.Get(manifest.ID{Kind: manifest.KindCert, Name: "example.com"}) != nil || m.Get(manifest.ID{Kind: manifest.KindPackage, Name: "certbot"}) != nil {
+		t.Error("an own certificate still requests one")
+	}
+
+	if _, err := build(otherKey); err == nil || !strings.Contains(err.Error(), "don't form a valid pair") {
+		t.Errorf("mismatched key: err = %v", err)
 	}
 }
 

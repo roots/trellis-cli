@@ -1,6 +1,6 @@
 # Managed by Trellis. Add server-level config in server/nginx/sites/{{ .Site.Name }}/.
 {{- $root := printf "/srv/www/%s" .Site.Name }}
-{{- if .SSL }}
+{{- if .HTTPS }}
 server {
   listen 80;
   listen [::]:80;
@@ -19,7 +19,7 @@ server {
 server {
   listen 80;
   listen [::]:80;
-{{- if $.SSL }}
+{{- if $.HTTPS }}
   listen 443 ssl;
   listen [::]:443 ssl;
   listen 443 quic;
@@ -32,7 +32,7 @@ server {
   keepalive_timeout 300s; # amortize TLS handshakes
 {{- end }}
   server_name {{ . }};
-{{- if $.SSL }}
+{{- if $.HTTPS }}
   ssl_certificate     {{ $.CertPath }};
   ssl_certificate_key {{ $.KeyPath }};
 {{- end }}
@@ -46,9 +46,9 @@ server {
 {{- end }}
 
 server {
-  listen {{ if .SSL }}443 ssl{{ else }}80{{ end }};
-  listen [::]:{{ if .SSL }}443 ssl{{ else }}80{{ end }};
-{{- if .SSL }}
+  listen {{ if .HTTPS }}443 ssl{{ else }}80{{ end }};
+  listen [::]:{{ if .HTTPS }}443 ssl{{ else }}80{{ end }};
+{{- if .HTTPS }}
   listen 443 quic;
   listen [::]:443 quic;
   http3 on;
@@ -80,7 +80,7 @@ server {
 {{- if .Development }}
   sendfile off;
 {{- end }}
-{{- if .SSL }}
+{{- if .HTTPS }}
 
   ssl_certificate     {{ .CertPath }};
   ssl_certificate_key {{ .KeyPath }};

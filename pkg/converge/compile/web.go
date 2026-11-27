@@ -1,6 +1,8 @@
 package compile
 
 import (
+	"crypto/tls"
+	"io/fs"
 	"maps"
 	"strconv"
 	"strings"
@@ -102,8 +104,8 @@ func (b *builder) webStack() {
 	letsencrypt := false
 	for _, s := range b.env.Sites {
 		fastcgi = fastcgi || s.Cache == config.CacheFastCGI
-		anySSL = anySSL || s.SSL != config.SSLNone
-		letsencrypt = letsencrypt || s.SSL == config.SSLLetsEncrypt
+		anySSL = anySSL || s.HTTPS.On()
+		letsencrypt = letsencrypt || s.HTTPS.Mode == config.HTTPSLetsEncrypt
 	}
 
 	// nginx
@@ -189,7 +191,7 @@ func (b *builder) objectCaches() {
 func (b *builder) site(s config.Site, ini map[string]string) {
 	v := b.phpVersion()
 	root := "/srv/www/" + s.Name
-	ssl := s.SSL != config.SSLNone
+	ssl := s.HTTPS.On()
 	certPath, keyPath := "/etc/nginx/ssl/"+s.Name+".crt", "/etc/nginx/ssl/"+s.Name+".key"
 
 	postMax := ini["post_max_size"]
@@ -198,8 +200,8 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 	}
 	conf := b.render("nginx/site.conf", map[string]any{
 		"Site":              s,
-		"SSL":               ssl,
-		"SelfSigned":        s.SSL == config.SSLSelfSigned,
+		"HTTPS":             ssl,
+		"SelfSigned":        s.HTTPS.Mode == config.HTTPSSelfSigned,
 		"Scheme":            scheme(ssl),
 		"CertPath":          certPath,
 		"KeyPath":           keyPath,
@@ -216,10 +218,18 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 		m.NewFile(root+"/shared/.env", b.dotenv(s), 0o640, "web", "www-data").AsSensitive(),
 	)
 
-	if ssl {
+	switch {
+	case s.HTTPS.Mode == config.HTTPSCustom:
+		// The site's own certificate: plain files, nothing to issue.
+		cert, key := b.ownCertificate(s)
+		b.add(
+			m.NewRootFile(certPath, cert, 0o644, nginxReload),
+			m.NewFile(keyPath, key, 0o600, "root", "root", nginxReload).AsSensitive(),
+		)
+	case ssl:
 		provider := m.CertSelfSigned
 		email := ""
-		if s.SSL == config.SSLLetsEncrypt {
+		if s.HTTPS.Mode == config.HTTPSLetsEncrypt {
 			provider = m.CertLetsEncrypt
 			if b.env.Server.Mail != nil {
 				email = b.env.Server.Mail.From
@@ -263,7 +273,7 @@ func (b *builder) dbHost() string {
 }
 
 func (b *builder) dotenv(s config.Site) string {
-	home := scheme(s.SSL != config.SSLNone) + "://" + s.Domain
+	home := scheme(s.HTTPS.On()) + "://" + s.Domain
 	vars := map[string]string{
 		"DB_NAME":         s.DBName(),
 		"DB_USER":         s.DBUser(),
@@ -312,3 +322,27 @@ const siteLogrotate = `# Managed by Trellis.
   endscript
 }
 `
+
+// ownCertificate reads a site's own certificate (https: {certificate, key})
+// and checks that it parses and matches the key, so a mismatched pair fails
+// here rather than at nginx -t on the server.
+func (b *builder) ownCertificate(s config.Site) (cert, key string) {
+	where := "sites." + s.Name + ".https"
+	key = b.secret(s.HTTPS.Key, where+".key")
+	path := strings.TrimPrefix(s.HTTPS.Certificate, "file:")
+	if b.in.Project == nil {
+		b.errorf("%s.certificate: no project directory", where)
+		return "", key
+	}
+	data, err := fs.ReadFile(b.in.Project, path)
+	if err != nil {
+		b.errorf("%s.certificate: %v", where, err)
+		return "", key
+	}
+	if key != "" {
+		if _, err := tls.X509KeyPair(data, []byte(key)); err != nil {
+			b.errorf("%s: %s and the key don't form a valid pair: %v", where, path, err)
+		}
+	}
+	return string(data), key
+}

@@ -441,6 +441,37 @@
           "description": "Extra .env variables (values may be secret:\u003cpath\u003e).",
           "type": "object"
         },
+        "https": {
+          "description": "HTTPS (default true: an automatic Let's Encrypt certificate, self-signed in development). false serves plain HTTP; self-signed; or the site's own certificate: {certificate: file:\u003cpath\u003e, key: secret:\u003cpath\u003e}.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "self-signed"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "certificate": {
+                  "description": "PEM certificate (with intermediates) in the project: file:\u003cpath\u003e.",
+                  "pattern": "^file:",
+                  "type": "string"
+                },
+                "key": {
+                  "description": "Private key: secret:\u003cpath\u003e.",
+                  "pattern": "^secret:",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "certificate",
+                "key"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "local_path": {
           "description": "Local clone of the site, relative to trellis.yml. Deploys build from it.",
           "type": "string"
@@ -491,15 +522,6 @@
         },
         "repo": {
           "description": "Git repository (used for the site's identity; deploys build from local_path).",
-          "type": "string"
-        },
-        "ssl": {
-          "description": "letsencrypt (default), self-signed (default in development) or none.",
-          "enum": [
-            "letsencrypt",
-            "self-signed",
-            "none"
-          ],
           "type": "string"
         },
         "writable": {

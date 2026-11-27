@@ -305,7 +305,7 @@ func (b *builder) swap() {
 // anySSL reports whether any site on this node serves HTTPS.
 func (b *builder) anySSL() bool {
 	for _, s := range b.env.Sites {
-		if s.SSL != config.SSLNone {
+		if s.HTTPS.On() {
 			return true
 		}
 	}
