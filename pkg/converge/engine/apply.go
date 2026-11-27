@@ -474,9 +474,6 @@ func (r *run) apply(a Action) error {
 		for _, k := range slices.Sorted(maps.Keys(res.Exec.Env)) {
 			cmd.Env = append(cmd.Env, k+"="+res.Exec.Env[k])
 		}
-		if res.Exec.Stdin != "" {
-			cmd.Stdin = []byte(res.Exec.Stdin)
-		}
 		_, err := r.h.Run(r.ctx, cmd)
 		return err
 	}

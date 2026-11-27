@@ -257,8 +257,6 @@ func diff(r *manifest.Resource, obs *state.Observed, prev *state.Generation) (Op
 			return OpRun, []string{"never ran"}
 		} else if old.Exec.Inputs != r.Exec.Inputs || !slices.Equal(old.Exec.Command, r.Exec.Command) {
 			return OpRun, []string{"inputs changed"}
-		} else if old.Redacted().Exec.Stdin != r.Redacted().Exec.Stdin {
-			return OpRun, []string{"secret input changed"}
 		} else if !maps.Equal(old.Redacted().Exec.Env, r.Redacted().Exec.Env) {
 			return OpRun, []string{"env changed"}
 		}

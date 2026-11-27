@@ -50,15 +50,6 @@ func NewCert(name string, provider CertProvider, domains []string, certPath, key
 		Cert: &Cert{Provider: provider, Domains: domains, CertPath: certPath, KeyPath: keyPath}}
 }
 
-// WithStdin gives an exec resource secret input.
-func (r Resource) WithStdin(stdin string) Resource {
-	if r.Exec != nil {
-		x := *r.Exec
-		x.Stdin = stdin
-		r.Exec = &x
-	}
-	return r
-}
 
 // WithEnv sets an exec resource's environment (values may be secrets).
 func (r Resource) WithEnv(env map[string]string) Resource {
