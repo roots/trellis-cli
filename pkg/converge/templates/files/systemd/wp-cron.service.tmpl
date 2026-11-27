@@ -13,3 +13,4 @@ ExecStart=/bin/sh -c 'for url in $(/usr/local/bin/wp site list --field=url); do 
 {{- else }}
 ExecStart=/usr/local/bin/wp cron event run --due-now
 {{- end }}
+{{ .Sandbox }}

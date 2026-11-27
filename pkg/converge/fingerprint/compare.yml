@@ -63,7 +63,7 @@ expected:
   - key: '^tree//srv/www(/acme)?$'
     reason: /srv/www is root-owned; a root-owned ACME webroot is shared by all sites
   - key: '^tree//srv/www/[^/]+/(releases|shared.*)$'
-    reason: Deploy directories and .env are provisioned, not created by the first deploy
+    reason: Deploy directories and .env (0600, web only) are provisioned, not created by the first deploy
   - key: '^tree//root/(\.composer|\.config|\.local|\.gnupg)'
     reason: Left behind by Trellis running composer and gpg as root
   - key: '^tree//srv/www/[^/]+/logs/(access|error)\.log$'

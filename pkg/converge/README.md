@@ -162,6 +162,18 @@ timer. Until one is issued the site serves a self-signed placeholder, and a
 failed issuance is retried by the next apply. A site's own certificate is
 checked against its key when compiling.
 
+## WordPress sandbox
+
+PHP-FPM and WP-Cron run under systemd's sandboxing
+(`systemd/php-sandbox.conf`, which `eject` can override), so code a plugin
+lets an attacker run can't reach home directories (SSH keys, shell startup
+files), use sudo, or write system directories. Files under `/srv/www` and
+`/tmp` work as before, so no plugin needs changes. wp-cli run over SSH and
+deploy steps run outside it.
+
+A site's `.env` is readable by `web` only (PHP-FPM, WP-Cron and deploys run
+as `web`), not by nginx.
+
 ## Updates
 
 Converge installs missing packages; it doesn't upgrade installed ones.

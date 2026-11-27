@@ -66,6 +66,9 @@ func (b *builder) phpReload() m.Notify {
 	return m.ReloadUnit(b.phpUnit(), "php-fpm"+b.phpVersion(), "-t")
 }
 
+// phpSandbox is the systemd sandbox for everything that runs WordPress.
+func (b *builder) phpSandbox() string { return b.render("systemd/php-sandbox.conf", nil) }
+
 func (b *builder) phpINI() map[string]string {
 	ini := map[string]string{}
 	maps.Copy(ini, phpINIDefaults)
@@ -125,6 +128,10 @@ func (b *builder) webStack() {
 		m.NewRootFile("/etc/php/"+v+"/cli/conf.d/90-trellis.ini", b.render("php/php.ini", map[string]any{"INI": templates.Sorted(cli)}), 0o644),
 		m.NewAbsentFile("/etc/php/"+v+"/fpm/pool.d/www.conf", b.phpReload()),
 		m.NewRootFile("/etc/php/"+v+"/fpm/php-fpm.conf", b.render("php/php-fpm.conf", map[string]any{"Version": v}), 0o644, b.phpReload()),
+		// A restart, not a reload: sandboxing applies when the service starts.
+		m.NewRootFile("/etc/systemd/system/"+b.phpUnit()+".d/50-trellis-sandbox.conf",
+			"# Managed by Trellis.\n[Service]\n"+b.phpSandbox(), 0o644,
+			daemonReload, m.RestartUnit(b.phpUnit(), "php-fpm"+v, "-t")),
 		m.NewService(b.phpUnit(), enabled, true),
 	)
 
@@ -215,7 +222,8 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 		m.NewRootFile("/etc/php/"+v+"/fpm/pool.d/"+s.Name+".conf", b.render("php/pool.conf", map[string]any{
 			"Site": s, "FPM": b.env.Server.PHP.FPM, "INI": templates.Sorted(s.PHP.INI),
 		}), 0o644, b.phpReload()),
-		m.NewFile(root+"/shared/.env", b.dotenv(s), 0o640, "web", "www-data").AsSensitive(),
+		// Only web reads it (PHP-FPM, WP-Cron, deploys); not nginx.
+		m.NewFile(root+"/shared/.env", b.dotenv(s), 0o600, "web", "www-data").AsSensitive(),
 	)
 
 	switch {
@@ -245,7 +253,7 @@ func (b *builder) site(s config.Site, ini map[string]string) {
 
 	// WP-Cron via a systemd timer instead of cron or page loads.
 	unit := "wp-cron-" + unitSafe(s.Name)
-	data := map[string]any{"Site": s}
+	data := map[string]any{"Site": s, "Sandbox": b.phpSandbox()}
 	b.add(
 		m.NewRootFile("/etc/systemd/system/"+unit+".service", b.render("systemd/wp-cron.service", data), 0o644, daemonReload),
 		m.NewRootFile("/etc/systemd/system/"+unit+".timer", b.render("systemd/wp-cron.timer", data), 0o644, daemonReload, m.RestartUnit(unit+".timer")),

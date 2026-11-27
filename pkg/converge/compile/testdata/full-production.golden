@@ -1,5 +1,5 @@
 # server 203.0.113.10 (web + db, ubuntu-24.04)
-# hash 95b8db746b8ea1de324b052b17437668e0b11cae855c5e3351df46d948164deb
+# hash 71edeac55d2dc66db1a3eb7a3e811e6206e0fb8c468234186aac15e44e2f125c
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: shop.example.com: Let's Encrypt HTTP-01 can't issue wildcard certificates; subdomain sites need their own domains listed
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
@@ -778,6 +778,29 @@ file          /etc/systemd/system/example-actions.service 0644 root:root
     │ 
     │ [Install]
     │ WantedBy=multi-user.target
+file          /etc/systemd/system/php8.4-fpm.service.d/50-trellis-sandbox.conf 0644 root:root
+              ↳ run systemctl daemon-reload
+              ↳ restart php8.4-fpm.service (check: php-fpm8.4 -t)
+    │ # Managed by Trellis.
+    │ [Service]
+    │ # Sandbox for code that runs WordPress (PHP-FPM and WP-Cron). WordPress
+    │ # and its plugins can't reach home directories (SSH keys, shell startup
+    │ # files, the deploy agent), use sudo, or write system directories. Files
+    │ # under /srv/www and /tmp work exactly as before.
+    │ ProtectHome=yes
+    │ ProtectSystem=full
+    │ NoNewPrivileges=yes
+    │ PrivateDevices=yes
+    │ ProtectKernelTunables=yes
+    │ ProtectKernelModules=yes
+    │ ProtectKernelLogs=yes
+    │ ProtectControlGroups=yes
+    │ ProtectClock=yes
+    │ ProtectHostname=yes
+    │ ProtectProc=invisible
+    │ RestrictSUIDSGID=yes
+    │ RestrictRealtime=yes
+    │ LockPersonality=yes
 file          /etc/systemd/system/swapfile.swap 0644 root:root
               ↳ run systemctl daemon-reload
     │ # Managed by Trellis.
@@ -803,6 +826,24 @@ file          /etc/systemd/system/wp-cron-example-com.service 0644 root:root
     │ Group=www-data
     │ WorkingDirectory=/srv/www/example.com/current
     │ ExecStart=/usr/local/bin/wp cron event run --due-now
+    │ # Sandbox for code that runs WordPress (PHP-FPM and WP-Cron). WordPress
+    │ # and its plugins can't reach home directories (SSH keys, shell startup
+    │ # files, the deploy agent), use sudo, or write system directories. Files
+    │ # under /srv/www and /tmp work exactly as before.
+    │ ProtectHome=yes
+    │ ProtectSystem=full
+    │ NoNewPrivileges=yes
+    │ PrivateDevices=yes
+    │ ProtectKernelTunables=yes
+    │ ProtectKernelModules=yes
+    │ ProtectKernelLogs=yes
+    │ ProtectControlGroups=yes
+    │ ProtectClock=yes
+    │ ProtectHostname=yes
+    │ ProtectProc=invisible
+    │ RestrictSUIDSGID=yes
+    │ RestrictRealtime=yes
+    │ LockPersonality=yes
 file          /etc/systemd/system/wp-cron-example-com.timer 0644 root:root
               ↳ run systemctl daemon-reload
               ↳ restart wp-cron-example-com.timer
@@ -830,6 +871,24 @@ file          /etc/systemd/system/wp-cron-shop-example-com.service 0644 root:roo
     │ Group=www-data
     │ WorkingDirectory=/srv/www/shop.example.com/current
     │ ExecStart=/bin/sh -c 'for url in $(/usr/local/bin/wp site list --field=url); do /usr/local/bin/wp cron event run --due-now --url="$url"; done'
+    │ # Sandbox for code that runs WordPress (PHP-FPM and WP-Cron). WordPress
+    │ # and its plugins can't reach home directories (SSH keys, shell startup
+    │ # files, the deploy agent), use sudo, or write system directories. Files
+    │ # under /srv/www and /tmp work exactly as before.
+    │ ProtectHome=yes
+    │ ProtectSystem=full
+    │ NoNewPrivileges=yes
+    │ PrivateDevices=yes
+    │ ProtectKernelTunables=yes
+    │ ProtectKernelModules=yes
+    │ ProtectKernelLogs=yes
+    │ ProtectControlGroups=yes
+    │ ProtectClock=yes
+    │ ProtectHostname=yes
+    │ ProtectProc=invisible
+    │ RestrictSUIDSGID=yes
+    │ RestrictRealtime=yes
+    │ LockPersonality=yes
 file          /etc/systemd/system/wp-cron-shop-example-com.timer 0644 root:root
               ↳ run systemctl daemon-reload
               ↳ restart wp-cron-shop-example-com.timer
@@ -854,9 +913,9 @@ file          /home/admin/.ssh/authorized_keys 0600 admin:admin
 file          /home/web/.ssh/authorized_keys 0600 web:www-data
     │ # Managed by Trellis.
     │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
-file          /srv/www/example.com/shared/.env 0640 web:www-data
+file          /srv/www/example.com/shared/.env 0600 web:www-data
     │ <sensitive: 426 bytes>
-file          /srv/www/shop.example.com/shared/.env 0640 web:www-data
+file          /srv/www/shop.example.com/shared/.env 0600 web:www-data
     │ <sensitive: 426 bytes>
 file          /usr/local/share/fonts/Inter.ttf 0644 root:root
     │ font-placeholder

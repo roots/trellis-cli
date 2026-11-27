@@ -1,5 +1,5 @@
 # server development (web + db, ubuntu-24.04)
-# hash 6a268282735f0f3c787d9e55db5170ac7ca7648dff81bcb6c80753c4ad7e0f3b
+# hash 8b8f3484548be0db2dc8d34947061c0cdc1a730b27846b70a279b8546189cff2
 # warning: composer latest-2.x is not pinned in trellis.lock (run `trellis converge lock`)
 # warning: wp-cli 2.12.0 is not pinned in trellis.lock (run `trellis converge lock`)
 
@@ -538,6 +538,29 @@ file          /etc/systemd/journald.conf.d/50-trellis.conf 0644 root:root
     │ # Managed by Trellis.
     │ [Journal]
     │ SystemMaxUse=512M
+file          /etc/systemd/system/php8.4-fpm.service.d/50-trellis-sandbox.conf 0644 root:root
+              ↳ run systemctl daemon-reload
+              ↳ restart php8.4-fpm.service (check: php-fpm8.4 -t)
+    │ # Managed by Trellis.
+    │ [Service]
+    │ # Sandbox for code that runs WordPress (PHP-FPM and WP-Cron). WordPress
+    │ # and its plugins can't reach home directories (SSH keys, shell startup
+    │ # files, the deploy agent), use sudo, or write system directories. Files
+    │ # under /srv/www and /tmp work exactly as before.
+    │ ProtectHome=yes
+    │ ProtectSystem=full
+    │ NoNewPrivileges=yes
+    │ PrivateDevices=yes
+    │ ProtectKernelTunables=yes
+    │ ProtectKernelModules=yes
+    │ ProtectKernelLogs=yes
+    │ ProtectControlGroups=yes
+    │ ProtectClock=yes
+    │ ProtectHostname=yes
+    │ ProtectProc=invisible
+    │ RestrictSUIDSGID=yes
+    │ RestrictRealtime=yes
+    │ LockPersonality=yes
 file          /etc/systemd/system/swapfile.swap 0644 root:root
               ↳ run systemctl daemon-reload
     │ # Managed by Trellis.
@@ -563,6 +586,24 @@ file          /etc/systemd/system/wp-cron-example-com.service 0644 root:root
     │ Group=www-data
     │ WorkingDirectory=/srv/www/example.com/current
     │ ExecStart=/usr/local/bin/wp cron event run --due-now
+    │ # Sandbox for code that runs WordPress (PHP-FPM and WP-Cron). WordPress
+    │ # and its plugins can't reach home directories (SSH keys, shell startup
+    │ # files, the deploy agent), use sudo, or write system directories. Files
+    │ # under /srv/www and /tmp work exactly as before.
+    │ ProtectHome=yes
+    │ ProtectSystem=full
+    │ NoNewPrivileges=yes
+    │ PrivateDevices=yes
+    │ ProtectKernelTunables=yes
+    │ ProtectKernelModules=yes
+    │ ProtectKernelLogs=yes
+    │ ProtectControlGroups=yes
+    │ ProtectClock=yes
+    │ ProtectHostname=yes
+    │ ProtectProc=invisible
+    │ RestrictSUIDSGID=yes
+    │ RestrictRealtime=yes
+    │ LockPersonality=yes
 file          /etc/systemd/system/wp-cron-example-com.timer 0644 root:root
               ↳ run systemctl daemon-reload
               ↳ restart wp-cron-example-com.timer
@@ -583,7 +624,7 @@ file          /home/admin/.ssh/authorized_keys 0600 admin:admin
 file          /home/web/.ssh/authorized_keys 0600 web:www-data
     │ # Managed by Trellis.
     │ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleAdminKey admin@example
-file          /srv/www/example.com/shared/.env 0640 web:www-data
+file          /srv/www/example.com/shared/.env 0600 web:www-data
     │ <sensitive: 374 bytes>
 
 == certs
